@@ -1515,8 +1515,8 @@ export function AgentsWorkspace({
     const panelAgent = agents.find((agent) => agent.slug === agentSlug) || null;
 
     return (
-      <div className="relative z-20 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="relative flex flex-col">
+      <div className="relative z-20 flex shrink-0 flex-col rounded-2xl border border-border bg-card">
+        <div className="flex flex-col">
           <textarea
             value={composerInput}
             onChange={(event) =>
@@ -1571,7 +1571,7 @@ export function AgentsWorkspace({
             </div>
           ) : null}
           {showMentions && filteredMentions.length > 0 ? (
-            <div className="absolute inset-x-0 bottom-11 z-20 rounded-xl border border-border bg-popover p-1 shadow-lg">
+            <div className="absolute inset-x-0 bottom-full z-20 mb-2 max-h-[280px] overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-lg">
               {filteredMentions.slice(0, 6).map((page, index) => (
                 <button
                   key={page.path}
