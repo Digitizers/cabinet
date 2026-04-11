@@ -1,5 +1,9 @@
 # Progress
 
+[2026-04-11] Onboarding launch step: replaced right-side activity feed with animated agent chat preview. Agents now appear to talk to each other in a #general channel — CEO greets the team, delegates tasks to selected agents by name, and agents reply and coordinate. Messages appear one-by-one with typing indicators. Panel height reduced.
+
+[2026-04-11] Onboarding wizard: added final "Start your Cabinet" step with summary card (company, agents, provider status) and data directory choice — "Start fresh here" uses the current dir, "Open existing cabinet" lets users pick a folder via native OS dialog. If a custom dir is chosen, it's saved via the data-dir API before launching.
+
 [2026-04-11] Onboarding intro page: added staggered entrance animations. Elements fade in and slide up sequentially — card border appears first, then "cabinet" title, pronunciation/noun, each dictionary definition one by one, tagline lines, and finally the "Get started" button. Total sequence ~4.2s.
 
 [2026-04-11] Onboarding wizard: limited agent selection to max 5 with CEO and Editor as mandatory (can't uncheck, show "Required" label). Unchecked agents dim and become unclickable at limit. Added counter display. Changed "How big is your team?" to a blurred "Pre-made multi-human multi-agent teams" section with "Coming soon" overlay.

@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   Copy,
   ExternalLink,
+  FolderOpen,
   Info,
   Loader2,
   Rocket,
@@ -21,6 +22,7 @@ import {
   Sparkles,
   Star,
   Terminal,
+  Users,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -70,7 +72,7 @@ const ROLES = ["CEO", "Marketer", "Engineer", "Designer", "Product", "Other"];
 const TEAM_SIZES = ["Just me", "2-5", "5-20", "20+"];
 const COMMUNITY_START_STEP = 4;
 const COMMUNITY_END_STEP = 6;
-const STEP_COUNT = 7;
+const STEP_COUNT = 8;
 
 /* ─── Colors from runcabinet.com ─── */
 const WEB = {
@@ -736,6 +738,135 @@ function groupByDepartment(agents: SuggestedAgent[], templates: LibraryTemplate[
     .map((label) => [label, groups.get(label)!]);
 }
 
+/* ─── Agent Chat Preview (launch step) ─── */
+
+function AgentChatPreview({ agents, companyName }: { agents: SuggestedAgent[]; companyName: string }) {
+  const [visibleCount, setVisibleCount] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Build conversation script from the selected agents
+  const messages = useMemo(() => {
+    const ceo = agents.find((a) => a.slug === "ceo") || agents[0];
+    const others = agents.filter((a) => a.slug !== ceo?.slug);
+    if (!ceo) return [];
+
+    const script: { agent: SuggestedAgent; text: string }[] = [
+      { agent: ceo, text: `Good morning team! Welcome to ${companyName || "the company"}. Let's hit the ground running.` },
+    ];
+
+    if (others[0]) {
+      script.push(
+        { agent: ceo, text: `${others[0].name}, can you start on competitor research?` },
+        { agent: others[0], text: "On it. I'll have a landscape overview ready by end of day." },
+      );
+    }
+    if (others[1]) {
+      script.push(
+        { agent: ceo, text: `${others[1].name}, let's get our content calendar set up.` },
+        { agent: others[1], text: "Already drafting a plan. I'll share it in #content shortly." },
+      );
+    }
+    if (others[0] && others[1]) {
+      script.push(
+        { agent: others[0], text: `${others[1].name}, I found some gaps in our positioning. Want to sync?` },
+        { agent: others[1], text: "Yes! Let's coordinate. I can weave the insights into our first blog post." },
+      );
+    }
+    if (others[2]) {
+      script.push(
+        { agent: ceo, text: `${others[2].name}, what's the status on your side?` },
+        { agent: others[2], text: "Setting up the foundational workflows now. Looking good so far." },
+      );
+    }
+    script.push(
+      { agent: ceo, text: "Great energy everyone. Let's make this a strong first week." },
+    );
+
+    return script;
+  }, [agents, companyName]);
+
+  useEffect(() => {
+    if (visibleCount >= messages.length) return;
+    const timer = setTimeout(() => {
+      setVisibleCount((c) => c + 1);
+    }, visibleCount === 0 ? 600 : 1200 + Math.random() * 800);
+    return () => clearTimeout(timer);
+  }, [visibleCount, messages.length]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [visibleCount]);
+
+  return (
+    <div ref={scrollRef} className="space-y-0.5 overflow-y-auto">
+      {messages.slice(0, visibleCount).map((msg, i) => {
+        const prevAgent = i > 0 ? messages[i - 1].agent.slug : null;
+        const isConsecutive = prevAgent === msg.agent.slug;
+        return (
+          <div
+            key={i}
+            className="onboarding-chat-msg flex gap-2.5 px-1"
+            style={{
+              paddingTop: isConsecutive ? 1 : 8,
+              animationDelay: "0s",
+            }}
+          >
+            {/* Avatar column */}
+            <div className="w-5 shrink-0 flex justify-center">
+              {!isConsecutive && <span className="text-sm leading-none mt-0.5">{msg.agent.emoji}</span>}
+            </div>
+            {/* Message */}
+            <div className="flex-1 min-w-0">
+              {!isConsecutive && (
+                <span
+                  className="text-[11px] font-semibold block mb-0.5"
+                  style={{ color: WEB.accent }}
+                >
+                  {msg.agent.name}
+                </span>
+              )}
+              <p className="text-[11px] leading-relaxed" style={{ color: WEB.text }}>
+                {msg.text}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+      {/* Typing indicator */}
+      {visibleCount < messages.length && visibleCount > 0 && (
+        <div className="flex gap-2.5 px-1 pt-2">
+          <div className="w-5 shrink-0 flex justify-center">
+            <span className="text-sm leading-none mt-0.5">{messages[visibleCount]?.agent.emoji}</span>
+          </div>
+          <div className="flex items-center gap-1 py-1">
+            <span className="onboarding-typing-dot size-1.5 rounded-full" style={{ background: WEB.textTertiary, animationDelay: "0s" }} />
+            <span className="onboarding-typing-dot size-1.5 rounded-full" style={{ background: WEB.textTertiary, animationDelay: "0.15s" }} />
+            <span className="onboarding-typing-dot size-1.5 rounded-full" style={{ background: WEB.textTertiary, animationDelay: "0.3s" }} />
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes onboarding-chat-appear {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes onboarding-typing-bounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-3px); opacity: 1; }
+        }
+        .onboarding-chat-msg {
+          animation: onboarding-chat-appear 0.3s ease-out both;
+        }
+        .onboarding-typing-dot {
+          animation: onboarding-typing-bounce 1s ease-in-out infinite;
+        }
+      `}</style>
+    </div>
+  );
+}
+
 /* ─── Dot-grid background (from runcabinet.com) ─── */
 const dotGridStyle: React.CSSProperties = {
   backgroundImage: `radial-gradient(circle, ${WEB.borderDark} 0.5px, transparent 0.5px)`,
@@ -760,6 +891,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+  const [dataDir, setDataDir] = useState<string>("");
+  const [dataDirPending, setDataDirPending] = useState<string | null>(null);
+  const [dataDirBrowsing, setDataDirBrowsing] = useState(false);
   const anyProviderReady = providers.some((p) => p.available && p.authenticated);
 
   useEffect(() => {
@@ -784,6 +918,13 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
     void fetchGitHubStats();
     return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/system/data-dir")
+      .then((r) => r.json())
+      .then((d) => { if (d.dataDir) setDataDir(d.dataDir); })
+      .catch(() => {});
   }, []);
 
   const checkProvider = useCallback(async () => {
@@ -1545,24 +1686,242 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   </button>
                 ) : (
                   <button
-                    onClick={launch}
-                    disabled={launchDisabled}
-                    className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+                    onClick={() => setStep(COMMUNITY_END_STEP + 1)}
+                    className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5"
                     style={{ background: WEB.accent }}
                   >
-                    {launching ? (
-                      <>
-                        <Loader2 className="animate-spin w-4 h-4" />
-                        Setting up...
-                      </>
-                    ) : (
-                      <>
-                        <Rocket className="w-4 h-4" />
-                        Set up team
-                      </>
-                    )}
+                    Next
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 7: Launch — Summary + data directory */}
+          {step === COMMUNITY_END_STEP + 1 && (
+            <div className="mx-auto flex max-w-4xl flex-col gap-6 animate-in fade-in duration-300">
+              <div className="text-center space-y-2">
+                <h1 className="font-logo text-2xl tracking-tight italic">
+                  Start your <span style={{ color: WEB.accent }}>Cabinet</span>
+                </h1>
+              </div>
+
+              <div
+                className="rounded-2xl overflow-hidden flex flex-col lg:flex-row"
+                style={{
+                  background: WEB.bgCard,
+                  border: `1px solid ${WEB.border}`,
+                  boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
+                }}
+              >
+                {/* Left half — Company + agents */}
+                <div className="p-5 space-y-4 flex-1">
+                  <div className="space-y-1">
+                    <h2 className="font-logo text-xl tracking-tight italic" style={{ color: WEB.text }}>
+                      {answers.companyName || "Your Cabinet"}
+                    </h2>
+                    <p
+                      className="text-[11px] font-semibold uppercase tracking-wider"
+                      style={{ color: WEB.textTertiary }}
+                    >
+                      {answers.description || "Knowledge base + AI team"}
+                    </p>
+                  </div>
+
+                  <div
+                    className="h-px w-full"
+                    style={{ background: WEB.borderLight }}
+                  />
+
+                  <div className="flex flex-col gap-1">
+                    {suggestedAgents.filter((a) => a.checked).map((a) => (
+                      <div
+                        key={a.slug}
+                        className="flex items-center gap-2.5 rounded-lg px-3 py-2"
+                        style={{ background: WEB.bgWarm }}
+                      >
+                        <span className="text-sm">{a.emoji}</span>
+                        <p className="text-[12px] font-medium flex-1" style={{ color: WEB.text }}>
+                          {a.name}
+                        </p>
+                        <span className="relative flex size-2.5">
+                          <span
+                            className="absolute inline-flex size-full animate-ping rounded-full opacity-60"
+                            style={{ background: "#22c55e" }}
+                          />
+                          <span
+                            className="relative inline-flex size-2.5 rounded-full"
+                            style={{ background: "#22c55e" }}
+                          />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right half — Animated agent chat preview */}
+                <div
+                  className="relative flex-1 overflow-hidden"
+                  style={{ background: WEB.bgWarm, borderLeft: `1px solid ${WEB.borderLight}` }}
+                >
+                  {/* Channel header */}
+                  <div
+                    className="sticky top-0 z-20 px-4 py-2 flex items-center gap-2"
+                    style={{ background: WEB.bgWarm, borderBottom: `1px solid ${WEB.borderLight}` }}
+                  >
+                    <span className="text-[11px] font-semibold" style={{ color: WEB.textTertiary }}>#</span>
+                    <span className="text-[11px] font-semibold" style={{ color: WEB.text }}>general</span>
+                  </div>
+                  <div className="p-3 pb-2 space-y-0.5">
+                    <AgentChatPreview agents={suggestedAgents.filter((a) => a.checked)} companyName={answers.companyName} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Data directory */}
+              <div className="space-y-3">
+                  <p
+                    className="text-[11px] font-semibold uppercase tracking-wider"
+                    style={{ color: WEB.textTertiary }}
+                  >
+                    Data directory
+                  </p>
+
+                  <div className="flex flex-col gap-2">
+                    {/* Start fresh */}
+                    <button
+                      onClick={() => setDataDirPending(null)}
+                      className="rounded-xl p-4 text-left transition-all"
+                      style={{
+                        border: `1.5px solid ${!dataDirPending ? WEB.accent : WEB.border}`,
+                        background: !dataDirPending ? WEB.accentBg : WEB.bgWarm,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div
+                          className="flex size-3.5 shrink-0 items-center justify-center rounded-full"
+                          style={{
+                            border: `1.5px solid ${!dataDirPending ? WEB.accent : WEB.borderDark}`,
+                            background: !dataDirPending ? WEB.accent : "transparent",
+                          }}
+                        >
+                          {!dataDirPending && <Check className="size-2 text-white" />}
+                        </div>
+                        <p className="text-sm font-medium" style={{ color: WEB.text }}>
+                          Start fresh here
+                        </p>
+                      </div>
+                      <p className="text-[11px] leading-relaxed" style={{ color: WEB.textSecondary }}>
+                        Use the current directory. Your data lives right next to Cabinet.
+                      </p>
+                      <p
+                        className="text-[10px] font-mono mt-2 truncate"
+                        style={{ color: WEB.textTertiary }}
+                        title={dataDir}
+                      >
+                        {dataDir}
+                      </p>
+                    </button>
+
+                    {/* Open existing */}
+                    <button
+                      onClick={async () => {
+                        setDataDirBrowsing(true);
+                        try {
+                          const res = await fetch("/api/system/pick-directory", { method: "POST" });
+                          const data = await res.json().catch(() => null);
+                          if (data?.path) {
+                            setDataDirPending(data.path);
+                          }
+                        } catch {
+                          // ignore
+                        } finally {
+                          setDataDirBrowsing(false);
+                        }
+                      }}
+                      disabled={dataDirBrowsing}
+                      className="rounded-xl p-4 text-left transition-all"
+                      style={{
+                        border: `1.5px solid ${dataDirPending ? WEB.accent : WEB.border}`,
+                        background: dataDirPending ? WEB.accentBg : WEB.bgWarm,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div
+                          className="flex size-3.5 shrink-0 items-center justify-center rounded-full"
+                          style={{
+                            border: `1.5px solid ${dataDirPending ? WEB.accent : WEB.borderDark}`,
+                            background: dataDirPending ? WEB.accent : "transparent",
+                          }}
+                        >
+                          {dataDirPending && <Check className="size-2 text-white" />}
+                        </div>
+                        <p className="text-sm font-medium" style={{ color: WEB.text }}>
+                          Open existing cabinet
+                        </p>
+                        {dataDirBrowsing && (
+                          <Loader2 className="size-3.5 animate-spin ml-auto" style={{ color: WEB.textTertiary }} />
+                        )}
+                      </div>
+                      <p className="text-[11px] leading-relaxed" style={{ color: WEB.textSecondary }}>
+                        Pick a folder with an existing Cabinet data directory.
+                      </p>
+                      {dataDirPending && (
+                        <p
+                          className="text-[10px] font-mono mt-2 truncate"
+                          style={{ color: WEB.accent }}
+                          title={dataDirPending}
+                        >
+                          {dataDirPending}
+                        </p>
+                      )}
+                      {!dataDirPending && (
+                        <p className="text-[10px] mt-2 flex items-center gap-1" style={{ color: WEB.textTertiary }}>
+                          <FolderOpen className="size-3" />
+                          Browse...
+                        </p>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={() => setStep(COMMUNITY_END_STEP)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                  style={{ color: WEB.textSecondary }}
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Back
+                </button>
+                <button
+                  onClick={async () => {
+                    if (dataDirPending) {
+                      await fetch("/api/system/data-dir", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ dataDir: dataDirPending }),
+                      });
+                    }
+                    launch();
+                  }}
+                  disabled={launchDisabled}
+                  className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+                  style={{ background: WEB.accent }}
+                >
+                  {launching ? (
+                    <>
+                      <Loader2 className="animate-spin w-4 h-4" />
+                      Setting up...
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="w-4 h-4" />
+                      Launch Cabinet
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}
