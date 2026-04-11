@@ -283,20 +283,190 @@ function TeamCarousel() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function TeamBuildStep({
+  agentsLoading,
+  suggestedAgents,
+  libraryTemplates,
+  launchDisabled,
+  toggleAgent,
+  onBack,
+  onNext,
+}: {
+  agentsLoading: boolean;
+  suggestedAgents: SuggestedAgent[];
+  libraryTemplates: LibraryTemplate[];
+  launchDisabled: boolean;
+  toggleAgent: (slug: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const [phase, setPhase] = useState(0);
+  // phase 0: title
+  // phase 1: "import" label
+  // phase 2: carousel visible (no blur yet)
+  // phase 3: blur + coming soon appear
+  // phase 4: "or pick" label + agents
+
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setPhase(1), 600),
+      setTimeout(() => setPhase(2), 1200),
+      setTimeout(() => setPhase(3), 2200),
+      setTimeout(() => setPhase(4), 3200),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Title */}
       <div
-        className="absolute inset-0 backdrop-blur-[1.5px] hover:backdrop-blur-[0.5px] transition-all duration-500 z-10"
-      />
-      <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-        <span
-          className="text-sm font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full"
-          style={{
-            color: WEB.textSecondary,
-            background: `${WEB.bg}CC`,
-            border: `1px solid ${WEB.border}`,
-          }}
+        className="text-center space-y-1 transition-all duration-500"
+        style={{ opacity: 1 }}
+      >
+        <h1 className="font-logo text-2xl tracking-tight italic">
+          Build <span style={{ color: WEB.accent }}>your</span> team
+        </h1>
+      </div>
+
+      {/* Carousel section */}
+      <div
+        className="space-y-2 transition-all duration-700"
+        style={{
+          width: "100vw",
+          marginLeft: "calc(-50vw + 50%)",
+          opacity: phase >= 1 ? 1 : 0,
+          transform: phase >= 1 ? "translateY(0)" : "translateY(12px)",
+        }}
+      >
+        <p
+          className="text-[11px] font-semibold uppercase tracking-wider text-center"
+          style={{ color: WEB.textTertiary }}
         >
-          Coming soon
-        </span>
+          Import a pre-made zero-human team
+        </p>
+        <div className="relative w-full overflow-hidden rounded-xl">
+          {/* Carousel always scrolls */}
+          <div
+            className="transition-opacity duration-500"
+            style={{ opacity: phase >= 2 ? 1 : 0 }}
+          >
+            <TeamCarousel />
+          </div>
+          {/* Blur overlay fades in at phase 3 */}
+          <div
+            className="absolute inset-0 backdrop-blur-[1.5px] hover:backdrop-blur-[0.5px] transition-all duration-1000 z-10"
+            style={{ opacity: phase >= 3 ? 1 : 0 }}
+          />
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none transition-opacity duration-1000"
+            style={{ opacity: phase >= 3 ? 1 : 0 }}
+          >
+            <span
+              className="text-sm font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full"
+              style={{
+                color: WEB.textSecondary,
+                background: `${WEB.bg}CC`,
+                border: `1px solid ${WEB.border}`,
+              }}
+            >
+              Coming soon
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Agent selection */}
+      <div
+        className="transition-all duration-700"
+        style={{
+          width: "100vw",
+          marginLeft: "calc(-50vw + 50%)",
+          opacity: phase >= 4 ? 1 : 0,
+          transform: phase >= 4 ? "translateY(0)" : "translateY(12px)",
+        }}
+      >
+        <p
+          className="text-[11px] font-semibold uppercase tracking-wider text-center mb-2"
+          style={{ color: WEB.textTertiary }}
+        >
+          Or pick your agents
+        </p>
+        {agentsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="size-5 animate-spin" style={{ color: WEB.textTertiary }} />
+          </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto px-6 pb-2 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+            {groupByDepartment(suggestedAgents, libraryTemplates).map(([label, agents]) => (
+              <div
+                key={label}
+                className="rounded-xl p-3 shrink-0"
+                style={{ background: WEB.bgWarm, width: 180 }}
+              >
+                <p
+                  className="mb-2 text-[10px] font-semibold uppercase tracking-wider"
+                  style={{ color: WEB.textTertiary }}
+                >
+                  {label}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {agents.map((agent) => (
+                    <button
+                      key={agent.slug}
+                      onClick={() => toggleAgent(agent.slug)}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all"
+                      style={{
+                        border: `1px solid ${agent.checked ? WEB.accent : WEB.border}`,
+                        background: agent.checked ? WEB.accentBg : WEB.bgCard,
+                      }}
+                    >
+                      <div
+                        className="flex size-3.5 shrink-0 items-center justify-center rounded"
+                        style={{
+                          border: `1.5px solid ${agent.checked ? WEB.accent : WEB.borderDark}`,
+                          background: agent.checked ? WEB.accent : "transparent",
+                        }}
+                      >
+                        {agent.checked && (
+                          <Check className="size-2 text-white" />
+                        )}
+                      </div>
+                      <span className="text-xs">{agent.emoji}</span>
+                      <p className="text-[11px] font-medium truncate" style={{ color: WEB.text }}>
+                        {agent.name}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between pt-1">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+          style={{ color: WEB.textSecondary }}
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back
+        </button>
+        <button
+          onClick={onNext}
+          disabled={launchDisabled}
+          className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+          style={{ background: WEB.accent }}
+        >
+          Next
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -824,106 +994,15 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
           {/* Step 2: Team Suggestion — carousel + agent picker */}
           {step === 2 && (
-            <div className="flex flex-col gap-5 animate-in fade-in duration-300">
-              <div className="text-center space-y-1">
-                <h1 className="font-logo text-2xl tracking-tight italic">
-                  Build <span style={{ color: WEB.accent }}>your</span> team
-                </h1>
-              </div>
-
-              {/* Example cabinets carousel — full viewport width */}
-              <div className="space-y-2" style={{ width: "100vw", marginLeft: "calc(-50vw + 50%)" }}>
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-wider text-center"
-                  style={{ color: WEB.textTertiary }}
-                >
-                  Import a pre-made zero-human team
-                </p>
-                <TeamCarousel />
-              </div>
-
-              {/* Agent selection */}
-              {/* Agent selection — horizontal scroll */}
-              <div style={{ width: "100vw", marginLeft: "calc(-50vw + 50%)" }}>
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-wider text-center mb-2"
-                  style={{ color: WEB.textTertiary }}
-                >
-                  Or pick your agents
-                </p>
-                {agentsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="size-5 animate-spin" style={{ color: WEB.textTertiary }} />
-                  </div>
-                ) : (
-                  <div className="flex gap-3 overflow-x-auto px-6 pb-2 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
-                    {groupByDepartment(suggestedAgents, libraryTemplates).map(([label, agents]) => (
-                      <div
-                        key={label}
-                        className="rounded-xl p-3 shrink-0"
-                        style={{ background: WEB.bgWarm, width: 180 }}
-                      >
-                        <p
-                          className="mb-2 text-[10px] font-semibold uppercase tracking-wider"
-                          style={{ color: WEB.textTertiary }}
-                        >
-                          {label}
-                        </p>
-                        <div className="flex flex-col gap-1.5">
-                          {agents.map((agent) => (
-                            <button
-                              key={agent.slug}
-                              onClick={() => toggleAgent(agent.slug)}
-                              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all"
-                              style={{
-                                border: `1px solid ${agent.checked ? WEB.accent : WEB.border}`,
-                                background: agent.checked ? WEB.accentBg : WEB.bgCard,
-                              }}
-                            >
-                              <div
-                                className="flex size-3.5 shrink-0 items-center justify-center rounded"
-                                style={{
-                                  border: `1.5px solid ${agent.checked ? WEB.accent : WEB.borderDark}`,
-                                  background: agent.checked ? WEB.accent : "transparent",
-                                }}
-                              >
-                                {agent.checked && (
-                                  <Check className="size-2 text-white" />
-                                )}
-                              </div>
-                              <span className="text-xs">{agent.emoji}</span>
-                              <p className="text-[11px] font-medium truncate" style={{ color: WEB.text }}>
-                                {agent.name}
-                              </p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  onClick={() => setStep(1)}
-                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
-                  style={{ color: WEB.textSecondary }}
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  Back
-                </button>
-                <button
-                  onClick={() => setStep(3)}
-                  disabled={launchDisabled}
-                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
-                  style={{ background: WEB.accent }}
-                >
-                  Next
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
+            <TeamBuildStep
+              agentsLoading={agentsLoading}
+              suggestedAgents={suggestedAgents}
+              libraryTemplates={libraryTemplates}
+              launchDisabled={launchDisabled}
+              toggleAgent={toggleAgent}
+              onBack={() => setStep(1)}
+              onNext={() => setStep(3)}
+            />
           )}
 
           {/* Step 4: AI Provider Check */}
