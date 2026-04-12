@@ -283,25 +283,28 @@ export function TreeView() {
         ) : null}
 
         {/* ── Cabinet (depth 0) ───────────────────────────── */}
-        <button
-          onClick={() => {
-            setCabinetExpanded(!cabinetExpanded);
-            openCabinetOverview(activeCabinet?.path || cabinetPath);
-          }}
-          className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2 pb-1 w-full text-left flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
-          style={pad(0)}
-        >
-          <ChevronRight
-            className={cn(
-              "h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform duration-150",
-              cabinetExpanded && "rotate-90"
-            )}
-          />
-          <Archive className="h-3.5 w-3.5 shrink-0" />
-          {activeCabinet
-            ? activeCabinet.frontmatter?.title || activeCabinet.name
-            : "Cabinet"}
-        </button>
+        <div className="flex items-center gap-1.5 px-3 pt-2 pb-1 w-full" style={pad(0)}>
+          <button
+            onClick={() => setCabinetExpanded(!cabinetExpanded)}
+            className="shrink-0 text-muted-foreground/50 hover:text-foreground/80 transition-colors"
+          >
+            <ChevronRight
+              className={cn(
+                "h-3 w-3 shrink-0 transition-transform duration-150",
+                cabinetExpanded && "rotate-90"
+              )}
+            />
+          </button>
+          <button
+            onClick={() => openCabinetOverview(activeCabinet?.path || cabinetPath)}
+            className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-foreground/80 transition-colors"
+          >
+            <Archive className="h-3.5 w-3.5 shrink-0" />
+            {activeCabinet
+              ? activeCabinet.frontmatter?.title || activeCabinet.name
+              : "Cabinet"}
+          </button>
+        </div>
 
         {cabinetExpanded && (
           <>
@@ -324,7 +327,6 @@ export function TreeView() {
               </button>
               <button
                 onClick={() => {
-                  setAgentsExpanded(!agentsExpanded);
                   if (activeCabinet) {
                     setSection({
                       type: "agents",
@@ -539,26 +541,30 @@ export function TreeView() {
             <div className="mx-3 my-1.5 border-t border-border" />
 
             {/* ── Knowledge Base label ──────────────────────── */}
-            <ContextMenu>
+            <div className="flex items-center gap-1.5 px-3 pt-2 pb-1 w-full" style={pad(0)}>
+              <button
+                onClick={() => setKbExpanded(!kbExpanded)}
+                className="shrink-0 text-muted-foreground/50 hover:text-foreground/80 transition-colors"
+              >
+                <ChevronRight
+                  className={cn(
+                    "h-3 w-3 shrink-0 transition-transform duration-150",
+                    kbExpanded && "rotate-90"
+                  )}
+                />
+              </button>
+              <ContextMenu>
               <ContextMenuTrigger>
                 <button
                   onClick={() => {
-                    setKbExpanded(!kbExpanded);
                     if (activeCabinet) {
                       openCabinetDataPage(activeCabinet.path);
                       return;
                     }
                     setSection({ type: "home" });
                   }}
-                  className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2 pb-1 w-full text-left flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
-                  style={pad(0)}
+                  className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-left flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
                 >
-                  <ChevronRight
-                    className={cn(
-                      "h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform duration-150",
-                      kbExpanded && "rotate-90"
-                    )}
-                  />
                   <BookOpen className="h-3.5 w-3.5 shrink-0" />
                   {kbSectionLabel}
                 </button>
@@ -592,7 +598,8 @@ export function TreeView() {
                   Open in Finder
                 </ContextMenuItem>
               </ContextMenuContent>
-            </ContextMenu>
+              </ContextMenu>
+            </div>
 
             {kbExpanded && (
               <>
