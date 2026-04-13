@@ -1,5 +1,9 @@
 # Progress
 
+[2026-04-13] Created "Warp Ventures OS" — a comprehensive VC operating system cabinet under data/vc-os. Includes 47 files across 9 modules: Intelligence Hub (daily X digest, 5 watchlist topics, live intelligence feed webapp), Events Calendar webapp, Deal Flow kanban webapp with 15 deals, Portfolio section with 5 companies each having metrics CSVs and news logs, Portfolio Dashboard webapp with Chart.js charts, Competitors section with Mermaid landscape diagram, Team profiles, LP management with commitments CSV, Finance section with IRR model/cap table/fees CSVs and Q1 report, and Programs (Fellowship + Accelerator) with cohort CSVs. Nine scheduled jobs across root/.jobs, portfolio/.jobs, intelligence/.jobs, and deal-flow/.jobs for daily briefs, portfolio health checks, deal pipeline reviews, board prep, LP updates, competitor intel, and market maps.
+
+[2026-04-13] Fix "New Page" failing at root level — added POST handler to /api/pages/route.ts so creating a root page no longer hits a 405.
+
 [2026-04-13] Task board inbox empty state now shows an "Add task" button instead of instructing users to click the header Add button.
 
 [2026-04-13] Sidebar "New Page" and "New Cabinet" buttons now use text-xs, tighter gap/padding, and whitespace-nowrap to keep labels on a single line.
