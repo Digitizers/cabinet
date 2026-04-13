@@ -747,8 +747,12 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
 
             {/* ── Section 5: Schedule Calendar / List ── */}
             <section
-              className="-mx-4 border-b border-border/70 px-4 py-8 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
-              style={{ backgroundColor: sectionSurfaces.operations }}
+              className={cn(
+                calendarFullscreen
+                  ? "fixed inset-0 z-50 overflow-y-auto bg-background px-6 py-6"
+                  : "-mx-4 border-b border-border/70 px-4 py-8 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+              )}
+              style={calendarFullscreen ? undefined : { backgroundColor: sectionSurfaces.operations }}
             >
               {/* Header */}
               <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
@@ -834,6 +838,18 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
                       <span className="text-sm font-medium text-foreground">
                         {calendarLabel}
                       </span>
+
+                      <button
+                        onClick={() => setCalendarFullscreen((v) => !v)}
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                        title={calendarFullscreen ? "Exit full screen" : "Full screen"}
+                      >
+                        {calendarFullscreen ? (
+                          <Minimize2 className="h-3.5 w-3.5" />
+                        ) : (
+                          <Maximize2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
                     </>
                   )}
                 </div>
@@ -846,6 +862,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
                   anchor={calendarAnchor}
                   agents={overview?.agents || []}
                   jobs={overview?.jobs || []}
+                  fullscreen={calendarFullscreen}
                   onEventClick={handleScheduleEventClick}
                   onDayClick={(date) => {
                     setCalendarMode("day");

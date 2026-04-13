@@ -49,6 +49,7 @@ interface ScheduleCalendarProps {
   anchor: Date;
   agents: CabinetAgentSummary[];
   jobs: CabinetJobSummary[];
+  fullscreen?: boolean;
   onEventClick: (event: ScheduleEvent) => void;
   onDayClick: (date: Date) => void;
 }
@@ -101,10 +102,12 @@ function EventPill({
 function TimeGridView({
   events,
   days,
+  fullscreen,
   onEventClick,
 }: {
   events: ScheduleEvent[];
   days: Date[];
+  fullscreen?: boolean;
   onEventClick: (event: ScheduleEvent) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -197,7 +200,7 @@ function TimeGridView({
       <div
         ref={scrollRef}
         className="relative overflow-y-auto"
-        style={{ maxHeight: 520 }}
+        style={{ maxHeight: fullscreen ? "calc(100vh - 180px)" : 520 }}
       >
         <div
           className="relative grid"
@@ -451,6 +454,7 @@ export function ScheduleCalendar({
   anchor,
   agents,
   jobs,
+  fullscreen,
   onEventClick,
   onDayClick,
 }: ScheduleCalendarProps) {
@@ -488,6 +492,7 @@ export function ScheduleCalendar({
     <TimeGridView
       events={events}
       days={days}
+      fullscreen={fullscreen}
       onEventClick={onEventClick}
     />
   );
