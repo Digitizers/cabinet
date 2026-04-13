@@ -252,3 +252,9 @@
 [2026-04-13] Registry header title changed from "Cabinet Registry" to "Cabinets | AI teams, off the shelf" with the tagline in muted weight.
 
 [2026-04-13] Editor conversations now resolve their owning cabinet by walking up the directory tree to find the nearest .cabinet manifest. Added findOwningCabinetPathForPage utility. Conversations list shows "edited: {path}" for editor agent entries.
+
+[2026-04-13] AI Editor panel now shows optimistic "starting" sessions immediately after submit and promotes one selected live session to a visible stream area, even when work is running on another page. Added page/agent context chips, "Open Page" jump action, and background-mounted hidden terminals for non-selected sessions so streaming stays alive while the UI feels responsive.
+
+[2026-04-13] Editor prompt now always includes `getting-started` as built-in reference context and explicitly tells the editor to use it as source of truth for supported Cabinet file types and UI handling. This keeps the edited page first in `mentionedPaths`, so editor session labels still point at the actual target page.
+
+[2026-04-13] Moved editor file-type and Cabinet-structure knowledge out of `data/getting-started` and into a real root editor persona at `data/.agents/editor/persona.md`, which is the persona the editor runtime actually reads. Removed the hidden `getting-started` prompt injection and replaced it with explicit prompt guidance to follow the target's real file type instead of assuming markdown.
