@@ -564,30 +564,19 @@ function ConversationRow({
 }) {
   const hasActions = onStop || onRestart;
   return (
-    <div className="group flex w-full items-center border-b border-border/70 last:border-b-0 hover:bg-accent/35 transition-colors">
+    <div className="group relative flex w-full items-stretch border-b border-border/70 last:border-b-0 hover:bg-accent/35 transition-colors">
+      {/* Main clickable area — title + meta, no trigger icon inside */}
       <button
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-start gap-2 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-start gap-2 py-2 pl-3 pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <div className="mt-0.5 shrink-0">
           <ConversationStatusIcon status={conversation.status} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-[11.5px] font-medium leading-[1.35] text-foreground">
-              {conversation.title}
-            </p>
-            <span
-              aria-label={TRIGGER_LABELS[conversation.trigger]}
-              title={TRIGGER_LABELS[conversation.trigger]}
-              className={cn(
-                "inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full",
-                TRIGGER_STYLES[conversation.trigger]
-              )}
-            >
-              <TriggerIcon trigger={conversation.trigger} className="h-2.75 w-2.75" />
-            </span>
-          </div>
+          <p className="truncate text-[11.5px] font-medium leading-[1.35] text-foreground">
+            {conversation.title}
+          </p>
           <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
             <p className="truncate">
               {agentLabel}
@@ -598,9 +587,23 @@ function ConversationRow({
         </div>
       </button>
 
-      {/* Action buttons: always in flow (no layout shift), invisible until hover */}
+      {/* Trigger icon — always at far right, in flow, no layout shift */}
+      <div className="flex shrink-0 items-center pr-3 pl-1">
+        <span
+          aria-label={TRIGGER_LABELS[conversation.trigger]}
+          title={TRIGGER_LABELS[conversation.trigger]}
+          className={cn(
+            "inline-flex h-5.5 w-5.5 items-center justify-center rounded-full",
+            TRIGGER_STYLES[conversation.trigger]
+          )}
+        >
+          <TriggerIcon trigger={conversation.trigger} className="h-2.75 w-2.75" />
+        </span>
+      </div>
+
+      {/* Action buttons — absolutely cover the trigger icon slot on hover, higher z-index */}
       {hasActions && (
-        <div className="flex shrink-0 items-center gap-0.5 pr-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="absolute inset-y-0 right-0 z-10 flex items-center gap-0.5 pr-3 pl-1 opacity-0 transition-opacity group-hover:opacity-100 bg-accent/80 rounded-r-[inherit]">
           {onStop && (
             <button
               onClick={(e) => { e.stopPropagation(); onStop(); }}
