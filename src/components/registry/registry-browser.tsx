@@ -852,7 +852,7 @@ export function RegistryBrowser() {
             <h1 className="text-xl font-bold" style={{ color: P.textPrimary }}>
               Cabinets{" "}
               <span className="font-normal" style={{ color: P.textSecondary }}>
-                | AI teams, off the shelf
+                AI teams, off the shelf
               </span>
             </h1>
           </div>
