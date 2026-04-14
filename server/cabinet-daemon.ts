@@ -38,9 +38,9 @@ import {
   appendConversationTranscript,
   finalizeConversation,
   listConversationMetas,
-  parseCabinetBlock,
   readConversationMeta,
   readConversationTranscript,
+  transcriptShowsCompletedRun,
 } from "../src/lib/agents/conversation-store";
 import {
   getTokenFromAuthorizationHeader,
@@ -132,6 +132,7 @@ interface PtySession {
   autoExitFallbackTimer?: NodeJS.Timeout;
   resolvedStatus?: "completed" | "failed";
   resolvingStatus?: boolean;
+  claudeCompletionTimer?: NodeJS.Timeout;
   readyStrategy?: "claude";
   outputMode?: "plain" | "claude-stream-json";
   structuredOutputBuffer?: string;
@@ -140,6 +141,7 @@ interface PtySession {
 
 const sessions = new Map<string, PtySession>();
 const completedOutput = new Map<string, { output: string; completedAt: number }>();
+const CLAUDE_AUTO_EXIT_GRACE_MS = 1200;
 
 function resolveSessionCwd(input?: string): string {
   if (!input) return DATA_DIR;
@@ -191,24 +193,37 @@ function claudePromptReady(output: string): boolean {
   );
 }
 
-function claudeIdlePromptVisible(output: string): boolean {
-  const plain = stripAnsi(output).replace(/\r/g, "\n");
-  return /(?:^|\n)[❯>]\s*$/.test(plain);
+function clearClaudeCompletionTimer(session: PtySession): void {
+  if (!session.claudeCompletionTimer) return;
+  clearTimeout(session.claudeCompletionTimer);
+  delete session.claudeCompletionTimer;
 }
 
-function transcriptShowsCompletedRun(output: string, prompt?: string): boolean {
-  // Keep this prompt-aware. If we count placeholder SUMMARY/ARTIFACT lines from
-  // the echoed startup prompt as "completed", the UI flips out of live terminal
-  // mode after a few seconds and the session appears corrupted.
-  const parsed = parseCabinetBlock(output, prompt);
-  if (parsed.summary || parsed.artifactPaths.length > 0) {
-    return true;
+function completeClaudeSession(session: PtySession, output: string): void {
+  if (session.exited || session.autoExitRequested || session.resolvedStatus) {
+    return;
   }
 
-  const plain = stripAnsi(output).replace(/\r/g, "\n");
-  return (
-    claudeIdlePromptVisible(plain)
-  );
+  clearClaudeCompletionTimer(session);
+  session.resolvedStatus = "completed";
+  session.resolvingStatus = true;
+  session.autoExitRequested = true;
+  const plain = stripAnsi(output);
+  completedOutput.set(session.id, { output: plain, completedAt: Date.now() });
+  void finalizeConversation(session.id, {
+    status: "completed",
+    exitCode: 0,
+    output: plain,
+  }).finally(() => {
+    session.resolvingStatus = false;
+  });
+  session.pty.write("/exit\r");
+  session.autoExitFallbackTimer = setTimeout(() => {
+    if (session.exited) return;
+    try {
+      session.pty.kill();
+    } catch {}
+  }, 1500);
 }
 
 function extractClaudeDeltaText(payload: unknown): string {
@@ -381,30 +396,40 @@ function maybeAutoExitClaudeSession(session: PtySession): void {
 
   const submittedLength = session.promptSubmittedOutputLength ?? 0;
   const currentOutput = session.output.join("");
-  if (currentOutput.length <= submittedLength) return;
+  if (currentOutput.length <= submittedLength) {
+    clearClaudeCompletionTimer(session);
+    return;
+  }
 
   const outputSincePrompt = currentOutput.slice(submittedLength);
-  if (!claudeIdlePromptVisible(outputSincePrompt)) return;
+  if (!transcriptShowsCompletedRun(outputSincePrompt, session.initialPrompt)) {
+    clearClaudeCompletionTimer(session);
+    return;
+  }
 
-  session.resolvedStatus = "completed";
-  session.resolvingStatus = true;
-  session.autoExitRequested = true;
-  const plain = stripAnsi(currentOutput);
-  completedOutput.set(session.id, { output: plain, completedAt: Date.now() });
-  void finalizeConversation(session.id, {
-    status: "completed",
-    exitCode: 0,
-    output: plain,
-  }).finally(() => {
-    session.resolvingStatus = false;
-  });
-  session.pty.write("/exit\r");
-  session.autoExitFallbackTimer = setTimeout(() => {
-    if (session.exited) return;
-    try {
-      session.pty.kill();
-    } catch {}
-  }, 1500);
+  if (session.claudeCompletionTimer) {
+    return;
+  }
+
+  session.claudeCompletionTimer = setTimeout(() => {
+    delete session.claudeCompletionTimer;
+    if (session.exited || session.autoExitRequested || session.resolvedStatus) {
+      return;
+    }
+
+    const latestOutput = session.output.join("");
+    const latestSubmittedLength = session.promptSubmittedOutputLength ?? 0;
+    if (latestOutput.length <= latestSubmittedLength) {
+      return;
+    }
+
+    const latestSincePrompt = latestOutput.slice(latestSubmittedLength);
+    if (!transcriptShowsCompletedRun(latestSincePrompt, session.initialPrompt)) {
+      return;
+    }
+
+    completeClaudeSession(session, latestOutput);
+  }, CLAUDE_AUTO_EXIT_GRACE_MS);
 }
 
 async function finalizeSessionConversation(session: PtySession): Promise<void> {
@@ -678,6 +703,7 @@ function createDetachedSession(input: {
       clearTimeout(session.autoExitFallbackTimer);
       delete session.autoExitFallbackTimer;
     }
+    clearClaudeCompletionTimer(session);
 
     const trailingDisplay = flushStructuredOutput(session);
     if (trailingDisplay) {
@@ -990,6 +1016,26 @@ const server = http.createServer(async (req, res) => {
     if (active) {
       const raw = active.output.join("");
       const plain = stripAnsi(raw);
+      if (
+        active.readyStrategy === "claude" &&
+        active.initialPrompt &&
+        active.initialPromptSent &&
+        !active.exited &&
+        !active.autoExitRequested &&
+        !active.resolvedStatus &&
+        transcriptShowsCompletedRun(plain, active.initialPrompt)
+      ) {
+        completeClaudeSession(active, plain);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            sessionId,
+            status: "completed",
+            output: plain,
+          })
+        );
+        return;
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({

@@ -77,9 +77,18 @@ interface ParsedCabinetBlock {
   artifactPaths: string[];
 }
 
+interface PromptEchoMatchers {
+  normalizedLines: Set<string>;
+  compactLines: Set<string>;
+  compactFragments: string[];
+}
+
 const PLACEHOLDER_SUMMARY = "one short summary line";
 const PLACEHOLDER_CONTEXT = "optional lightweight memory/context summary";
 const PLACEHOLDER_ARTIFACT_HINT = "relative/path/to/file for every KB file you created or updated";
+const PLACEHOLDER_SUMMARY_FINGERPRINT = compactCabinetValue(PLACEHOLDER_SUMMARY);
+const PLACEHOLDER_CONTEXT_FINGERPRINT = compactCabinetValue(PLACEHOLDER_CONTEXT);
+const PLACEHOLDER_ARTIFACT_FINGERPRINT = compactCabinetValue(PLACEHOLDER_ARTIFACT_HINT);
 
 function formatTimestampSegment(date: Date): string {
   return date.toISOString().replace(/[:.]/g, "-");
@@ -144,8 +153,18 @@ export function extractConversationRequest(prompt: string): string {
 function normalizeArtifactPath(rawPath: string): string | null {
   const trimmed = sanitizeCabinetFieldValue(rawPath).trim();
   if (!trimmed) return null;
-  if (trimmed === PLACEHOLDER_ARTIFACT_HINT) return null;
+  if (isPlaceholderCabinetValue(trimmed)) return null;
   if (trimmed.includes("for every KB file")) return null;
+  if (compactCabinetValue(trimmed).includes(PLACEHOLDER_ARTIFACT_FINGERPRINT)) {
+    return null;
+  }
+  if (
+    /(?:\*\*|##\s|User request:|Working Style|Current Context|Output Structure|Brand voice|You are the\b)/i.test(
+      trimmed
+    )
+  ) {
+    return null;
+  }
 
   const candidate = (() => {
     const extensionMatch = trimmed.match(/^(.+?\.[A-Za-z0-9]+)(?:\s|$)/);
@@ -165,6 +184,7 @@ function normalizeArtifactPath(rawPath: string): string | null {
 
   const normalized = candidate.replace(/^\.?\//, "");
   if (!normalized || normalized.startsWith("..")) return null;
+  if (/^relative\/path\/to\/file\d*$/i.test(normalized)) return null;
   return normalized;
 }
 
@@ -179,18 +199,23 @@ function sanitizeCabinetFieldValue(value: string): string {
     .trim();
 }
 
+function compactCabinetValue(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 function isPlaceholderCabinetValue(value?: string): boolean {
   if (!value) return false;
-  const normalized = value.trim().toLowerCase();
+  const normalized = compactCabinetValue(value.trim());
   return (
-    normalized === PLACEHOLDER_SUMMARY ||
-    normalized === PLACEHOLDER_CONTEXT ||
-    normalized === PLACEHOLDER_ARTIFACT_HINT
+    normalized === PLACEHOLDER_SUMMARY_FINGERPRINT ||
+    normalized === PLACEHOLDER_CONTEXT_FINGERPRINT ||
+    normalized === PLACEHOLDER_ARTIFACT_FINGERPRINT
   );
 }
 
 export function parseCabinetBlock(output: string, prompt?: string): ParsedCabinetBlock {
   const cleaned = cleanConversationOutputForParsing(output, prompt);
+  const promptEchoMatchers = buildPromptEchoMatchers(prompt);
   const matches = Array.from(cleaned.matchAll(/```cabinet\s*([\s\S]*?)```/gi));
   const match = matches.at(-1);
   const artifactPaths: string[] = [];
@@ -204,6 +229,9 @@ export function parseCabinetBlock(output: string, prompt?: string): ParsedCabine
       .filter(Boolean);
 
     for (const line of lines) {
+      if (isPromptEchoLine(line, promptEchoMatchers)) {
+        continue;
+      }
       if (line.startsWith("SUMMARY:")) {
         summary = sanitizeCabinetFieldValue(line.slice("SUMMARY:".length));
         continue;
@@ -244,6 +272,11 @@ export function parseCabinetBlock(output: string, prompt?: string): ParsedCabine
     if ((entry.index ?? 0) < relevantStart) continue;
 
     const field = entry[1];
+    const rawValue = entry[2] || "";
+    const rawLine = `${field}: ${rawValue}`.trim();
+    if (isPromptEchoLine(rawLine, promptEchoMatchers)) {
+      continue;
+    }
     const value = sanitizeCabinetFieldValue(entry[2] || "");
     if (field === "SUMMARY") {
       summary = value;
@@ -402,42 +435,77 @@ function normalizeDisplayLine(line: string): string {
     .trim();
 }
 
-function buildPromptEchoLineSet(prompt?: string): Set<string> {
-  if (!prompt) return new Set<string>();
+function buildPromptEchoMatchers(prompt?: string): PromptEchoMatchers {
+  if (!prompt) {
+    return {
+      normalizedLines: new Set<string>(),
+      compactLines: new Set<string>(),
+      compactFragments: [],
+    };
+  }
 
-  return new Set(
-    stripAnsiText(prompt)
-      .replace(/\r+/g, "\n")
-      .split("\n")
-      .map((line) => normalizeDisplayLine(line))
-      .filter((line) => line.length >= 4)
-  );
+  const normalizedLines = new Set<string>();
+  const compactLines = new Set<string>();
+  for (const line of stripAnsiText(prompt).replace(/\r+/g, "\n").split("\n")) {
+    const normalized = normalizeDisplayLine(line);
+    if (normalized.length >= 4) {
+      normalizedLines.add(normalized);
+    }
+    const compact = compactCabinetValue(line);
+    if (compact.length >= 12) {
+      compactLines.add(compact);
+    }
+  }
+
+  return {
+    normalizedLines,
+    compactLines,
+    compactFragments: [...compactLines]
+      .filter((fragment) => fragment.length >= 24)
+      .sort((left, right) => right.length - left.length),
+  };
 }
 
 function stripPromptEchoFromTranscript(transcript: string, prompt?: string): string {
-  const promptEchoLines = buildPromptEchoLineSet(prompt);
-  if (promptEchoLines.size === 0) return transcript;
+  const promptEchoMatchers = buildPromptEchoMatchers(prompt);
+  if (
+    promptEchoMatchers.normalizedLines.size === 0 &&
+    promptEchoMatchers.compactLines.size === 0
+  ) {
+    return transcript;
+  }
 
   return transcript
     .split("\n")
     .filter((line) => {
-      const normalized = normalizeDisplayLine(line);
-      return !normalized || !promptEchoLines.has(normalized);
+      return !isPromptEchoLine(line, promptEchoMatchers);
     })
     .join("\n");
 }
 
-function isPromptEchoLine(line: string, promptEchoLines: Set<string>): boolean {
+function isPromptEchoLine(line: string, promptEchoMatchers: PromptEchoMatchers): boolean {
   const normalized = normalizeDisplayLine(line);
   if (!normalized) return false;
-  if (promptEchoLines.has(normalized)) return true;
+  if (promptEchoMatchers.normalizedLines.has(normalized)) return true;
+
+  const compact = compactCabinetValue(line);
+  if (compact && promptEchoMatchers.compactLines.has(compact)) {
+    return true;
+  }
 
   let fragmentMatches = 0;
-  for (const fragment of promptEchoLines) {
+  for (const fragment of promptEchoMatchers.normalizedLines) {
     if (fragment.length < 12) continue;
     if (normalized.includes(fragment)) {
       fragmentMatches += 1;
       if (fragmentMatches >= 2) return true;
+    }
+  }
+
+  if (compact.length >= 24) {
+    for (const fragment of promptEchoMatchers.compactFragments) {
+      if (compact === fragment) return true;
+      if (compact.includes(fragment)) return true;
     }
   }
 
@@ -454,12 +522,59 @@ function cleanConversationOutputForParsing(output: string, prompt?: string): str
   );
 }
 
+function isClaudeIdleTailNoise(line: string): boolean {
+  const normalized = normalizeDisplayLine(line);
+  if (!normalized) return true;
+  if (/^[─-]{8,}$/.test(normalized)) return true;
+  if (/^⏵⏵/.test(normalized)) return true;
+  if (/^[✢✳✶✻✽·]$/.test(normalized)) return true;
+  if (/^⎿\s*Tip:/i.test(normalized) || /^Tip:/i.test(normalized)) return true;
+  if (/^Brewed for\b/i.test(normalized)) return true;
+
+  const compact = compactCabinetValue(line);
+  if (!compact) return true;
+  if (compact.includes("esctointerrupt")) return false;
+  if (compact.includes("bypasspermissionson")) return true;
+  if (compact.includes("shifttabtocycle")) return true;
+  if (compact.includes("brewedfor")) return true;
+  if (
+    /(orbiting|sublimating|sketching|brewing|thinking|manifesting|twisting|lollygagging|contemplating|vibing|sauteed|improvising|envisioning|churning)/i.test(
+      normalized
+    )
+  ) {
+    return false;
+  }
+
+  return false;
+}
+
+function hasClaudePromptTail(transcript: string, prompt?: string): boolean {
+  const cleaned = cleanConversationOutputForParsing(transcript, prompt)
+    .replace(/[─-]{8,}/g, "\n")
+    .replace(/❯\s*(?=(?:SUMMARY|CONTEXT|ARTIFACT):)/g, "\n");
+  const lines = cleaned.split("\n");
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const normalized = normalizeDisplayLine(lines[index] || "");
+    if (!normalized) continue;
+    if (/^[❯>]$/.test(normalized)) {
+      return true;
+    }
+    if (isClaudeIdleTailNoise(lines[index] || "")) {
+      continue;
+    }
+    return false;
+  }
+
+  return false;
+}
+
 export function formatConversationTranscriptForDisplay(
   transcript: string,
   prompt?: string
 ): string {
   const cleaned = cleanConversationOutputForParsing(transcript, prompt);
-  const promptEchoLines = buildPromptEchoLineSet(prompt);
+  const promptEchoMatchers = buildPromptEchoMatchers(prompt);
   const normalized = cleaned
     .replace(/[─-]{8,}/g, "\n")
     .replace(/\s*(SUMMARY:|CONTEXT:|ARTIFACT:)\s*/g, "\n$1")
@@ -469,7 +584,7 @@ export function formatConversationTranscriptForDisplay(
     const normalizedLine = normalizeDisplayLine(trimmed);
     return (
       !trimmed ||
-      isPromptEchoLine(trimmed, promptEchoLines) ||
+      isPromptEchoLine(trimmed, promptEchoMatchers) ||
       normalizedLine === PLACEHOLDER_SUMMARY ||
       normalizedLine === PLACEHOLDER_CONTEXT ||
       normalizedLine === PLACEHOLDER_ARTIFACT_HINT ||
@@ -550,18 +665,18 @@ export function formatConversationTranscriptForDisplay(
   return filtered.join("\n").trim();
 }
 
-function transcriptShowsCompletedRun(transcript: string, prompt?: string): boolean {
+function hasMeaningfulCabinetResult(transcript: string, prompt?: string): boolean {
+  const parsed = parseCabinetBlock(transcript, prompt);
+  return Boolean(parsed.summary || parsed.contextSummary || parsed.artifactPaths.length > 0);
+}
+
+export function transcriptShowsCompletedRun(transcript: string, prompt?: string): boolean {
   // Keep this prompt-aware. A looser regex here will treat the echoed prompt's
   // cabinet instructions as a finished run and force the UI out of streaming mode.
-  const parsed = parseCabinetBlock(transcript, prompt);
-  if (parsed.summary || parsed.artifactPaths.length > 0) {
-    return true;
+  if (!hasMeaningfulCabinetResult(transcript, prompt)) {
+    return false;
   }
-
-  const plain = cleanConversationOutputForParsing(transcript, prompt);
-  return (
-    /(?:^|\n)[❯>]\s*$/.test(plain)
-  );
+  return hasClaudePromptTail(transcript, prompt);
 }
 
 async function maybeResolveCompletedConversation(
