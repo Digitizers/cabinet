@@ -827,7 +827,7 @@ export function TaskRuntimePicker({
               className="gap-0"
             >
               <div className="overflow-hidden border-x border-b border-border/70">
-                <div className="px-1.5 pt-1.5">
+                <div className="flex px-1.5 pt-1.5">
                   <TabsList
                     variant="line"
                     aria-label="Task providers"
@@ -837,7 +837,7 @@ export function TaskRuntimePicker({
                       <TabsTrigger
                         key={provider.id}
                         value={provider.id}
-                        className="relative -mb-px h-7 flex-none gap-1.5 rounded-t-md rounded-b-none border-0 !bg-background px-2.5 py-1 text-[9px] font-medium text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:z-10 data-active:!bg-background data-active:text-foreground data-active:shadow-none"
+                        className="relative -mb-px h-7 flex-none gap-1.5 rounded-t-md rounded-b-none border-0 !bg-muted/60 px-2.5 py-1 text-[9px] font-medium text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:z-10 data-active:!bg-background data-active:text-foreground data-active:shadow-none"
                       >
                         <ProviderGlyph
                           icon={provider.icon}

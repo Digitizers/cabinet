@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-16] Runtime picker: fixed gap between tabs and model table by wrapping the TabsList in a flex container, eliminating the CSS inline-flex baseline descender space that was adding ~4px below the tab buttons. Inactive tabs now use bg-muted/60 so the active tab stands out clearly.
+
 [2026-04-16] COO heartbeat for Text Your Mom: delivered mid-week operating review (Apr 14 week). Audited Tuesday Proof-of-Life — all three cabinets missed (app-dev, TikTok, Reddit). Identified TikTok image-creator produced two script-ready briefs today (first marketing output ever). Reddit remains dark with zero job runs. Created content-calendar/index.md for TikTok, appended COO review to company/operations, updated COO memory, and sent urgent messages to CEO, Reddit researcher, and DevOps agent.
 
 [2026-04-16] Models picker: renamed "Task Model" → "Selected Model", collapsed model info into a single row (icon + name + Provider · Effort with effort-toned colors), header row transparent (no box), tabs row retains background styling.
