@@ -24,6 +24,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LinkRepoDialog } from "./link-repo-dialog";
+import { MoveToDialog } from "./move-to-dialog";
+import { RecentTasks } from "./recent-tasks";
+import type { TreeNode as TreeNodeType } from "@/types";
 import {
   CornerLeftUp,
   ChevronRight,
@@ -159,6 +162,13 @@ export function TreeView() {
   const [cabinetDeleteOpen, setCabinetDeleteOpen] = useState(false);
   const [kbCreating, setKbCreating] = useState(false);
   const [linkRepoOpen, setLinkRepoOpen] = useState(false);
+  const [moveToOpen, setMoveToOpen] = useState(false);
+  const [moveToSource, setMoveToSource] = useState<TreeNodeType | null>(null);
+
+  const requestMoveTo = useCallback((node: TreeNodeType) => {
+    setMoveToSource(node);
+    setMoveToOpen(true);
+  }, []);
 
   const rootCabinet = useMemo(() => findRootCabinetNode(nodes), [nodes]);
   const routeCabinetPath = section.mode === "cabinet" ? section.cabinetPath : undefined;
@@ -235,6 +245,22 @@ export function TreeView() {
       window.removeEventListener("focus", loadAgents);
     };
   }, [loadAgents]);
+
+  // Cmd+Shift+M to open Move To… for the currently selected node
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "m") {
+        const { selectedPath, nodes } = useTreeStore.getState();
+        if (!selectedPath) return;
+        const node = findNodeByPath(nodes, selectedPath);
+        if (!node) return;
+        e.preventDefault();
+        requestMoveTo(node);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [requestMoveTo]);
 
   if (loading) {
     return (
@@ -646,6 +672,14 @@ export function TreeView() {
               </button>
             </div>
 
+            {/* ── Recent tasks (depth 1) ──────────────────── */}
+            <RecentTasks
+              active
+              padStyle={pad(1)}
+              itemClass={itemClass}
+              cabinetPath={activeCabinet?.path}
+            />
+
             {/* ── Divider ──────────────────────────────────── */}
             <div className="mx-3 my-1.5 border-t border-border" />
 
@@ -754,6 +788,8 @@ export function TreeView() {
                       node={node}
                       depth={1}
                       contextCabinetPath={activeCabinet?.path || null}
+                      siblings={visibleTreeNodes}
+                      onMoveToRequest={requestMoveTo}
                     />
                   ))
                 )}
@@ -819,6 +855,12 @@ export function TreeView() {
     </Dialog>
 
     <LinkRepoDialog open={linkRepoOpen} onOpenChange={setLinkRepoOpen} />
+
+    <MoveToDialog
+      open={moveToOpen}
+      onOpenChange={setMoveToOpen}
+      source={moveToSource}
+    />
 
     <Dialog open={cabinetDeleteOpen} onOpenChange={setCabinetDeleteOpen}>
       <DialogContent className="sm:max-w-md">
