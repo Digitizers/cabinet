@@ -1,4 +1,5 @@
 import path from "path";
+import { randomUUID } from "crypto";
 import type { JobConfig, JobRun, JobPostAction } from "@/types/jobs";
 import type { ConversationMeta } from "@/types/conversations";
 import { readPage } from "../storage/page-io";
@@ -7,16 +8,26 @@ import {
   defaultAdapterTypeForProvider,
   resolveExecutionProviderId,
 } from "./adapters";
+import { agentAdapterRegistry } from "./adapters/registry";
+import type { AdapterExecutionContext } from "./adapters/types";
 import {
+  appendAgentTurn,
   appendConversationTranscript,
+  appendUserTurn,
   createConversation,
+  extractAgentTurnContent,
   finalizeConversation,
   readConversationMeta,
+  readConversationTurns,
+  readSession,
+  updateAgentTurn,
+  writeSession,
 } from "./conversation-store";
 import { createDaemonSession, getDaemonSessionOutput } from "./daemon-client";
 import { readLibraryPersona } from "./library-manager";
 import { readPersona, type AgentPersona } from "./persona-manager";
 import { getDefaultProviderId } from "./provider-runtime";
+import { looksLikeAwaitingInput } from "./task-heuristics";
 
 export interface ConversationCompletion {
   meta: ConversationMeta;
@@ -467,4 +478,241 @@ export async function startJobConversation(
     startedAt: meta.startedAt,
     output: "",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Multi-turn continuation
+//
+// continueConversationRun appends a user turn, then invokes the adapter
+// directly (in-process) to produce an agent turn. Reuses all existing
+// prompt builders (buildCabinetEpilogueInstructions, buildMentionContext,
+// buildAgentContextHeader, buildKnowledgeBaseScopeInstructions,
+// buildDiagramOutputInstructions) so the agent still writes to the KB
+// with SUMMARY/CONTEXT/ARTIFACT trailer, cabinet-scoped cwd, persona, etc.
+// ---------------------------------------------------------------------------
+
+export interface ContinueConversationInput {
+  userMessage: string;
+  mentionedPaths?: string[];
+  cabinetPath?: string;
+  timeoutMs?: number;
+}
+
+function serializeTurnHistory(
+  turns: { role: "user" | "agent"; content: string; pending?: boolean }[]
+): string {
+  const parts: string[] = [];
+  for (const t of turns) {
+    if (t.pending) continue;
+    const role = t.role === "user" ? "user" : "assistant";
+    parts.push(`<turn-${role}>\n${t.content.trim()}\n</turn-${role}>`);
+  }
+  return parts.join("\n\n");
+}
+
+async function buildContinuationPrompt(options: {
+  mode: "resume" | "replay";
+  meta: ConversationMeta;
+  userMessage: string;
+  mentionedPaths: string[];
+  persona: AgentPersona | null;
+  baseCwd: string;
+  priorTurns: { role: "user" | "agent"; content: string; pending?: boolean }[];
+}): Promise<string> {
+  const mentionContext = await buildMentionContext(options.mentionedPaths);
+
+  if (options.mode === "resume") {
+    // Live session: persona + scope already live in the adapter's context.
+    return [
+      buildCabinetEpilogueInstructions(),
+      mentionContext.trim(),
+      "",
+      `User follow-up:\n${options.userMessage}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  // Replay: cold start; rebuild the full agent context and append history.
+  return [
+    buildAgentContextHeader(options.persona, options.meta.agentSlug),
+    "",
+    ...buildKnowledgeBaseScopeInstructions(options.baseCwd, options.meta.cabinetPath),
+    "Reflect useful outputs in KB files, not only in terminal text.",
+    ...buildDiagramOutputInstructions(),
+    buildCabinetEpilogueInstructions(),
+    "",
+    "Prior conversation (for context, do not re-output):",
+    serializeTurnHistory(options.priorTurns),
+    "",
+    `User follow-up:\n${options.userMessage}${mentionContext}`,
+  ].join("\n");
+}
+
+export async function continueConversationRun(
+  conversationId: string,
+  input: ContinueConversationInput
+): Promise<ConversationMeta | null> {
+  const meta = await readConversationMeta(conversationId, input.cabinetPath);
+  if (!meta) return null;
+  const cp = meta.cabinetPath || input.cabinetPath;
+
+  // 1. Record the user turn immediately.
+  await appendUserTurn(
+    conversationId,
+    {
+      content: input.userMessage,
+      mentionedPaths: input.mentionedPaths,
+    },
+    cp
+  );
+
+  // 2. Resolve adapter
+  const adapterType = meta.adapterType || defaultAdapterTypeForProvider(meta.providerId);
+  const adapter = agentAdapterRegistry.get(adapterType);
+
+  if (!adapter || !adapter.execute) {
+    await appendAgentTurn(
+      conversationId,
+      {
+        content: `Adapter \`${adapterType}\` is not available for structured conversation runs.`,
+        exitCode: 1,
+        error: "adapter_unavailable",
+      },
+      cp
+    );
+    return readConversationMeta(conversationId, cp);
+  }
+
+  // 3. Session handle + mode selection
+  const session = await readSession(conversationId, cp);
+  const canResume =
+    !!adapter.supportsSessionResume && !!session?.alive && !!session.resumeId;
+
+  // 4. Rebuild persona context for replay mode
+  const persona =
+    meta.agentSlug && meta.agentSlug !== "general"
+      ? await readPersona(meta.agentSlug, cp)
+      : null;
+  const baseCwd = cp ? path.join(DATA_DIR, cp) : DATA_DIR;
+  const cwd =
+    persona?.workdir && persona.workdir !== "/data"
+      ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
+      : baseCwd;
+
+  // 5. Assemble prior turns for replay
+  const priorTurns = canResume
+    ? []
+    : (await readConversationTurns(conversationId, cp))
+        .filter((t) => !t.pending)
+        .map((t) => ({ role: t.role, content: t.content, pending: t.pending }));
+
+  const prompt = await buildContinuationPrompt({
+    mode: canResume ? "resume" : "replay",
+    meta,
+    userMessage: input.userMessage,
+    mentionedPaths: input.mentionedPaths || [],
+    persona,
+    baseCwd,
+    priorTurns,
+  });
+
+  // 6. Create the pending agent turn
+  const pending = await appendAgentTurn(
+    conversationId,
+    { content: "Working on it…", pending: true },
+    cp
+  );
+  if (!pending) return meta;
+  const pendingTurnNumber = pending.turn;
+
+  // 7. Execute adapter
+  const logChunks: string[] = [];
+  const ctx: AdapterExecutionContext = {
+    runId: randomUUID(),
+    adapterType: adapter.type,
+    config: meta.adapterConfig || {},
+    prompt,
+    cwd,
+    timeoutMs: input.timeoutMs ?? 10 * 60 * 1000,
+    sessionId: canResume ? session!.resumeId! : null,
+    onLog: async (stream, chunk) => {
+      if (stream === "stdout") logChunks.push(chunk);
+    },
+  };
+
+  try {
+    const result = await adapter.execute(ctx);
+
+    const rawOutput =
+      (result.output && result.output.trim()) || logChunks.join("").trim() || "";
+    const finalText = rawOutput
+      ? extractAgentTurnContent(rawOutput) || rawOutput
+      : "(no response)";
+
+    const failed =
+      result.exitCode !== 0 || !!result.errorMessage || result.timedOut;
+    const awaitingInput = !failed && looksLikeAwaitingInput(finalText);
+
+    await updateAgentTurn(
+      conversationId,
+      pendingTurnNumber,
+      {
+        content: failed
+          ? `${finalText}\n\n_${result.errorMessage || "Adapter failed."}_`
+          : rawOutput || finalText,
+        pending: false,
+        awaitingInput,
+        tokens: result.usage
+          ? {
+              input: result.usage.inputTokens,
+              output: result.usage.outputTokens,
+              cache: result.usage.cachedInputTokens,
+            }
+          : undefined,
+        sessionId: result.sessionId || undefined,
+        exitCode: failed ? result.exitCode ?? 1 : undefined,
+        error: failed ? result.errorMessage ?? undefined : undefined,
+      },
+      cp
+    );
+
+    if (result.sessionId) {
+      await writeSession(
+        conversationId,
+        {
+          kind: adapter.type,
+          resumeId: result.sessionId,
+          alive: !result.clearSession,
+          lastUsedAt: new Date().toISOString(),
+        },
+        cp
+      );
+    } else if (result.clearSession) {
+      await writeSession(
+        conversationId,
+        {
+          kind: adapter.type,
+          alive: false,
+          lastUsedAt: new Date().toISOString(),
+        },
+        cp
+      );
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown adapter error";
+    await updateAgentTurn(
+      conversationId,
+      pendingTurnNumber,
+      {
+        content: `_Adapter crashed: ${message}_`,
+        pending: false,
+        exitCode: 1,
+        error: message,
+      },
+      cp
+    );
+  }
+
+  return readConversationMeta(conversationId, cp);
 }

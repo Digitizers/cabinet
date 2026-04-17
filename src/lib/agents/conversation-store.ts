@@ -1059,7 +1059,10 @@ async function readTurnOne(
     exitCode: meta.exitCode,
     artifacts: meta.artifactPaths,
     awaitingInput: meta.awaitingInput,
-    pending: meta.status === "running",
+    // Pending when the conversation hasn't finalized yet AND turn 1 is the
+    // only turn. Once later turns exist, turn 1 agent is historical.
+    pending:
+      meta.status === "running" && !meta.completedAt ? true : undefined,
   };
 
   return { user, agent };
@@ -1104,7 +1107,14 @@ export async function readConversationTurns(
   const extras = await readAdditionalTurns(id, cp);
 
   const turns: ConversationTurn[] = [user];
-  if (agent) turns.push(agent);
+  if (agent) {
+    // If later turns exist, turn 1 is by definition historical (not pending)
+    // regardless of current conversation status.
+    if (extras.length > 0 && agent.pending) {
+      agent.pending = undefined;
+    }
+    turns.push(agent);
+  }
   turns.push(...extras);
   return turns;
 }
