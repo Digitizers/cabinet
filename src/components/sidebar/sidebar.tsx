@@ -112,7 +112,7 @@ export function Sidebar() {
       <aside
         suppressHydrationWarning
         className={cn(
-          "flex flex-col bg-sidebar transition-all duration-200 h-screen overflow-hidden",
+          "flex flex-col bg-sidebar transition-all duration-200 h-screen overflow-hidden [&_button]:cursor-pointer",
           isMobile ? mobileClass : desktopClass
         )}
         style={!isMobile && !collapsed ? { width: sidebarWidth } : undefined}

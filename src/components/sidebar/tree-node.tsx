@@ -220,7 +220,7 @@ export function TreeNode({
             onDrop={handleDrop}
             className={cn(
               "flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
-              "hover:bg-foreground/[0.03] hover:text-foreground cursor-grab active:cursor-grabbing",
+              "hover:bg-foreground/[0.03] hover:text-foreground !cursor-grab active:!cursor-grabbing",
               isSelected && "bg-accent text-accent-foreground font-medium",
               isDragOver &&
                 "bg-primary/10 ring-1 ring-primary/30 ring-inset"
