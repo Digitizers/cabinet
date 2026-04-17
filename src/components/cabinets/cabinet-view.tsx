@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, ChevronLeft, ChevronRight, Clock3, FolderOpen, FolderTree, HeartPulse, LayoutList, Loader2, Maximize2, Minimize2, Save, Send, Users, Zap } from "lucide-react";
+import { AlertTriangle, Calendar, ChevronLeft, ChevronRight, Clock3, FolderOpen, FolderTree, HeartPulse, LayoutList, Loader2, Maximize2, Minimize2, Save, Send, Users, Zap } from "lucide-react";
 import { KBEditor } from "@/components/editor/editor";
 import { HeaderActions } from "@/components/layout/header-actions";
 import { VersionHistory } from "@/components/editor/version-history";
@@ -27,7 +27,7 @@ import { InteractiveStatStrip } from "./interactive-stat-strip";
 import { ActivityFeed } from "./activity-feed";
 import { ScheduleCalendar, type CalendarMode } from "./schedule-calendar";
 import { ScheduleList } from "./schedule-list";
-import type { ScheduleEvent } from "@/lib/agents/cron-compute";
+import { buildScheduledKey, type ScheduleEvent } from "@/lib/agents/cron-compute";
 import type { ConversationMeta } from "@/types/conversations";
 import type {
   CabinetAgentSummary,
@@ -286,6 +286,27 @@ function CompactOrgChart({
   );
 }
 
+const LEGACY_MATCH_WINDOW_MS = 90_000;
+
+function MissedRunBanner({ scheduledAt }: { scheduledAt: string }) {
+  const when = new Date(scheduledAt);
+  const label = `${when.toLocaleDateString()} ${when.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <div className="space-y-0.5">
+        <p className="font-medium">This run did not execute at {label}.</p>
+        <p className="text-[11px] opacity-80">
+          Possible causes: the Cabinet daemon was not running, the schedule was disabled at that time, or the run failed to start before it was recorded.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main View ─── */
 export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
   const [overview, setOverview] = useState<CabinetOverview | null>(null);
@@ -299,6 +320,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
     agentName: string;
     cabinetPath: string;
     draft: { id: string; name: string; schedule: string; prompt: string; enabled: boolean };
+    missedRun?: { scheduledAt: string };
   } | null>(null);
   const [heartbeatDialog, setHeartbeatDialog] = useState<{
     agentSlug: string;
@@ -306,6 +328,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
     cabinetPath: string;
     heartbeat: string;
     active: boolean;
+    missedRun?: { scheduledAt: string };
   } | null>(null);
   const [dialogRunning, setDialogRunning] = useState(false);
   const [dialogSaving, setDialogSaving] = useState(false);
@@ -313,6 +336,9 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("week");
   const [calendarAnchor, setCalendarAnchor] = useState(() => new Date());
   const [calendarFullscreen, setCalendarFullscreen] = useState(false);
+  const [scheduledConversations, setScheduledConversations] = useState<
+    Map<string, ConversationMeta>
+  >(new Map());
   const scrollAreaHostRef = useRef<HTMLDivElement>(null);
   const titleSectionRef = useRef<HTMLDivElement>(null);
   const selectPage = useTreeStore((state) => state.selectPage);
@@ -397,16 +423,64 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
     }
   }, [cabinetPath, cabinetVisibilityMode]);
 
+  const loadScheduledConversations = useCallback(async () => {
+    const baseParams = new URLSearchParams({
+      cabinetPath,
+      visibilityMode: cabinetVisibilityMode,
+      limit: "500",
+    });
+    try {
+      const [jobsRes, heartbeatsRes] = await Promise.all([
+        fetch(`/api/agents/conversations?${baseParams.toString()}&trigger=job`, {
+          cache: "no-store",
+        }),
+        fetch(`/api/agents/conversations?${baseParams.toString()}&trigger=heartbeat`, {
+          cache: "no-store",
+        }),
+      ]);
+      if (!jobsRes.ok || !heartbeatsRes.ok) return;
+      const jobsData = (await jobsRes.json()) as { conversations: ConversationMeta[] };
+      const hbData = (await heartbeatsRes.json()) as { conversations: ConversationMeta[] };
+      const next = new Map<string, ConversationMeta>();
+      for (const c of [...jobsData.conversations, ...hbData.conversations]) {
+        const sourceType: "job" | "heartbeat" =
+          c.trigger === "job" ? "job" : "heartbeat";
+        // Prefer the stamped scheduledAt. For legacy conversations we bucket by
+        // startedAt rounded to the minute — close-enough match for calendar
+        // lookup and avoids marking every pre-scheduledAt run as "missed".
+        const when = c.scheduledAt ?? c.startedAt;
+        if (!when) continue;
+        const key = buildScheduledKey(c.agentSlug, sourceType, c.jobId, when);
+        // Prefer stamped entries if there's a collision with legacy at the
+        // same minute: scheduledAt wins.
+        const existing = next.get(key);
+        if (!existing || (!existing.scheduledAt && c.scheduledAt)) {
+          next.set(key, c);
+        }
+      }
+      setScheduledConversations(next);
+    } catch {
+      // keep previous map on error
+    }
+  }, [cabinetPath, cabinetVisibilityMode]);
+
   useEffect(() => {
     void loadOverview();
-    const interval = window.setInterval(() => void loadOverview(), 15000);
-    const onFocus = () => void loadOverview();
+    void loadScheduledConversations();
+    const interval = window.setInterval(() => {
+      void loadOverview();
+      void loadScheduledConversations();
+    }, 15000);
+    const onFocus = () => {
+      void loadOverview();
+      void loadScheduledConversations();
+    };
     window.addEventListener("focus", onFocus);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, [loadOverview]);
+  }, [loadOverview, loadScheduledConversations]);
 
   useEffect(() => {
     fetch("/api/agents/config")
@@ -531,7 +605,10 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
     }
   }
 
-  function openEditDialogForEvent(event: ScheduleEvent) {
+  function openEditDialogForEvent(
+    event: ScheduleEvent,
+    missedRun?: { scheduledAt: string },
+  ) {
     if (event.sourceType === "job" && event.jobRef && event.agentRef) {
       setJobDialog({
         agentSlug: event.agentRef.slug,
@@ -544,6 +621,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
           prompt: event.jobRef.prompt || "",
           enabled: event.jobRef.enabled,
         },
+        missedRun,
       });
     } else if (event.sourceType === "heartbeat" && event.agentRef) {
       setHeartbeatDialog({
@@ -552,11 +630,26 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
         cabinetPath: event.agentRef.cabinetPath || cabinetPath,
         heartbeat: event.agentRef.heartbeat || "0 9 * * 1-5",
         active: event.agentRef.active,
+        missedRun,
       });
     }
   }
 
-  async function openPastConversationForEvent(event: ScheduleEvent) {
+  function lookupConversationForEvent(event: ScheduleEvent): ConversationMeta | null {
+    const agentSlug = event.agentRef?.slug;
+    if (!agentSlug) return null;
+    const key = buildScheduledKey(
+      agentSlug,
+      event.sourceType,
+      event.jobRef?.id,
+      event.time,
+    );
+    return scheduledConversations.get(key) || null;
+  }
+
+  async function fetchLegacyConversationForEvent(
+    event: ScheduleEvent,
+  ): Promise<ConversationMeta | null> {
     const agentSlug = event.agentRef?.slug;
     if (!agentSlug) return null;
     const params = new URLSearchParams({
@@ -570,18 +663,20 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
       const res = await fetch(`/api/agents/conversations?${params.toString()}`);
       if (!res.ok) return null;
       const data = (await res.json()) as { conversations: ConversationMeta[] };
-      let candidates = data.conversations || [];
+      let candidates = (data.conversations || []).filter((c) => !c.scheduledAt);
       if (event.sourceType === "job" && event.jobRef) {
         candidates = candidates.filter((c) => c.jobId === event.jobRef!.id);
       }
       if (candidates.length === 0) return null;
       const target = event.time.getTime();
-      candidates.sort((a, b) => {
-        const ad = Math.abs(new Date(a.startedAt).getTime() - target);
-        const bd = Math.abs(new Date(b.startedAt).getTime() - target);
-        return ad - bd;
-      });
-      return candidates[0] || null;
+      const scored = candidates
+        .map((c) => ({
+          c,
+          delta: Math.abs(new Date(c.startedAt).getTime() - target),
+        }))
+        .filter((x) => x.delta <= LEGACY_MATCH_WINDOW_MS)
+        .sort((a, b) => a.delta - b.delta);
+      return scored[0]?.c || null;
     } catch {
       return null;
     }
@@ -589,17 +684,21 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
 
   async function handleScheduleEventClick(event: ScheduleEvent) {
     const isPast = event.time.getTime() < Date.now();
-    if (isPast) {
-      const conversation = await openPastConversationForEvent(event);
-      if (conversation) {
-        setTaskPanelConversation(conversation);
-        return;
-      }
-      // No matching run found — fall back to the edit dialog so the click does something.
+    if (!isPast) {
       openEditDialogForEvent(event);
       return;
     }
-    openEditDialogForEvent(event);
+    const exact = lookupConversationForEvent(event);
+    if (exact) {
+      setTaskPanelConversation(exact);
+      return;
+    }
+    const legacy = await fetchLegacyConversationForEvent(event);
+    if (legacy) {
+      setTaskPanelConversation(legacy);
+      return;
+    }
+    openEditDialogForEvent(event, { scheduledAt: event.time.toISOString() });
   }
 
   function navigateCalendar(direction: -1 | 0 | 1) {
@@ -911,6 +1010,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
                   agents={overview?.agents || []}
                   jobs={overview?.jobs || []}
                   fullscreen={calendarFullscreen}
+                  scheduledConversations={scheduledConversations}
                   onEventClick={handleScheduleEventClick}
                   onDayClick={(date) => {
                     setCalendarMode("day");
@@ -988,6 +1088,9 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
               </div>
             </DialogHeader>
             <div className="space-y-3">
+              {jobDialog.missedRun && (
+                <MissedRunBanner scheduledAt={jobDialog.missedRun.scheduledAt} />
+              )}
               <div className="space-y-1.5">
                 <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
                 <SchedulePicker
@@ -1069,6 +1172,9 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
               </div>
             </DialogHeader>
             <div className="space-y-3">
+              {heartbeatDialog.missedRun && (
+                <MissedRunBanner scheduledAt={heartbeatDialog.missedRun.scheduledAt} />
+              )}
               <div className="space-y-1.5">
                 <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
                 <SchedulePicker

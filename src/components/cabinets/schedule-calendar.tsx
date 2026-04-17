@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
+  buildScheduledKey,
   getScheduleEvents,
   getViewRange,
   getAgentColor,
   type ScheduleEvent,
 } from "@/lib/agents/cron-compute";
 import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
+import type { ConversationMeta } from "@/types/conversations";
+import { AlertCircle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -60,8 +63,26 @@ interface ScheduleCalendarProps {
   agents: CabinetAgentSummary[];
   jobs: CabinetJobSummary[];
   fullscreen?: boolean;
+  scheduledConversations?: Map<string, ConversationMeta>;
   onEventClick: (event: ScheduleEvent) => void;
   onDayClick: (date: Date) => void;
+}
+
+function isEventMissed(
+  event: ScheduleEvent,
+  now: Date,
+  scheduledConversations: Map<string, ConversationMeta> | undefined,
+): boolean {
+  if (!event.enabled) return false; // disabled is a different state, tracked separately
+  if (event.time.getTime() >= now.getTime()) return false;
+  if (!scheduledConversations || scheduledConversations.size === 0) return false;
+  const key = buildScheduledKey(
+    event.agentSlug,
+    event.sourceType,
+    event.jobRef?.id,
+    event.time,
+  );
+  return !scheduledConversations.has(key);
 }
 
 /* ─── Event pill ─── */
@@ -71,29 +92,35 @@ function EventPill({
   onClick,
   showTime,
   wide,
+  missed,
 }: {
   event: ScheduleEvent;
   onClick: () => void;
   showTime?: boolean;
   wide?: boolean;
+  missed?: boolean;
 }) {
   const color = getAgentColor(event.agentSlug);
   return (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      title={`${event.label} · ${event.agentName} · ${formatTime(event.time)}`}
+      title={`${event.label} · ${event.agentName} · ${formatTime(event.time)}${missed ? " · did not run" : ""}`}
       className={cn(
         "flex items-center gap-1 rounded-md px-1.5 text-left transition-all",
         "hover:ring-1 hover:ring-foreground/20 hover:shadow-sm",
-        !event.enabled && "opacity-40"
+        !event.enabled && "opacity-40",
+        missed && "bg-muted/40 text-muted-foreground"
       )}
       style={{
         height: PILL_HEIGHT,
-        backgroundColor: event.enabled ? color.bg : undefined,
-        color: event.enabled ? color.text : undefined,
+        backgroundColor: missed ? undefined : event.enabled ? color.bg : undefined,
+        color: missed ? undefined : event.enabled ? color.text : undefined,
       }}
     >
+      {missed && (
+        <AlertCircle className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+      )}
       <span className="shrink-0 text-[10px] leading-none">{event.agentEmoji}</span>
       <span className={cn("truncate text-[10px] font-medium", wide && "text-[11px]")}>
         {event.label}
@@ -114,14 +141,18 @@ function EventDot({
   onClick,
   now,
   size = DOT_SIZE,
+  missed,
 }: {
   event: ScheduleEvent;
   onClick: () => void;
   now: Date;
   size?: number;
+  missed?: boolean;
 }) {
   const color = getAgentColor(event.agentSlug);
   const isPast = event.time.getTime() < now.getTime();
+  const dotBorderStyle: "solid" | "dashed" = !event.enabled ? "dashed" : "solid";
+  const hollow = missed || !event.enabled;
   return (
     <Tooltip>
       <TooltipTrigger
@@ -129,7 +160,7 @@ function EventDot({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
-            aria-label={`${event.label} · ${formatTime(event.time)}`}
+            aria-label={`${event.label} · ${formatTime(event.time)}${missed ? " · did not run" : ""}`}
             className={cn(
               "shrink-0 rounded-full outline-none transition-all",
               "hover:ring-2 hover:ring-foreground/30 focus-visible:ring-2 focus-visible:ring-foreground/40",
@@ -138,9 +169,9 @@ function EventDot({
             style={{
               width: size,
               height: size,
-              backgroundColor: event.enabled ? color.bg : "transparent",
-              borderWidth: event.enabled ? 0 : 1,
-              borderStyle: "dashed",
+              backgroundColor: hollow ? "transparent" : color.bg,
+              borderWidth: hollow ? 1.5 : 0,
+              borderStyle: dotBorderStyle,
               borderColor: color.bg,
             }}
           />
@@ -155,6 +186,7 @@ function EventDot({
           {event.agentName} · {formatTime(event.time)}
           {isPast ? " · past" : " · upcoming"}
           {!event.enabled && " · disabled"}
+          {missed && " · did not run"}
         </div>
       </TooltipContent>
     </Tooltip>
@@ -167,11 +199,13 @@ function TimeGridView({
   events,
   days,
   fullscreen,
+  scheduledConversations,
   onEventClick,
 }: {
   events: ScheduleEvent[];
   days: Date[];
   fullscreen?: boolean;
+  scheduledConversations?: Map<string, ConversationMeta>;
   onEventClick: (event: ScheduleEvent) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -358,6 +392,7 @@ function TimeGridView({
                             onClick={() => onEventClick(event)}
                             showTime={!isMultiDay}
                             wide={!isMultiDay}
+                            missed={isEventMissed(event, now, scheduledConversations)}
                           />
                         ))}
                       </div>
@@ -375,6 +410,7 @@ function TimeGridView({
                           event={event}
                           onClick={() => onEventClick(event)}
                           now={now}
+                          missed={isEventMissed(event, now, scheduledConversations)}
                         />
                       ))}
                     </div>
@@ -419,11 +455,13 @@ function TimeGridView({
 function MonthView({
   events,
   anchor,
+  scheduledConversations,
   onEventClick,
   onDayClick,
 }: {
   events: ScheduleEvent[];
   anchor: Date;
+  scheduledConversations?: Map<string, ConversationMeta>;
   onEventClick: (event: ScheduleEvent) => void;
   onDayClick: (date: Date) => void;
 }) {
@@ -542,6 +580,7 @@ function MonthView({
                         event={event}
                         onClick={() => onEventClick(event)}
                         now={now}
+                        missed={isEventMissed(event, now, scheduledConversations)}
                       />
                       {count && count > 1 && (
                         <span className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-foreground/80 px-1 text-[7px] font-bold leading-[10px] text-background">
@@ -555,22 +594,27 @@ function MonthView({
                 <div className="flex flex-col gap-0.5">
                   {display.map(({ event, count }) => {
                     const color = getAgentColor(event.agentSlug);
+                    const missed = isEventMissed(event, now, scheduledConversations);
                     return (
                       <div
                         key={event.id}
                         className={cn(
                           "flex items-center gap-1 rounded px-1 py-0.5 text-[9px] font-medium",
-                          !event.enabled && "opacity-40"
+                          !event.enabled && "opacity-40",
+                          missed && "bg-muted/40 text-muted-foreground"
                         )}
                         style={{
-                          backgroundColor: event.enabled ? color.bg : undefined,
-                          color: event.enabled ? color.text : undefined,
+                          backgroundColor: missed ? undefined : event.enabled ? color.bg : undefined,
+                          color: missed ? undefined : event.enabled ? color.text : undefined,
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onEventClick(event);
                         }}
                       >
+                        {missed && (
+                          <AlertCircle className="h-2.5 w-2.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                        )}
                         <span className="shrink-0 text-[8px]">{event.agentEmoji}</span>
                         <span className="truncate">
                           {event.label}
@@ -598,6 +642,7 @@ export function ScheduleCalendar({
   agents,
   jobs,
   fullscreen,
+  scheduledConversations,
   onEventClick,
   onDayClick,
 }: ScheduleCalendarProps) {
@@ -626,6 +671,7 @@ export function ScheduleCalendar({
         <MonthView
           events={events}
           anchor={anchor}
+          scheduledConversations={scheduledConversations}
           onEventClick={onEventClick}
           onDayClick={onDayClick}
         />
@@ -639,6 +685,7 @@ export function ScheduleCalendar({
         events={events}
         days={days}
         fullscreen={fullscreen}
+        scheduledConversations={scheduledConversations}
         onEventClick={onEventClick}
       />
     </TooltipProvider>

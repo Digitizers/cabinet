@@ -57,6 +57,22 @@ export function computeNextCronRun(cronExpr: string, after: Date): Date | null {
   return null;
 }
 
+/* ─── Scheduled-run lookup key ─── */
+
+export function minuteIso(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Date(Math.round(d.getTime() / 60000) * 60000).toISOString();
+}
+
+export function buildScheduledKey(
+  agentSlug: string,
+  sourceType: "job" | "heartbeat",
+  jobId: string | undefined | null,
+  when: Date | string,
+): string {
+  return `${agentSlug}::${sourceType}::${jobId || "-"}::${minuteIso(when)}`;
+}
+
 /* ─── Schedule event type ─── */
 
 export interface ScheduleEvent {
