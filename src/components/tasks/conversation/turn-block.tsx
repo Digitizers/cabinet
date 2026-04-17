@@ -1,20 +1,16 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
+import { ChevronRight, Pause, Sparkles, User } from "lucide-react";
 import {
-  ChevronDown,
-  ChevronRight,
-  FilePlus,
-  FilePenLine,
-  FileText,
-  Hammer,
-  Pause,
-  TerminalSquare,
-  User,
-  Sparkles,
-} from "lucide-react";
+  inferPageTypeFromPath,
+  pageTypeColor,
+  pageTypeIcon,
+} from "@/lib/ui/page-type-icons";
+import { useAppStore } from "@/stores/app-store";
+import { useTreeStore } from "@/stores/tree-store";
 import { cn } from "@/lib/utils";
-import type { Turn, TurnArtifact as Artifact } from "@/types/tasks";
+import type { Turn } from "@/types/tasks";
 import { Markdown } from "./markdown";
 
 function computeRelative(iso: string): string {
@@ -42,118 +38,63 @@ function RelativeTime({ iso }: { iso: string }) {
   return <span suppressHydrationWarning>{label}</span>;
 }
 
-function FilePath({ path }: { path: string }) {
-  const idx = path.lastIndexOf("/");
-  const dir = idx >= 0 ? path.slice(0, idx + 1) : "";
-  const name = idx >= 0 ? path.slice(idx + 1) : path;
+function basename(p: string): string {
+  const cleaned = p.replace(/\/index\.md$/, "").replace(/\.md$/, "");
+  const parts = cleaned.split("/").filter(Boolean);
+  return parts[parts.length - 1] || p;
+}
+
+function directory(p: string): string {
+  const cleaned = p.replace(/\/index\.md$/, "").replace(/\.md$/, "");
+  const parts = cleaned.split("/").filter(Boolean);
+  return parts.slice(0, -1).join(" / ");
+}
+
+function KbArtifactRow({ path }: { path: string }) {
+  const setSection = useAppStore((s) => s.setSection);
+  const selectPage = useTreeStore((s) => s.selectPage);
+  const kind = inferPageTypeFromPath(path);
+  const Icon = pageTypeIcon(kind);
+  const color = pageTypeColor(kind);
+  const name = basename(path);
+  const dir = directory(path);
   return (
-    <span className="min-w-0 truncate text-[13px]">
-      {dir ? <span className="text-muted-foreground/70">{dir}</span> : null}
-      <span className="font-medium text-foreground">{name}</span>
-    </span>
+    <button
+      type="button"
+      onClick={() => {
+        selectPage(path);
+        setSection({ type: "page" });
+      }}
+      className="group flex w-full items-center gap-2.5 rounded-md bg-card/80 px-2.5 py-2 text-left ring-1 ring-border/60 transition-colors hover:bg-muted/40"
+    >
+      <Icon className={cn("size-4 shrink-0", color)} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[12.5px] font-medium text-foreground">
+          {name}
+        </div>
+        {dir ? (
+          <div className="truncate text-[10.5px] text-muted-foreground/75">
+            {dir}
+          </div>
+        ) : null}
+      </div>
+      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+    </button>
   );
 }
 
-function ArtifactRow({ artifact }: { artifact: Artifact }) {
-  const [open, setOpen] = useState(false);
-
-  const expandable = artifact.kind === "command" && !!artifact.output;
-
-  const inner = (() => {
-    switch (artifact.kind) {
-      case "file-edit":
-        return (
-          <>
-            <FilePenLine className="size-4 shrink-0 text-amber-500" />
-            <FilePath path={artifact.path} />
-            <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] tabular-nums">
-              <span className="text-emerald-600 dark:text-emerald-400">+{artifact.added}</span>
-              <span className="text-red-500/90">−{artifact.removed}</span>
-            </span>
-          </>
-        );
-      case "file-create":
-        return (
-          <>
-            <FilePlus className="size-4 shrink-0 text-emerald-500" />
-            <FilePath path={artifact.path} />
-            <span className="ml-auto text-[12px] tabular-nums text-emerald-600 dark:text-emerald-400">
-              +{artifact.added}
-            </span>
-          </>
-        );
-      case "command":
-        return (
-          <>
-            <TerminalSquare className="size-4 shrink-0 text-sky-500" />
-            <span className="min-w-0 truncate font-mono text-[12.5px] text-foreground/90">
-              {artifact.cmd}
-            </span>
-            <span
-              className={cn(
-                "ml-auto inline-flex items-center gap-1 text-[12px] tabular-nums",
-                artifact.exit === 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-red-500"
-              )}
-            >
-              {artifact.exit === 0 ? "✓" : "✗"} {(artifact.durationMs / 1000).toFixed(2)}s
-            </span>
-          </>
-        );
-      case "tool-call":
-        return (
-          <>
-            <Hammer className="size-4 shrink-0 text-violet-500" />
-            <span className="min-w-0 truncate text-[13px]">
-              <span className="font-medium text-foreground">{artifact.tool}</span>
-              <span className="ml-1.5 text-muted-foreground/80">{artifact.target}</span>
-            </span>
-          </>
-        );
-      case "page-edit":
-        return (
-          <>
-            <FileText className="size-4 shrink-0 text-blue-500" />
-            <span className="min-w-0 truncate text-[13px]">
-              <span className="font-medium text-foreground">{artifact.title}</span>
-              <span className="ml-1.5 text-muted-foreground/70">{artifact.path}</span>
-            </span>
-          </>
-        );
+function collectArtifactPaths(turn: Turn): string[] {
+  const seen = new Set<string>();
+  for (const artifact of turn.artifacts ?? []) {
+    if (
+      artifact.kind === "file-edit" ||
+      artifact.kind === "file-create" ||
+      artifact.kind === "page-edit"
+    ) {
+      seen.add(artifact.path);
     }
-  })();
-
-  return (
-    <div className="group/row">
-      <button
-        type="button"
-        onClick={() => expandable && setOpen((v: boolean) => !v)}
-        className={cn(
-          "flex w-full items-center gap-2.5 rounded-md bg-card/60 px-2.5 py-2 text-left ring-1 ring-border/50 transition-colors",
-          expandable
-            ? "cursor-pointer hover:bg-card hover:ring-border"
-            : "cursor-default hover:bg-card/80"
-        )}
-      >
-        {expandable ? (
-          open ? (
-            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-          )
-        ) : (
-          <span className="size-3.5 shrink-0" />
-        )}
-        {inner}
-      </button>
-      {expandable && open && artifact.kind === "command" && artifact.output ? (
-        <pre className="ml-6 mt-1.5 overflow-x-auto rounded-md border border-border/60 bg-muted/50 p-3 font-mono text-[11.5px] leading-relaxed text-foreground/80">
-          {artifact.output}
-        </pre>
-      ) : null}
-    </div>
-  );
+  }
+  return [...seen];
 }
 
 export function TurnBlock({ turn }: { turn: Turn }) {
@@ -161,6 +102,7 @@ export function TurnBlock({ turn }: { turn: Turn }) {
   const totalTokens = turn.tokens
     ? turn.tokens.input + turn.tokens.output + (turn.tokens.cache ?? 0)
     : null;
+  const artifactPaths = collectArtifactPaths(turn);
 
   return (
     <div className={cn("group/turn flex gap-3 px-6 py-5", !isUser && "bg-muted/20")}>
@@ -200,10 +142,10 @@ export function TurnBlock({ turn }: { turn: Turn }) {
           className="text-[14.5px] leading-[1.65] tracking-[-0.005em] text-foreground/95"
         />
 
-        {turn.artifacts && turn.artifacts.length > 0 ? (
+        {artifactPaths.length > 0 ? (
           <div className="mt-3.5 space-y-1.5 rounded-xl border border-border/60 bg-muted/40 p-2 dark:bg-muted/20">
-            {turn.artifacts.map((a, i) => (
-              <ArtifactRow key={i} artifact={a} />
+            {artifactPaths.map((path) => (
+              <KbArtifactRow key={path} path={path} />
             ))}
           </div>
         ) : null}

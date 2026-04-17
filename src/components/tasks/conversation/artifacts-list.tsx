@@ -1,154 +1,135 @@
 "use client";
 
-import { FilePenLine, FilePlus, FileText, Hammer, TerminalSquare } from "lucide-react";
-import type { Turn, TurnArtifact as Artifact } from "@/types/tasks";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { useAppStore } from "@/stores/app-store";
+import { useTreeStore } from "@/stores/tree-store";
+import {
+  inferPageTypeFromPath,
+  pageTypeColor,
+  pageTypeIcon,
+  type PageTypeKind,
+} from "@/lib/ui/page-type-icons";
+import { cn } from "@/lib/utils";
+import type { Turn } from "@/types/tasks";
 
-function FilePath({ path }: { path: string }) {
-  const idx = path.lastIndexOf("/");
-  const dir = idx >= 0 ? path.slice(0, idx + 1) : "";
-  const name = idx >= 0 ? path.slice(idx + 1) : path;
-  return (
-    <span className="min-w-0 truncate text-[13px]">
-      {dir ? <span className="text-muted-foreground/70">{dir}</span> : null}
-      <span className="font-medium text-foreground">{name}</span>
-    </span>
-  );
-}
-
-function summarize(artifacts: Artifact[]) {
-  const filesEdited = new Set<string>();
-  const filesCreated = new Set<string>();
-  const commands: Artifact[] = [];
-  const tools: Artifact[] = [];
-  const pages: Artifact[] = [];
-  for (const a of artifacts) {
-    if (a.kind === "file-edit") filesEdited.add(a.path);
-    else if (a.kind === "file-create") filesCreated.add(a.path);
-    else if (a.kind === "command") commands.push(a);
-    else if (a.kind === "tool-call") tools.push(a);
-    else if (a.kind === "page-edit") pages.push(a);
-  }
-  return { filesEdited, filesCreated, commands, tools, pages };
-}
-
-function Section({
-  title,
-  count,
-  icon: Icon,
-  children,
-}: {
+interface PageMetaEntry {
+  path: string;
   title: string;
-  count: number;
-  icon: React.ComponentType<{ className?: string }>;
-  children: React.ReactNode;
-}) {
-  if (count === 0) return null;
-  return (
-    <section>
-      <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        <Icon className="size-3.5" />
-        {title}
-        <span className="rounded-full bg-muted px-1.5 py-px text-[10px] tabular-nums text-muted-foreground">
-          {count}
-        </span>
-      </div>
-      <div className="space-y-1">{children}</div>
-    </section>
-  );
+  type: PageTypeKind;
+}
+
+function basename(p: string): string {
+  const cleaned = p.replace(/\/index\.md$/, "").replace(/\.md$/, "");
+  const parts = cleaned.split("/").filter(Boolean);
+  return parts[parts.length - 1] || p;
+}
+
+function directory(p: string): string {
+  const cleaned = p.replace(/\/index\.md$/, "").replace(/\.md$/, "");
+  const parts = cleaned.split("/").filter(Boolean);
+  return parts.slice(0, -1).join(" / ");
+}
+
+function usePageMeta(paths: string[]): Map<string, PageMetaEntry> {
+  const [meta, setMeta] = useState<Map<string, PageMetaEntry>>(new Map());
+  const key = paths.slice().sort().join("|");
+
+  useEffect(() => {
+    if (paths.length === 0) {
+      setMeta(new Map());
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/kb/pages/meta", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ paths }),
+    })
+      .then((r) => r.json())
+      .then((data: { entries?: PageMetaEntry[] }) => {
+        if (cancelled) return;
+        const next = new Map<string, PageMetaEntry>();
+        for (const entry of data.entries ?? []) {
+          next.set(entry.path, entry);
+        }
+        setMeta(next);
+      })
+      .catch(() => {
+        if (!cancelled) setMeta(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return meta;
 }
 
 export function ArtifactsList({ turns }: { turns: Turn[] }) {
-  const all: Artifact[] = turns.flatMap((t) => t.artifacts ?? []);
-  const { filesEdited, filesCreated, commands, tools, pages } = summarize(all);
+  const setSection = useAppStore((s) => s.setSection);
+  const selectPage = useTreeStore((s) => s.selectPage);
+  const paths = useMemo(() => {
+    const seen = new Set<string>();
+    for (const t of turns) {
+      for (const a of t.artifacts ?? []) {
+        if (a.kind === "file-edit" || a.kind === "file-create" || a.kind === "page-edit") {
+          seen.add(a.path);
+        }
+      }
+    }
+    return [...seen];
+  }, [turns]);
 
-  if (all.length === 0) {
+  const meta = usePageMeta(paths);
+
+  if (paths.length === 0) {
     return (
       <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-        No artifacts yet — they&rsquo;ll appear as the agent works.
+        No KB pages touched yet — they&rsquo;ll appear as the agent writes files.
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 px-6 py-6">
-      <Section title="Files edited" count={filesEdited.size} icon={FilePenLine}>
-        {[...filesEdited].map((p) => (
-          <div
-            key={p}
-            className="flex items-center gap-2.5 rounded-md bg-card px-3 py-2 ring-1 ring-border/60"
+    <div className="space-y-2 px-6 py-6">
+      <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        KB pages
+        <span className="ml-2 rounded-full bg-muted px-1.5 py-px text-[10px] tabular-nums text-muted-foreground">
+          {paths.length}
+        </span>
+      </div>
+      {paths.map((path) => {
+        const entry = meta.get(path);
+        const kind = entry?.type ?? inferPageTypeFromPath(path);
+        const Icon = pageTypeIcon(kind);
+        const color = pageTypeColor(kind);
+        const title = entry?.title ?? basename(path);
+        const dir = directory(path);
+        return (
+          <button
+            key={path}
+            type="button"
+            onClick={() => {
+              selectPage(path);
+              setSection({ type: "page" });
+            }}
+            className="group flex w-full items-center gap-3 rounded-md bg-card px-3 py-2.5 text-left ring-1 ring-border/60 transition-colors hover:bg-muted/40"
           >
-            <FilePenLine className="size-4 shrink-0 text-amber-500" />
-            <FilePath path={p} />
-          </div>
-        ))}
-      </Section>
-
-      <Section title="Files created" count={filesCreated.size} icon={FilePlus}>
-        {[...filesCreated].map((p) => (
-          <div
-            key={p}
-            className="flex items-center gap-2.5 rounded-md bg-card px-3 py-2 ring-1 ring-border/60"
-          >
-            <FilePlus className="size-4 shrink-0 text-emerald-500" />
-            <FilePath path={p} />
-          </div>
-        ))}
-      </Section>
-
-      <Section title="KB pages touched" count={pages.length} icon={FileText}>
-        {pages.map((a, i) =>
-          a.kind === "page-edit" ? (
-            <div
-              key={i}
-              className="flex items-center gap-2.5 rounded-md bg-card px-3 py-2 ring-1 ring-border/60"
-            >
-              <FileText className="size-4 shrink-0 text-blue-500" />
-              <span className="min-w-0 truncate text-[13px]">
-                <span className="font-medium text-foreground">{a.title}</span>
-                <span className="ml-1.5 text-muted-foreground/70">{a.path}</span>
-              </span>
+            <Icon className={cn("size-4 shrink-0", color)} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-medium text-foreground">
+                {title}
+              </div>
+              <div className="truncate text-[11px] text-muted-foreground/80">
+                {dir || path}
+              </div>
             </div>
-          ) : null
-        )}
-      </Section>
-
-      <Section title="Commands run" count={commands.length} icon={TerminalSquare}>
-        {commands.map((a, i) =>
-          a.kind === "command" ? (
-            <div
-              key={i}
-              className="flex items-center gap-2.5 rounded-md bg-card px-3 py-2 ring-1 ring-border/60"
-            >
-              <TerminalSquare className="size-4 shrink-0 text-sky-500" />
-              <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-foreground/90">
-                {a.cmd}
-              </span>
-              <span
-                className={`ml-auto tabular-nums text-[12px] ${a.exit === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}
-              >
-                {a.exit === 0 ? "✓" : "✗"} {(a.durationMs / 1000).toFixed(2)}s
-              </span>
-            </div>
-          ) : null
-        )}
-      </Section>
-
-      <Section title="Tool calls" count={tools.length} icon={Hammer}>
-        {tools.map((a, i) =>
-          a.kind === "tool-call" ? (
-            <div
-              key={i}
-              className="flex items-center gap-2.5 rounded-md bg-card px-3 py-2 ring-1 ring-border/60"
-            >
-              <Hammer className="size-4 shrink-0 text-violet-500" />
-              <span className="min-w-0 truncate text-[13px]">
-                <span className="font-medium text-foreground">{a.tool}</span>
-                <span className="ml-1.5 text-muted-foreground/80">{a.target}</span>
-              </span>
-            </div>
-          ) : null
-        )}
-      </Section>
+            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+          </button>
+        );
+      })}
     </div>
   );
 }
