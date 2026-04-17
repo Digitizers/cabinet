@@ -600,22 +600,34 @@ export async function continueConversationRun(
       ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
       : baseCwd;
 
-  // 5. Assemble prior turns for replay
-  const priorTurns = canResume
-    ? []
-    : (await readConversationTurns(conversationId, cp))
-        .filter((t) => !t.pending)
-        .map((t) => ({ role: t.role, content: t.content, pending: t.pending }));
+  // 5. Build prompts for both modes — resume uses the lightweight shape,
+  //    but we keep the replay prompt ready as a fallback in case the
+  //    adapter reports its session expired.
+  const allTurnsForReplay = (await readConversationTurns(conversationId, cp))
+    .filter((t) => !t.pending)
+    .map((t) => ({ role: t.role, content: t.content, pending: t.pending }));
 
-  const prompt = await buildContinuationPrompt({
-    mode: canResume ? "resume" : "replay",
+  const replayPrompt = await buildContinuationPrompt({
+    mode: "replay",
     meta,
     userMessage: input.userMessage,
     mentionedPaths: input.mentionedPaths || [],
     persona,
     baseCwd,
-    priorTurns,
+    priorTurns: allTurnsForReplay,
   });
+
+  const prompt = canResume
+    ? await buildContinuationPrompt({
+        mode: "resume",
+        meta,
+        userMessage: input.userMessage,
+        mentionedPaths: input.mentionedPaths || [],
+        persona,
+        baseCwd,
+        priorTurns: [],
+      })
+    : replayPrompt;
 
   // 6. Create the pending agent turn
   const pending = await appendAgentTurn(
@@ -652,23 +664,73 @@ export async function continueConversationRun(
     await streamFlushInFlight;
   };
 
-  const ctx: AdapterExecutionContext = {
-    runId: randomUUID(),
-    adapterType: adapter.type,
-    config: meta.adapterConfig || {},
-    prompt,
-    cwd,
-    timeoutMs: input.timeoutMs ?? 10 * 60 * 1000,
-    sessionId: canResume ? session!.resumeId! : null,
-    onLog: async (stream, chunk) => {
-      if (stream !== "stdout") return;
-      logChunks.push(chunk);
-      void flushStreamedContent();
-    },
+  const executeWithPrompt = async (
+    effectivePrompt: string,
+    effectiveSessionId: string | null
+  ) => {
+    logChunks.length = 0;
+    const execCtx: AdapterExecutionContext = {
+      runId: randomUUID(),
+      adapterType: adapter.type,
+      config: meta.adapterConfig || {},
+      prompt: effectivePrompt,
+      cwd,
+      timeoutMs: input.timeoutMs ?? 10 * 60 * 1000,
+      sessionId: effectiveSessionId,
+      onLog: async (stream, chunk) => {
+        if (stream !== "stdout") return;
+        logChunks.push(chunk);
+        void flushStreamedContent();
+      },
+    };
+    return adapter.execute!(execCtx);
+  };
+
+  const isSessionExpiredError = (errorMessage?: string | null): boolean => {
+    if (!errorMessage) return false;
+    const lower = errorMessage.toLowerCase();
+    return (
+      lower.includes("no conversation found") ||
+      lower.includes("session id") ||
+      lower.includes("session not found") ||
+      lower.includes("invalid session") ||
+      lower.includes("session expired")
+    );
   };
 
   try {
-    const result = await adapter.execute(ctx);
+    let result = await executeWithPrompt(
+      prompt,
+      canResume ? session!.resumeId! : null
+    );
+
+    // Fallback: the adapter reports the session is gone (happens after
+    // long idle / server restart / marking the task done earlier). Retry
+    // in replay mode with full history and a fresh session.
+    if (
+      canResume &&
+      (result.exitCode !== 0 || !!result.errorMessage) &&
+      isSessionExpiredError(result.errorMessage)
+    ) {
+      await writeSession(
+        conversationId,
+        {
+          kind: adapter.type,
+          alive: false,
+          lastUsedAt: new Date().toISOString(),
+        },
+        cp
+      );
+      // Reset the pending turn's content so the user doesn't see the
+      // stale error flash before the retry.
+      await updateAgentTurn(
+        conversationId,
+        pendingTurnNumber,
+        { content: "Session expired, retrying with full context…", pending: true },
+        cp
+      );
+      result = await executeWithPrompt(replayPrompt, null);
+    }
 
     const rawOutput =
       (result.output && result.output.trim()) || logChunks.join("").trim() || "";

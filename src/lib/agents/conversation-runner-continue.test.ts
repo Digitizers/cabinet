@@ -263,6 +263,131 @@ test("continueConversationRun flips awaitingInput when agent ends with a questio
   agentAdapterRegistry.unregisterExternal("mock_continue");
 });
 
+test("continueConversationRun falls back to replay when adapter reports session expired", async () => {
+  const captures: Capture[] = [];
+  let call = 0;
+  agentAdapterRegistry.registerExternal({
+    type: "mock_continue",
+    name: "Mock Continue Flaky",
+    executionEngine: "structured_cli",
+    providerId: "mock",
+    supportsSessionResume: true,
+    async testEnvironment() {
+      return {
+        adapterType: "mock_continue",
+        status: "pass",
+        checks: [],
+        testedAt: new Date().toISOString(),
+      };
+    },
+    async execute(ctx) {
+      captures.push({
+        sessionIdSeen: ctx.sessionId,
+        promptSeen: ctx.prompt,
+        cwdSeen: ctx.cwd,
+      });
+      call += 1;
+      if (call === 1) {
+        return {
+          exitCode: 1,
+          signal: null,
+          timedOut: false,
+          output: "",
+          errorMessage:
+            "No conversation found with session ID: a2794f0d-1b3d-499f",
+          sessionId: null,
+        };
+      }
+      return {
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        output: "Answered after replay.\n```cabinet\nSUMMARY: ok\n```",
+        sessionId: "new-session-id",
+        usage: { inputTokens: 500, outputTokens: 20 },
+      };
+    },
+  });
+
+  const meta = await store.createConversation({
+    agentSlug: "general",
+    title: "Session expired test",
+    trigger: "manual",
+    prompt: "User request:\nask again",
+    providerId: "mock",
+    adapterType: "mock_continue",
+  });
+  await store.appendConversationTranscript(
+    meta.id,
+    "ok.\n```cabinet\nSUMMARY: ok\n```"
+  );
+  await store.finalizeConversation(meta.id, {
+    status: "completed",
+    exitCode: 0,
+    output: "ok.\n```cabinet\nSUMMARY: ok\n```",
+  });
+  // Pretend there's a stale session.
+  await store.writeSession(meta.id, {
+    kind: "mock_continue",
+    resumeId: "stale-id",
+    alive: true,
+  });
+
+  await runner.continueConversationRun(meta.id, {
+    userMessage: "please answer",
+  });
+
+  assert.equal(captures.length, 2, "adapter retried after session expired");
+  assert.equal(captures[0].sessionIdSeen, "stale-id", "first attempt uses stale session id");
+  assert.equal(captures[1].sessionIdSeen, null, "retry runs in replay mode (no session id)");
+  assert.match(captures[1].promptSeen, /Prior conversation/, "retry uses replay prompt");
+
+  const reread = await store.readConversationMeta(meta.id);
+  assert.equal(reread?.status, "completed", "final state is completed after retry");
+
+  const session = await store.readSession(meta.id);
+  assert.equal(session?.resumeId, "new-session-id");
+  assert.equal(session?.alive, true);
+
+  agentAdapterRegistry.unregisterExternal("mock_continue");
+});
+
+test("continueConversationRun clears doneAt when user sends a follow-up", async () => {
+  const captures: Capture[] = [];
+  agentAdapterRegistry.registerExternal(
+    buildMockAdapter({
+      supportsSessionResume: true,
+      response: { output: "Reopened.\n```cabinet\nSUMMARY: reopened\n```" },
+      captures,
+    })
+  );
+
+  const meta = await seedConversation();
+  await store.appendConversationTranscript(
+    meta.id,
+    "Done.\n```cabinet\nSUMMARY: done\n```"
+  );
+  await store.finalizeConversation(meta.id, {
+    status: "completed",
+    exitCode: 0,
+    output: "Done.\n```cabinet\nSUMMARY: done\n```",
+  });
+  // Mark done.
+  const existing = await store.readConversationMeta(meta.id);
+  await store.writeConversationMeta({
+    ...existing!,
+    doneAt: new Date().toISOString(),
+  });
+
+  await runner.continueConversationRun(meta.id, { userMessage: "one more thing" });
+
+  const reread = await store.readConversationMeta(meta.id);
+  assert.equal(reread?.doneAt, undefined, "doneAt cleared on continuation");
+  assert.equal(reread?.status, "completed");
+
+  agentAdapterRegistry.unregisterExternal("mock_continue");
+});
+
 test("continueConversationRun with failing adapter marks turn + conversation failed", async () => {
   const captures: Capture[] = [];
   agentAdapterRegistry.registerExternal(

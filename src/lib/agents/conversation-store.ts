@@ -1257,6 +1257,9 @@ export async function appendUserTurn(
     lastActivityAt: ts,
     status: "running",
     awaitingInput: false,
+    // User sending a new turn reopens a done or archived task.
+    doneAt: undefined,
+    archivedAt: undefined,
     mentionedPaths: mergeArtifactPaths(meta.mentionedPaths, input.mentionedPaths),
   };
   await writeConversationMeta(updatedMeta);
