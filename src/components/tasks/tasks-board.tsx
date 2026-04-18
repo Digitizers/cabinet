@@ -71,6 +71,17 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  loadVisibleHours,
+  saveVisibleHours,
+  DEFAULT_VISIBLE_HOURS,
+  type VisibleHours,
+} from "@/lib/storage/calendar-prefs";
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -805,6 +816,14 @@ function BoardLane({
   );
 }
 
+function formatHourLabel(hour: number): string {
+  if (hour === 0) return "12 AM";
+  if (hour === 24) return "12 AM";
+  if (hour < 12) return `${hour} AM`;
+  if (hour === 12) return "12 PM";
+  return `${hour - 12} PM`;
+}
+
 export function TasksBoard({
   cabinetPath,
   workspaceMode,
@@ -847,6 +866,19 @@ export function TasksBoard({
   const [calendarAnchor, setCalendarAnchor] = useState(() => new Date());
   const [calendarFullscreen, setCalendarFullscreen] = useState(false);
   const [calendarDensity, setCalendarDensity] = useState(0);
+  const [visibleHours, setVisibleHoursState] = useState<VisibleHours>(DEFAULT_VISIBLE_HOURS);
+
+  useEffect(() => {
+    setVisibleHoursState(loadVisibleHours());
+  }, []);
+
+  const updateVisibleHours = useCallback((next: VisibleHours) => {
+    const start = Math.max(0, Math.min(23, Math.floor(next.start)));
+    const end = Math.max(start + 1, Math.min(24, Math.floor(next.end)));
+    const clamped = { start, end };
+    setVisibleHoursState(clamped);
+    saveVisibleHours(clamped);
+  }, []);
   const [scheduleJobDialog, setScheduleJobDialog] = useState<{
     agentSlug: string; agentName: string; cabinetPath: string;
     draft: { id: string; name: string; schedule: string; prompt: string; enabled: boolean };
@@ -1410,18 +1442,82 @@ export function TasksBoard({
                 <span className="text-sm font-medium text-foreground">{calendarLabel}</span>
 
                 {calendarMode !== "month" && (
-                  <div className="flex items-center gap-2 rounded-lg border border-border/60 px-2 py-1" title="Compact ↔ Roomy. At 0 the day fits the page; increase to expand cells and scroll.">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">Compact</span>
-                    <div className="w-24">
-                      <Slider
-                        value={[calendarDensity]}
-                        onValueChange={(v) => setCalendarDensity(Array.isArray(v) ? v[0] : v)}
-                        min={0}
-                        max={120}
-                        step={1}
-                      />
+                  <>
+                    <div className="flex items-center gap-2 rounded-lg border border-border/60 px-2 py-1" title="Compact ↔ Roomy. At 0 the day fits the page; increase to expand cells and scroll.">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">Compact</span>
+                      <div className="w-24">
+                        <Slider
+                          value={[calendarDensity]}
+                          onValueChange={(v) => setCalendarDensity(Array.isArray(v) ? v[0] : v)}
+                          min={0}
+                          max={120}
+                          step={1}
+                        />
+                      </div>
                     </div>
-                  </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="flex h-7 items-center gap-1.5 rounded-md border border-border/60 px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                        title="Set visible hour range (saved across sessions)"
+                      >
+                        <Clock3 className="h-3 w-3" />
+                        {formatHourLabel(visibleHours.start)} – {formatHourLabel(visibleHours.end)}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-[220px] p-3">
+                        <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                          Visible hours
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                            From
+                            <select
+                              value={visibleHours.start}
+                              onChange={(e) =>
+                                updateVisibleHours({
+                                  start: Number(e.target.value),
+                                  end: visibleHours.end,
+                                })
+                              }
+                              className="h-7 rounded border border-border/60 bg-background px-1 text-[11px] text-foreground"
+                            >
+                              {Array.from({ length: 24 }, (_, h) => (
+                                <option key={h} value={h} disabled={h >= visibleHours.end}>
+                                  {formatHourLabel(h)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                            To
+                            <select
+                              value={visibleHours.end}
+                              onChange={(e) =>
+                                updateVisibleHours({
+                                  start: visibleHours.start,
+                                  end: Number(e.target.value),
+                                })
+                              }
+                              className="h-7 rounded border border-border/60 bg-background px-1 text-[11px] text-foreground"
+                            >
+                              {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                                <option key={h} value={h} disabled={h <= visibleHours.start}>
+                                  {formatHourLabel(h)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateVisibleHours(DEFAULT_VISIBLE_HOURS)}
+                          className="mt-2 w-full rounded-md border border-border/60 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                        >
+                          Reset to {formatHourLabel(DEFAULT_VISIBLE_HOURS.start)} – {formatHourLabel(DEFAULT_VISIBLE_HOURS.end)}
+                        </button>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
                 )}
 
                 <button onClick={() => setCalendarFullscreen((v) => !v)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground" title={calendarFullscreen ? "Exit full screen" : "Full screen"}>
@@ -1501,6 +1597,9 @@ export function TasksBoard({
               jobs={overview?.jobs || []}
               fullscreen={calendarFullscreen}
               density={calendarDensity}
+              visibleStartHour={visibleHours.start}
+              visibleEndHour={visibleHours.end}
+              onVisibleHoursChange={updateVisibleHours}
               onEventClick={handleScheduleEventClick}
               onDayClick={(date) => { setCalendarMode("day"); setCalendarAnchor(date); }}
             />

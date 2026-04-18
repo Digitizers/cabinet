@@ -11,7 +11,7 @@ import {
 } from "@/lib/agents/cron-compute";
 import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
 import type { ConversationMeta } from "@/types/conversations";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -28,9 +28,8 @@ const DOT_SIZE = 10; // crowded-slot circles
 const DOT_ROW_HEIGHT = DOT_SIZE + 4;
 const MAX_PILLS_MULTIDAY = 2;
 const MAX_PILLS_MONTH = 3;
-const VISIBLE_START_HOUR = 5; // 5 AM
-const VISIBLE_END_HOUR = 23; // 11 PM
-const TOTAL_HOURS = VISIBLE_END_HOUR - VISIBLE_START_HOUR;
+const DEFAULT_VISIBLE_START_HOUR = 5; // 5 AM
+const DEFAULT_VISIBLE_END_HOUR = 23; // 11 PM
 const DAY_NAMES_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -66,6 +65,11 @@ interface ScheduleCalendarProps {
   fullscreen?: boolean;
   /** 0 = whole day fits container; >0 = each hour row gains px and grid scrolls. */
   density?: number;
+  /** Visible hour range in the time grid (day/week views). Inclusive start, exclusive end. */
+  visibleStartHour?: number;
+  visibleEndHour?: number;
+  /** Called when the user clicks an off-window chevron to expand the visible range. */
+  onVisibleHoursChange?: (next: { start: number; end: number }) => void;
   scheduledConversations?: Map<string, ConversationMeta>;
   onEventClick: (event: ScheduleEvent) => void;
   onDayClick: (date: Date) => void;
@@ -203,6 +207,9 @@ function TimeGridView({
   days,
   fullscreen,
   density = 0,
+  visibleStartHour,
+  visibleEndHour,
+  onVisibleHoursChange,
   scheduledConversations,
   onEventClick,
 }: {
@@ -210,6 +217,9 @@ function TimeGridView({
   days: Date[];
   fullscreen?: boolean;
   density?: number;
+  visibleStartHour: number;
+  visibleEndHour: number;
+  onVisibleHoursChange?: (next: { start: number; end: number }) => void;
   scheduledConversations?: Map<string, ConversationMeta>;
   onEventClick: (event: ScheduleEvent) => void;
 }) {
@@ -217,6 +227,25 @@ function TimeGridView({
   const [now, setNow] = useState(() => new Date());
   const [containerHeight, setContainerHeight] = useState(0);
   const isMultiDay = days.length > 1;
+  const TOTAL_HOURS = Math.max(1, visibleEndHour - visibleStartHour);
+
+  // Off-window event counts (events on visible days that fall outside [start, end))
+  const dayKeys = useMemo(
+    () => new Set(days.map((d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`)),
+    [days],
+  );
+  const { beforeCount, afterCount } = useMemo(() => {
+    let before = 0;
+    let after = 0;
+    for (const e of events) {
+      const key = `${e.time.getFullYear()}-${e.time.getMonth()}-${e.time.getDate()}`;
+      if (!dayKeys.has(key)) continue;
+      const h = e.time.getHours();
+      if (h < visibleStartHour) before++;
+      else if (h >= visibleEndHour) after++;
+    }
+    return { beforeCount: before, afterCount: after };
+  }, [events, dayKeys, visibleStartHour, visibleEndHour]);
 
   // Update current time
   useEffect(() => {
@@ -244,9 +273,9 @@ function TimeGridView({
   // Auto-scroll to current hour
   useEffect(() => {
     const hour = new Date().getHours();
-    const target = Math.max(0, (hour - VISIBLE_START_HOUR - 1) * HOUR_HEIGHT);
+    const target = Math.max(0, (hour - visibleStartHour - 1) * HOUR_HEIGHT);
     scrollRef.current?.scrollTo({ top: target, behavior: "smooth" });
-  }, [days[0]?.getTime(), HOUR_HEIGHT]);
+  }, [days[0]?.getTime(), HOUR_HEIGHT, visibleStartHour]);
 
   // Group events by day column → per 15-min slot
   // Week (multi-day): slots with too many events collapse into dots.
@@ -273,7 +302,7 @@ function TimeGridView({
         const first = slotEvents[0];
         const hour = first.time.getHours();
         const minute = first.time.getMinutes();
-        const top = (hour - VISIBLE_START_HOUR) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
+        const top = (hour - visibleStartHour) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
         const sorted = [...slotEvents].sort(
           (a, b) => a.time.getTime() - b.time.getTime()
         );
@@ -305,7 +334,7 @@ function TimeGridView({
 
       return { day, buckets, columnHeight };
     });
-  }, [days, events, maxPills, isMultiDay, HOUR_HEIGHT]);
+  }, [days, events, maxPills, isMultiDay, HOUR_HEIGHT, visibleStartHour, TOTAL_HOURS]);
 
   const gridHeight = Math.max(
     TOTAL_HOURS * HOUR_HEIGHT,
@@ -313,9 +342,20 @@ function TimeGridView({
   );
 
   // Current time position
-  const nowTop = (now.getHours() - VISIBLE_START_HOUR) * HOUR_HEIGHT + (now.getMinutes() / 60) * HOUR_HEIGHT;
-  const showNowLine = now.getHours() >= VISIBLE_START_HOUR && now.getHours() < VISIBLE_END_HOUR;
+  const nowTop = (now.getHours() - visibleStartHour) * HOUR_HEIGHT + (now.getMinutes() / 60) * HOUR_HEIGHT;
+  const showNowLine = now.getHours() >= visibleStartHour && now.getHours() < visibleEndHour;
   const todayIndex = days.findIndex((d) => isSameDay(d, now));
+
+  const canExpandStart = visibleStartHour > 0;
+  const canExpandEnd = visibleEndHour < 24;
+  const expandStart = () => {
+    if (!onVisibleHoursChange || !canExpandStart) return;
+    onVisibleHoursChange({ start: visibleStartHour - 1, end: visibleEndHour });
+  };
+  const expandEnd = () => {
+    if (!onVisibleHoursChange || !canExpandEnd) return;
+    onVisibleHoursChange({ start: visibleStartHour, end: visibleEndHour + 1 });
+  };
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -353,6 +393,20 @@ function TimeGridView({
         })}
       </div>
 
+      {/* Off-window indicator: events earlier than visible range */}
+      {beforeCount > 0 && canExpandStart && (
+        <button
+          type="button"
+          onClick={expandStart}
+          title={`Show ${formatHour(visibleStartHour - 1)} — ${beforeCount} event${beforeCount === 1 ? "" : "s"} earlier`}
+          className="flex w-full items-center justify-center gap-1.5 border-b border-border/30 bg-muted/20 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+        >
+          <ChevronUp className="h-3 w-3" />
+          <span>{beforeCount} earlier</span>
+          <span className="opacity-60">· show {formatHour(visibleStartHour - 1)}</span>
+        </button>
+      )}
+
       {/* Time grid */}
       <div
         ref={scrollRef}
@@ -373,7 +427,7 @@ function TimeGridView({
                 className="absolute right-2 text-[10px] tabular-nums text-muted-foreground/50"
                 style={{ top: i * HOUR_HEIGHT - 6 }}
               >
-                {formatHour(VISIBLE_START_HOUR + i)}
+                {formatHour(visibleStartHour + i)}
               </div>
             ))}
           </div>
@@ -469,6 +523,20 @@ function TimeGridView({
           </div>
         )}
       </div>
+
+      {/* Off-window indicator: events later than visible range */}
+      {afterCount > 0 && canExpandEnd && (
+        <button
+          type="button"
+          onClick={expandEnd}
+          title={`Show ${formatHour(visibleEndHour)} — ${afterCount} event${afterCount === 1 ? "" : "s"} later`}
+          className="flex w-full items-center justify-center gap-1.5 border-t border-border/30 bg-muted/20 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+        >
+          <ChevronDown className="h-3 w-3" />
+          <span>{afterCount} later</span>
+          <span className="opacity-60">· show {formatHour(visibleEndHour)}</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -666,6 +734,9 @@ export function ScheduleCalendar({
   jobs,
   fullscreen,
   density,
+  visibleStartHour = DEFAULT_VISIBLE_START_HOUR,
+  visibleEndHour = DEFAULT_VISIBLE_END_HOUR,
+  onVisibleHoursChange,
   scheduledConversations,
   onEventClick,
   onDayClick,
@@ -710,6 +781,9 @@ export function ScheduleCalendar({
         days={days}
         fullscreen={fullscreen}
         density={density}
+        visibleStartHour={visibleStartHour}
+        visibleEndHour={visibleEndHour}
+        onVisibleHoursChange={onVisibleHoursChange}
         scheduledConversations={scheduledConversations}
         onEventClick={onEventClick}
       />
