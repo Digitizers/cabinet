@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, type ReactNode } from "react";
 import {
   ArrowLeft,
   Play,
@@ -19,6 +19,9 @@ import {
   Save,
   Trash2,
   Pencil,
+  Activity,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,15 +30,231 @@ import { WebTerminal } from "@/components/terminal/web-terminal";
 import { cn } from "@/lib/utils";
 import { AgentIdentity, getAgentDisplayName } from "@/components/agents/agent-identity";
 import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona-manager";
+import type { ConversationMeta } from "@/types/conversations";
 import { cronToHuman } from "@/lib/agents/cron-utils";
+import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 
-type TabId = "definition" | "jobs" | "sessions";
+type TabId = "chat" | "definition" | "automations" | "history";
 const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
+  { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "definition", label: "Definition", icon: FileText },
-  { id: "jobs", label: "Jobs", icon: Briefcase },
-  { id: "sessions", label: "Sessions", icon: Clock },
+  { id: "automations", label: "Automations", icon: Briefcase },
+  { id: "history", label: "History", icon: Clock },
 ];
+
+/* ─── Stats helpers ─── */
+function computeStats(history: HeartbeatRecord[]) {
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const withinWeek = history.filter(
+    (h) => new Date(h.timestamp).getTime() >= weekAgo
+  );
+  const runsThisWeek = withinWeek.length;
+  const avgDurationMs = history.length
+    ? history.reduce((s, h) => s + (h.duration || 0), 0) / history.length
+    : 0;
+  const lastSeen = history[0]?.timestamp;
+  return { runsThisWeek, avgDurationMs, lastSeen };
+}
+
+function formatDuration(ms: number): string {
+  if (!ms) return "—";
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.round(m / 60);
+  return `${h}h`;
+}
+
+function formatRelative(iso?: string): string {
+  if (!iso) return "never";
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60_000) return "just now";
+  const m = Math.floor(diff / 60_000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function hexToRgba(hex: string, alpha: number): string | null {
+  const clean = hex.trim().replace(/^#/, "");
+  const full =
+    clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  if (full.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(full)) return null;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/* ─── Hero ─── */
+function AgentHero({
+  persona,
+  history,
+  running,
+  toggling,
+  onRun,
+  onToggle,
+  onBack,
+  onRefresh,
+}: {
+  persona: AgentPersona;
+  history: HeartbeatRecord[];
+  running: boolean;
+  toggling: boolean;
+  onRun: () => void;
+  onToggle: () => void;
+  onBack: () => void;
+  onRefresh: () => void;
+}) {
+  const palette = persona.color
+    ? tintFromHex(persona.color)
+    : getAgentColor(persona.slug);
+  const stats = useMemo(() => computeStats(history), [history]);
+
+  // Bold gradient: accent tint (stronger than palette) → fades to transparent
+  const strongTint = persona.color
+    ? hexToRgba(persona.color, 0.32)
+    : palette.bg;
+  const softTint = persona.color
+    ? hexToRgba(persona.color, 0.08)
+    : palette.bg;
+  const gradient = `linear-gradient(135deg, ${strongTint ?? palette.bg} 0%, ${softTint ?? palette.bg} 55%, transparent 100%)`;
+
+  return (
+    <div
+      className="relative border-b border-border overflow-hidden"
+      style={{ background: gradient }}
+    >
+      {/* top nav row */}
+      <div className="flex items-center justify-between px-4 pt-3">
+        <Button variant="ghost" size="icon-sm" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon-sm" onClick={onRefresh}>
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {/* main row */}
+      <div className="flex items-start gap-5 px-6 pt-1 pb-5">
+        <div className="relative shrink-0">
+          <div
+            className="absolute -inset-2 rounded-3xl blur-2xl opacity-70 pointer-events-none"
+            style={{ backgroundColor: palette.bg }}
+          />
+          <AgentIdentity
+            agent={{
+              slug: persona.slug,
+              cabinetPath: persona.cabinetPath,
+              displayName: persona.displayName,
+              iconKey: persona.iconKey,
+              color: persona.color,
+              avatar: persona.avatar,
+              avatarExt: persona.avatarExt,
+            }}
+            size="lg"
+            className="relative !h-20 !w-20 rounded-2xl shadow-lg ring-1 ring-white/10 [&>svg]:!h-9 [&>svg]:!w-9"
+          />
+        </div>
+
+        <div className="flex-1 min-w-0 pt-0.5">
+          <h1
+            className="text-[28px] font-semibold tracking-[-0.02em] leading-tight truncate"
+            style={{ color: palette.text }}
+          >
+            {getAgentDisplayName(persona)}
+          </h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5 truncate">
+            {persona.role}
+            {persona.department && (
+              <>
+                <span className="mx-1.5 opacity-40">·</span>
+                {persona.department}
+              </>
+            )}
+          </p>
+          <div className="flex items-center gap-1.5 mt-2">
+            <span
+              className={cn(
+                "inline-block w-1.5 h-1.5 rounded-full",
+                persona.active ? "bg-green-500" : "bg-muted-foreground/40"
+              )}
+            />
+            <span className="text-[11px] text-muted-foreground">
+              {persona.active ? "Active" : "Paused"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 pt-0.5">
+          <Button
+            variant="default"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={onRun}
+            disabled={running}
+          >
+            {running ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Zap className="h-3.5 w-3.5" />
+            )}
+            {running ? "Running…" : "Run"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={onToggle}
+            disabled={toggling}
+          >
+            {persona.active ? (
+              <Pause className="h-3.5 w-3.5" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+            {persona.active ? "Pause" : "Activate"}
+          </Button>
+        </div>
+      </div>
+
+      {/* stats strip */}
+      <div className="flex items-center gap-5 px-6 pb-3 text-[11px] flex-wrap">
+        <HeroStat
+          icon={<Zap className="h-3 w-3" />}
+          label={`${stats.runsThisWeek} run${stats.runsThisWeek === 1 ? "" : "s"} this week`}
+        />
+        <HeroStat
+          icon={<Clock className="h-3 w-3" />}
+          label={`${formatDuration(stats.avgDurationMs)} avg`}
+        />
+        <HeroStat
+          icon={<Activity className="h-3 w-3" />}
+          label={`last seen ${formatRelative(stats.lastSeen)}`}
+        />
+        <HeroStat
+          icon={<Sparkles className="h-3 w-3" />}
+          label={cronToHuman(persona.heartbeat)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function HeroStat({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5 text-muted-foreground">
+      <span className="opacity-70">{icon}</span>
+      <span>{label}</span>
+    </div>
+  );
+}
 
 
 /* ─── Editable Field ─── */
@@ -85,42 +304,6 @@ function EditableField({
         <p className={cn("text-[13px] font-medium mt-0.5", mono && "font-mono")}>
           {value || "—"}
         </p>
-      )}
-    </div>
-  );
-}
-
-/* ─── Heartbeat Field (uses SchedulePicker) ─── */
-function HeartbeatField({
-  value,
-  onSave,
-}: {
-  value: string;
-  onSave: (val: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-
-  return (
-    <div
-      className="bg-muted/30 rounded-lg p-3 group cursor-pointer hover:bg-muted/50 transition-colors"
-      onClick={() => { if (!editing) setEditing(true); }}
-    >
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center justify-between mb-1">
-        Heartbeat
-        {!editing && <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity" />}
-      </p>
-      {editing ? (
-        <div onClick={(e) => e.stopPropagation()}>
-          <SchedulePicker
-            value={value}
-            onChange={(v) => { onSave(v); setEditing(false); }}
-            onDone={() => setEditing(false)}
-          />
-        </div>
-      ) : (
-        <div>
-          <p className="text-[13px] font-medium">{cronToHuman(value)}</p>
-        </div>
       )}
     </div>
   );
@@ -188,16 +371,14 @@ function DefinitionTab({
           value={persona.type}
           onSave={(v) => saveField("type", v)}
         />
-        <HeartbeatField
-          value={persona.heartbeat}
-          onSave={(v) => saveField("heartbeat", v)}
-        />
-        <EditableField
-          label="Workspace"
-          value={persona.workspace || "/"}
-          mono
-          onSave={(v) => saveField("workspace", v)}
-        />
+        <div className="col-span-2">
+          <EditableField
+            label="Workspace"
+            value={persona.workspace || "/"}
+            mono
+            onSave={(v) => saveField("workspace", v)}
+          />
+        </div>
       </div>
 
       {persona.tags.length > 0 && (
@@ -284,7 +465,7 @@ function DefinitionTab({
   );
 }
 
-/* ─── Jobs Tab ─── */
+/* ─── Automations Tab ─── */
 interface AgentJob {
   id: string;
   name: string;
@@ -294,7 +475,15 @@ interface AgentJob {
   timeout?: number;
 }
 
-function JobsTab({ slug }: { slug: string }) {
+function AutomationsTab({
+  persona,
+  slug,
+  onRefresh,
+}: {
+  persona: AgentPersona;
+  slug: string;
+  onRefresh: () => void;
+}) {
   const [jobs, setJobs] = useState<AgentJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -381,12 +570,42 @@ function JobsTab({ slug }: { slug: string }) {
     refresh();
   };
 
+  const saveHeartbeat = async (cron: string) => {
+    await fetch(`/api/agents/personas/${slug}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ heartbeat: cron }),
+    });
+    onRefresh();
+  };
+
   if (loading) {
-    return <p className="text-[13px] text-muted-foreground">Loading jobs...</p>;
+    return <p className="text-[13px] text-muted-foreground">Loading automations...</p>;
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
+      {/* Heartbeat */}
+      <div className="space-y-2">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+          Heartbeat
+        </p>
+        <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            The default recurring schedule for {getAgentDisplayName(persona) || "this agent"}.
+          </p>
+          <p className="text-[12px] font-medium">
+            {cronToHuman(persona.heartbeat)}
+            <span className="ml-2 text-[10px] font-mono text-muted-foreground/60">
+              {persona.heartbeat}
+            </span>
+          </p>
+          <SchedulePicker value={persona.heartbeat} onChange={saveHeartbeat} />
+        </div>
+      </div>
+
+      {/* Jobs */}
+      <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
           Scheduled Jobs
@@ -530,12 +749,13 @@ function JobsTab({ slug }: { slug: string }) {
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 }
 
-/* ─── Sessions Tab ─── */
-function SessionsTab({
+/* ─── History Tab ─── */
+function HistoryTab({
   persona,
   history,
   onRefresh,
@@ -810,11 +1030,265 @@ function SessionsTab({
   );
 }
 
+/* ─── Chat Tab ─── */
+function triggerIcon(trigger: ConversationMeta["trigger"]) {
+  switch (trigger) {
+    case "job":
+      return Briefcase;
+    case "heartbeat":
+      return Sparkles;
+    default:
+      return MessageSquare;
+  }
+}
+
+function triggerLabel(trigger: ConversationMeta["trigger"]): string {
+  switch (trigger) {
+    case "job":
+      return "Job";
+    case "heartbeat":
+      return "Heartbeat";
+    default:
+      return "Chat";
+  }
+}
+
+function conversationStatusBadge(convo: ConversationMeta) {
+  if (convo.status === "running") {
+    return (
+      <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+    );
+  }
+  if (convo.status === "completed") {
+    return <CheckCircle className="h-3.5 w-3.5 text-green-500" />;
+  }
+  if (convo.status === "failed") {
+    return <XCircle className="h-3.5 w-3.5 text-red-500" />;
+  }
+  return <XCircle className="h-3.5 w-3.5 text-muted-foreground/40" />;
+}
+
+function conversationDurationMs(convo: ConversationMeta): number {
+  const start = new Date(convo.startedAt).getTime();
+  const end = convo.completedAt
+    ? new Date(convo.completedAt).getTime()
+    : convo.lastActivityAt
+      ? new Date(convo.lastActivityAt).getTime()
+      : Date.now();
+  return Math.max(0, end - start);
+}
+
+function ChatTab({
+  persona,
+  conversations,
+  onRefresh,
+  onShowAll,
+  onOpenConversation,
+}: {
+  persona: AgentPersona;
+  conversations: ConversationMeta[];
+  onRefresh: () => void;
+  onShowAll: () => void;
+  onOpenConversation: (c: ConversationMeta) => void;
+}) {
+  const [prompt, setPrompt] = useState("");
+  const [liveSession, setLiveSession] = useState<{
+    id: string;
+    prompt: string;
+    userMessage: string;
+    providerId: string;
+    adapterType?: string;
+  } | null>(null);
+
+  const recent = conversations.slice(0, 6);
+  const palette = persona.color
+    ? tintFromHex(persona.color)
+    : getAgentColor(persona.slug);
+
+  const handleSendPrompt = () => {
+    if (!prompt.trim()) return;
+    const userMessage = prompt.trim();
+    const sessionId = `agent-${persona.slug}-${Date.now()}`;
+    const fullPrompt = `${persona.body}\n\n---\n\nUser request: ${userMessage}`;
+    setLiveSession({
+      id: sessionId,
+      prompt: fullPrompt,
+      userMessage,
+      providerId: persona.provider,
+      adapterType: persona.adapterType,
+    });
+    setPrompt("");
+  };
+
+  const handleSessionEnd = () => {
+    setLiveSession(null);
+    onRefresh();
+  };
+
+  return (
+    <div className="flex flex-1 overflow-hidden">
+      {/* Main chat pane */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {liveSession ? (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 shrink-0">
+              <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+              <span className="text-[12px] font-medium truncate">
+                {liveSession.userMessage}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-6 text-[10px]"
+                onClick={handleSessionEnd}
+              >
+                End session
+              </Button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <WebTerminal
+                sessionId={liveSession.id}
+                prompt={liveSession.prompt}
+                themeSurface="page"
+                providerId={liveSession.providerId}
+                adapterType={liveSession.adapterType}
+                onClose={handleSessionEnd}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center px-8">
+            <div className="relative mb-5">
+              <div
+                className="absolute -inset-3 rounded-3xl blur-2xl opacity-60 pointer-events-none"
+                style={{ backgroundColor: palette.bg }}
+              />
+              <AgentIdentity
+                agent={{
+                  slug: persona.slug,
+                  cabinetPath: persona.cabinetPath,
+                  displayName: persona.displayName,
+                  iconKey: persona.iconKey,
+                  color: persona.color,
+                  avatar: persona.avatar,
+                  avatarExt: persona.avatarExt,
+                }}
+                size="lg"
+                className="relative !h-14 !w-14 rounded-2xl shadow-md ring-1 ring-white/10 [&>svg]:!h-6 [&>svg]:!w-6"
+              />
+            </div>
+            <h3 className="text-[15px] font-semibold tracking-[-0.01em]">
+              Chat with {getAgentDisplayName(persona) || persona.name}
+            </h3>
+            <p className="text-[12px] text-muted-foreground mt-1 max-w-sm text-center">
+              Send a prompt to start a live session. {persona.name} will work in
+              the background and keep this conversation as history.
+            </p>
+            <div className="w-full max-w-xl mt-6">
+              <div className="flex gap-2">
+                <input
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendPrompt();
+                    }
+                  }}
+                  placeholder={`Ask ${getAgentDisplayName(persona) || persona.name} something…`}
+                  className="flex-1 px-3 py-2.5 text-[13px] rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  autoFocus
+                />
+                <Button
+                  size="sm"
+                  className="h-10 gap-1.5 px-4"
+                  onClick={handleSendPrompt}
+                  disabled={!prompt.trim()}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Send
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Recent activity rail */}
+      <div className="w-[260px] min-w-[260px] border-l border-border flex flex-col bg-muted/5">
+        <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+            Recent
+          </span>
+          {conversations.length > recent.length && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[10px] gap-1"
+              onClick={onShowAll}
+            >
+              Show all
+              <ArrowRight className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="p-1.5 space-y-0.5">
+            {recent.length === 0 && (
+              <p className="text-[11px] text-muted-foreground/50 px-2 py-6 text-center">
+                No activity yet
+              </p>
+            )}
+            {recent.map((convo) => {
+              const TriggerIcon = triggerIcon(convo.trigger);
+              const title =
+                (convo.title || convo.summary || "Untitled")
+                  .replace(/^---\s*\n/, "")
+                  .replace(/^#+\s*/, "")
+                  .trim();
+              const durationMs = conversationDurationMs(convo);
+              return (
+                <button
+                  key={convo.id}
+                  onClick={() => onOpenConversation(convo)}
+                  className="flex items-start gap-2 w-full px-2.5 py-2 rounded-md text-[11px] text-left text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+                >
+                  <div className="mt-0.5 shrink-0">
+                    {conversationStatusBadge(convo)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-[11px] leading-tight">
+                      {title.length > 44 ? title.slice(0, 44) + "…" : title}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5 flex items-center gap-1">
+                      <TriggerIcon className="h-2.5 w-2.5 opacity-70 shrink-0" />
+                      <span>{triggerLabel(convo.trigger)}</span>
+                      <span className="opacity-40">·</span>
+                      <span>{formatRelative(convo.lastActivityAt || convo.startedAt)}</span>
+                      {durationMs > 0 && convo.status !== "running" && (
+                        <>
+                          <span className="opacity-40">·</span>
+                          <span>{formatDuration(durationMs)}</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </ScrollArea>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Component ─── */
 export function AgentDetail({ slug }: { slug: string }) {
   const [persona, setPersona] = useState<AgentPersona | null>(null);
   const [history, setHistory] = useState<HeartbeatRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<TabId>("definition");
+  const [conversations, setConversations] = useState<ConversationMeta[]>([]);
+  const [activeTab, setActiveTab] = useState<TabId>("chat");
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -822,11 +1296,20 @@ export function AgentDetail({ slug }: { slug: string }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`/api/agents/personas/${slug}`);
-      if (res.ok) {
-        const data = await res.json();
+      const [personaRes, convoRes] = await Promise.all([
+        fetch(`/api/agents/personas/${slug}`),
+        fetch(
+          `/api/agents/conversations?agent=${encodeURIComponent(slug)}&limit=50`
+        ),
+      ]);
+      if (personaRes.ok) {
+        const data = await personaRes.json();
         setPersona(data.persona);
         setHistory(data.history || []);
+      }
+      if (convoRes.ok) {
+        const data = await convoRes.json();
+        setConversations(data.conversations || []);
       }
     } catch {
       // ignore
@@ -834,6 +1317,18 @@ export function AgentDetail({ slug }: { slug: string }) {
       setLoading(false);
     }
   }, [slug]);
+
+  const openConversation = useCallback(
+    (conversation: ConversationMeta) => {
+      setSection({
+        type: "task",
+        taskId: conversation.id,
+        mode: conversation.cabinetPath ? "cabinet" : "ops",
+        cabinetPath: conversation.cabinetPath,
+      });
+    },
+    [setSection]
+  );
 
   useEffect(() => {
     refresh();
@@ -873,108 +1368,77 @@ export function AgentDetail({ slug }: { slug: string }) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setSection({ type: "agents" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <AgentIdentity
-            agent={{
-              slug: persona.slug,
-              cabinetPath: persona.cabinetPath,
-              displayName: persona.displayName,
-              iconKey: persona.iconKey,
-              color: persona.color,
-              avatar: persona.avatar,
-              avatarExt: persona.avatarExt,
-            }}
-            size="md"
-          />
-          <div>
-            <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
-              {getAgentDisplayName(persona)}
-            </h2>
-            <p className="text-[11px] text-muted-foreground">{persona.role}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={handleRun}
-            disabled={running}
-          >
-            <Zap className="h-3 w-3" />
-            {running ? "Running..." : "Run"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={handleToggle}
-            disabled={toggling}
-          >
-            {persona.active ? (
-              <Pause className="h-3 w-3" />
-            ) : (
-              <Play className="h-3 w-3" />
-            )}
-            {persona.active ? "Pause" : "Activate"}
-          </Button>
-          <Button variant="ghost" size="icon-sm" onClick={refresh}>
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </div>
+      <AgentHero
+        persona={persona}
+        history={history}
+        running={running}
+        toggling={toggling}
+        onRun={handleRun}
+        onToggle={handleToggle}
+        onBack={() => setSection({ type: "agents" })}
+        onRefresh={refresh}
+      />
 
-      {/* Body: vertical sidebar nav + content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Vertical tab sidebar */}
-        <div className="w-[160px] min-w-[160px] border-r border-border flex flex-col bg-muted/5 py-2">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+      {/* Pill tab nav */}
+      <div className="px-4 pt-3 border-b border-border flex items-center gap-1">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "group relative flex items-center gap-1.5 px-3 pb-2.5 pt-1.5 text-[12px] font-medium transition-colors",
+                isActive
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              {tab.label}
+              <span
                 className={cn(
-                  "flex items-center gap-2 mx-2 px-2.5 py-2 rounded-md text-[12px] font-medium transition-colors text-left",
-                  activeTab === tab.id
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  "absolute inset-x-2 -bottom-px h-[2px] rounded-full transition-all",
+                  isActive ? "bg-primary" : "bg-transparent"
                 )}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Tab content */}
-        {activeTab === "sessions" ? (
-          <SessionsTab
-            persona={persona}
-            history={history}
-            onRefresh={refresh}
-          />
-        ) : (
-          <ScrollArea className="flex-1">
-            <div className="p-4">
-              {activeTab === "definition" && <DefinitionTab persona={persona} slug={slug} onRefresh={refresh} />}
-              {activeTab === "jobs" && <JobsTab slug={slug} />}
-
-
-            </div>
-          </ScrollArea>
-        )}
+              />
+            </button>
+          );
+        })}
       </div>
+
+      {/* Tab content */}
+      {activeTab === "chat" ? (
+        <ChatTab
+          persona={persona}
+          conversations={conversations}
+          onRefresh={refresh}
+          onShowAll={() => setActiveTab("history")}
+          onOpenConversation={openConversation}
+        />
+      ) : activeTab === "history" ? (
+        <HistoryTab
+          persona={persona}
+          history={history}
+          onRefresh={refresh}
+        />
+      ) : (
+        <ScrollArea className="flex-1">
+          <div className="p-4">
+            {activeTab === "definition" && (
+              <DefinitionTab persona={persona} slug={slug} onRefresh={refresh} />
+            )}
+            {activeTab === "automations" && (
+              <AutomationsTab
+                persona={persona}
+                slug={slug}
+                onRefresh={refresh}
+              />
+            )}
+          </div>
+        </ScrollArea>
+      )}
     </div>
   );
 }
