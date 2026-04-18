@@ -41,6 +41,7 @@ import { KeyboardShortcuts } from "@/components/shortcuts/keyboard-shortcuts";
 import { StatusBar } from "@/components/layout/status-bar";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
+import { BreakingChangesWarning } from "@/components/layout/breaking-changes-warning";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
 import { SystemToasts } from "@/components/layout/system-toasts";
 import { CabinetView } from "@/components/cabinets/cabinet-view";
@@ -409,6 +410,7 @@ export function AppShell() {
       />
       <NotificationToasts />
       <SystemToasts />
+      <BreakingChangesWarning />
     </div>
   );
 }
