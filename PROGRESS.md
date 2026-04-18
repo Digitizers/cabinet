@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-18] New `TASKS_CONVERSATIONS_PRD.md` at repo root: canonical spec for the v2 tasks/conversations continuity layer + the 8-provider CLI runtime. Enumerates all 11 prompt entry points, includes Mermaid sequence/component/state diagrams for prompt→daemon→adapter→persistence→SSE→UI, full provider + adapter matrix, per-turn runtime switching, and an audit appendix with 🟢/🟡/🔴 status per integration point (file:line evidence) plus a suggested implementation order.
+
 [2026-04-18] Registry imports now cache the full GitHub tree response in-process (10 min TTL) so multiple back-to-back imports don't burn through the 60/hr unauthenticated API budget. On 403/429 the error message now surfaces the rate limit clearly and mentions `GITHUB_TOKEN` as the fix (5000/hr when set). Documented the optional token in `.env.example`.
 
 [2026-04-18] Added a one-time "Cabinet is under breaking changes" warning dialog. Shown on first mount if the user hasn't acknowledged it — stored under localStorage key `cabinet.breaking-changes-warning-ack:v1`. Mounted in `AppShell` after the onboarding wizard resolves, so new users see it right after setup, and existing dev-branch users see it once on next load. Clearing the key re-triggers it.
@@ -500,3 +502,5 @@
 [2026-04-18] Jobs & heartbeats calendar gets a Compact ↔ Roomy density slider. Day/week views now measure their scroll container with a ResizeObserver and compute HOUR_HEIGHT dynamically: at density=0 the visible TOTAL_HOURS exactly fits the page (no scroll), each density unit adds 1px per hour row so the grid grows past the viewport and scrolls. MIN_HOUR_HEIGHT=22 keeps the grid readable on tiny screens, and the slider is hidden in month mode where density doesn't apply. Slider lives next to the day/week/month picker in tasks-board.tsx.
 
 [2026-04-18] Refresh perf: stop blanking the app on reload. Tree and last-opened page are now cached in localStorage and painted instantly on mount, then revalidated in the background (SWR). Onboarding config check and useCabinetUpdate deferred to requestIdleCallback so they don't sit in the critical path — and the "wizard done" flag is cached so returning users skip the blocking `showWizard === null` render that was the main blank-screen culprit. Tree cache key is bucketed by showHidden.
+
+[2026-04-18] Fix Compact slider in Jobs & heartbeats. Wrapped the base-ui Slider in an explicit `w-24` container — the Slider Root's default `data-horizontal:w-full` had higher selector specificity than our `w-24` className override, so inside a flex row the slider was collapsing/expanding unpredictably and the thumb wasn't grabbable. Wrapping gives the Root a real 96px parent to fill.

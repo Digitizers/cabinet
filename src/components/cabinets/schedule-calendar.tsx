@@ -21,7 +21,8 @@ import {
 
 /* ─── Constants ─── */
 
-const HOUR_HEIGHT = 56; // px per hour row
+const DEFAULT_HOUR_HEIGHT = 56; // px per hour row (used until container is measured)
+const MIN_HOUR_HEIGHT = 22;
 const PILL_HEIGHT = 22;
 const DOT_SIZE = 10; // crowded-slot circles
 const DOT_ROW_HEIGHT = DOT_SIZE + 4;
@@ -63,6 +64,8 @@ interface ScheduleCalendarProps {
   agents: CabinetAgentSummary[];
   jobs: CabinetJobSummary[];
   fullscreen?: boolean;
+  /** 0 = whole day fits container; >0 = each hour row gains px and grid scrolls. */
+  density?: number;
   scheduledConversations?: Map<string, ConversationMeta>;
   onEventClick: (event: ScheduleEvent) => void;
   onDayClick: (date: Date) => void;
@@ -199,17 +202,20 @@ function TimeGridView({
   events,
   days,
   fullscreen,
+  density = 0,
   scheduledConversations,
   onEventClick,
 }: {
   events: ScheduleEvent[];
   days: Date[];
   fullscreen?: boolean;
+  density?: number;
   scheduledConversations?: Map<string, ConversationMeta>;
   onEventClick: (event: ScheduleEvent) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => new Date());
+  const [containerHeight, setContainerHeight] = useState(0);
   const isMultiDay = days.length > 1;
 
   // Update current time
@@ -218,12 +224,29 @@ function TimeGridView({
     return () => clearInterval(iv);
   }, []);
 
+  // Measure scroll container height so we can fit the day exactly at density=0.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setContainerHeight(el.clientHeight);
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) setContainerHeight(entry.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // At density=0, fit TOTAL_HOURS into the available height. Each density unit
+  // adds 1px per hour row, so the grid grows past the container and scrolls.
+  const fitHourHeight = containerHeight > 0 ? containerHeight / TOTAL_HOURS : DEFAULT_HOUR_HEIGHT;
+  const HOUR_HEIGHT = Math.max(MIN_HOUR_HEIGHT, fitHourHeight + density);
+
   // Auto-scroll to current hour
   useEffect(() => {
     const hour = new Date().getHours();
     const target = Math.max(0, (hour - VISIBLE_START_HOUR - 1) * HOUR_HEIGHT);
     scrollRef.current?.scrollTo({ top: target, behavior: "smooth" });
-  }, [days[0]?.getTime()]);
+  }, [days[0]?.getTime(), HOUR_HEIGHT]);
 
   // Group events by day column → per 15-min slot
   // Week (multi-day): slots with too many events collapse into dots.
@@ -282,7 +305,7 @@ function TimeGridView({
 
       return { day, buckets, columnHeight };
     });
-  }, [days, events, maxPills, isMultiDay]);
+  }, [days, events, maxPills, isMultiDay, HOUR_HEIGHT]);
 
   const gridHeight = Math.max(
     TOTAL_HOURS * HOUR_HEIGHT,
@@ -642,6 +665,7 @@ export function ScheduleCalendar({
   agents,
   jobs,
   fullscreen,
+  density,
   scheduledConversations,
   onEventClick,
   onDayClick,
@@ -685,6 +709,7 @@ export function ScheduleCalendar({
         events={events}
         days={days}
         fullscreen={fullscreen}
+        density={density}
         scheduledConversations={scheduledConversations}
         onEventClick={onEventClick}
       />

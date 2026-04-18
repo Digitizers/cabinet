@@ -69,6 +69,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -845,6 +846,7 @@ export function TasksBoard({
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("week");
   const [calendarAnchor, setCalendarAnchor] = useState(() => new Date());
   const [calendarFullscreen, setCalendarFullscreen] = useState(false);
+  const [calendarDensity, setCalendarDensity] = useState(0);
   const [scheduleJobDialog, setScheduleJobDialog] = useState<{
     agentSlug: string; agentName: string; cabinetPath: string;
     draft: { id: string; name: string; schedule: string; prompt: string; enabled: boolean };
@@ -1407,6 +1409,21 @@ export function TasksBoard({
 
                 <span className="text-sm font-medium text-foreground">{calendarLabel}</span>
 
+                {calendarMode !== "month" && (
+                  <div className="flex items-center gap-2 rounded-lg border border-border/60 px-2 py-1" title="Compact ↔ Roomy. At 0 the day fits the page; increase to expand cells and scroll.">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">Compact</span>
+                    <div className="w-24">
+                      <Slider
+                        value={[calendarDensity]}
+                        onValueChange={(v) => setCalendarDensity(Array.isArray(v) ? v[0] : v)}
+                        min={0}
+                        max={120}
+                        step={1}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <button onClick={() => setCalendarFullscreen((v) => !v)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground" title={calendarFullscreen ? "Exit full screen" : "Full screen"}>
                   {calendarFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                 </button>
@@ -1483,6 +1500,7 @@ export function TasksBoard({
               agents={overview?.agents || []}
               jobs={overview?.jobs || []}
               fullscreen={calendarFullscreen}
+              density={calendarDensity}
               onEventClick={handleScheduleEventClick}
               onDayClick={(date) => { setCalendarMode("day"); setCalendarAnchor(date); }}
             />
