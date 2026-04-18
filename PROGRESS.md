@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-18] Moved the `getting-started/` seed template from `/data` into repo-committed `/resources/getting-started/` so it survives data-dir resets. `seedGettingStartedDir` now checks `PROJECT_ROOT/resources/getting-started/` first and falls back to the legacy `/data/getting-started/` locations for existing installs. New onboarding runs automatically copy the seed into the user's data dir as part of `scaffoldCabinet`.
+
 [2026-04-18] Guarded the RegistryBrowser import dialog against double-fire. The Import button lacked a busy-state `disabled` guard, so a fast second click fired a parallel POST — the first one created the directory, the second hit the "Directory already exists" 409. Added `disabled={importing}` on both buttons, a re-entry guard at the top of `handleImport`, and a spinner on the Import button while the request is in flight.
 
 [2026-04-18] Post-import "cabinet created" screen now shows a `Home › Room` breadcrumb above the tree so the user can see where the new cabinet lives (e.g., `🏠 Maya's Home › 💼 The Office`). Uses Lucide House + the room's configured icon. `homeName` and `roomType` are threaded from `TeamBuildStep` down into `CabinetCreatedScreen`.

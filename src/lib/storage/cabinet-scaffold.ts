@@ -53,7 +53,11 @@ async function copyDirectoryMerge(src: string, dest: string): Promise<void> {
 
 async function resolveGettingStartedSeedDir(targetDir: string): Promise<string | null> {
   const destinationDir = path.resolve(targetDir, GETTING_STARTED_DIRNAME);
+  // Canonical source lives in the repo-committed resources/ dir so it
+  // survives data-dir resets. Legacy locations kept as fallbacks so
+  // existing installs that shipped the seed inside /data still work.
   const candidates = [
+    path.join(PROJECT_ROOT, "resources", GETTING_STARTED_DIRNAME),
     path.join(DATA_DIR, GETTING_STARTED_DIRNAME),
     path.join(PROJECT_ROOT, "data", GETTING_STARTED_DIRNAME),
   ];
