@@ -43,27 +43,12 @@ import {
   Copy,
   Trash2,
   Archive,
-  Crown,
-  Megaphone,
-  Search,
-  ShieldCheck,
-  Code,
-  BarChart3,
-  Briefcase,
-  DollarSign,
-  Wrench,
-  Palette,
-  Smartphone,
-  Rocket,
-  Handshake,
-  PenTool,
-  UserCheck,
-  Scale,
   TriangleAlert,
-  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAgentColor } from "@/lib/agents/cron-compute";
+import { AgentIdentity, getAgentDisplayName } from "@/components/agents/agent-identity";
+import { EditAgentIdentityDialog } from "@/components/agents/edit-agent-identity-dialog";
+import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
 import {
   findNodeByPath,
   findParentCabinetNode,
@@ -98,38 +83,12 @@ interface AgentSummary {
   cabinetPath?: string;
   cabinetName?: string;
   inherited?: boolean;
-}
-
-const AGENT_ICONS: Record<string, LucideIcon> = {
-  general: Bot,
-  editor: Pencil,
-  ceo: Crown,
-  coo: Briefcase,
-  cfo: DollarSign,
-  cto: Wrench,
-  "content-marketer": Megaphone,
-  seo: Search,
-  "seo-specialist": Search,
-  qa: ShieldCheck,
-  "qa-agent": ShieldCheck,
-  sales: BarChart3,
-  "sales-agent": BarChart3,
-  "product-manager": Briefcase,
-  "ux-designer": Palette,
-  "data-analyst": BarChart3,
-  "social-media": Smartphone,
-  "growth-marketer": Rocket,
-  "customer-success": Handshake,
-  copywriter: PenTool,
-  devops: Code,
-  developer: Code,
-  "people-ops": UserCheck,
-  legal: Scale,
-  researcher: Search,
-};
-
-function getAgentIcon(slug: string): LucideIcon {
-  return AGENT_ICONS[slug] || Bot;
+  displayName?: string;
+  iconKey?: string;
+  color?: string;
+  avatar?: string;
+  avatarExt?: string;
+  role?: string;
 }
 
 /* ── item style matching TreeNode exactly ──────────────────── */
@@ -164,6 +123,7 @@ export function TreeView() {
   const [linkRepoOpen, setLinkRepoOpen] = useState(false);
   const [moveToOpen, setMoveToOpen] = useState(false);
   const [moveToSource, setMoveToSource] = useState<TreeNodeType | null>(null);
+  const [editingAgent, setEditingAgent] = useState<{ slug: string; cabinetPath?: string } | null>(null);
 
   const requestMoveTo = useCallback((node: TreeNodeType) => {
     setMoveToSource(node);
@@ -214,6 +174,12 @@ export function TreeView() {
             cabinetPath: agent.cabinetPath,
             cabinetName: agent.cabinetName,
             inherited: agent.inherited,
+            displayName: agent.displayName,
+            iconKey: agent.iconKey,
+            color: agent.color,
+            avatar: agent.avatar,
+            avatarExt: agent.avatarExt,
+            role: agent.role,
           }))
         );
         return;
@@ -488,53 +454,81 @@ export function TreeView() {
                 {activeCabinet ? (
                   agents.length > 0 ? (
                     agents.map((agent) => {
-                      const Icon = getAgentIcon(agent.slug);
-                      const color = getAgentColor(agent.slug);
+                      const displayName = getAgentDisplayName(agent);
+                      const showSubtitle =
+                        !!agent.role && agent.role !== displayName;
                       return (
-                        <button
-                          key={agent.scopedId || agent.slug}
-                          onClick={() =>
-                            setSection({
-                              type: "agent",
-                              mode: "cabinet",
-                              slug: agent.slug,
-                              cabinetPath:
-                                agent.cabinetPath || activeCabinet?.path,
-                              agentScopedId:
-                                agent.scopedId ||
-                                `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`,
-                            })
-                          }
-                          className={cn(
-                            "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-foreground/[0.03]",
-                            selectedAgentScopedId ===
-                              (agent.scopedId ||
-                                `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`) &&
-                              "bg-accent text-accent-foreground"
-                          )}
-                          style={pad(1)}
-                        >
-                          <span
-                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
-                            style={{
-                              backgroundColor: color.bg,
-                              color: color.text,
-                            }}
-                          >
-                            <Icon className="h-3 w-3" />
-                          </span>
-                          <span className="truncate text-[12px] text-foreground/75">
-                            {agent.name}
-                          </span>
-                          <span
-                            className={cn(
-                              "ml-auto h-1.5 w-1.5 shrink-0 rounded-full",
-                              agent.active
-                                ? "bg-green-500"
-                                : "bg-muted-foreground/30"
-                            )}
-                          />
-                        </button>
+                        <ContextMenu key={agent.scopedId || agent.slug}>
+                          <ContextMenuTrigger>
+                            <button
+                              onClick={() =>
+                                setSection({
+                                  type: "agent",
+                                  mode: "cabinet",
+                                  slug: agent.slug,
+                                  cabinetPath:
+                                    agent.cabinetPath || activeCabinet?.path,
+                                  agentScopedId:
+                                    agent.scopedId ||
+                                    `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`,
+                                })
+                              }
+                              className={cn(
+                                "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-foreground/[0.03]",
+                                selectedAgentScopedId ===
+                                  (agent.scopedId ||
+                                    `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`) &&
+                                  "bg-accent text-accent-foreground"
+                              )}
+                              style={pad(1)}
+                            >
+                              <AgentIdentity
+                                agent={{
+                                  slug: agent.slug,
+                                  cabinetPath: agent.cabinetPath,
+                                  displayName: agent.displayName,
+                                  iconKey: agent.iconKey,
+                                  color: agent.color,
+                                  avatar: agent.avatar,
+                                  avatarExt: agent.avatarExt,
+                                }}
+                                size="sm"
+                              />
+                              <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                                <span className="truncate text-[12px] text-foreground/75">
+                                  {displayName}
+                                </span>
+                                {showSubtitle && (
+                                  <span className="truncate text-[10px] text-muted-foreground">
+                                    {agent.role}
+                                  </span>
+                                )}
+                              </span>
+                              <span
+                                className={cn(
+                                  "ml-auto h-1.5 w-1.5 shrink-0 rounded-full",
+                                  agent.active
+                                    ? "bg-green-500"
+                                    : "bg-muted-foreground/30"
+                                )}
+                              />
+                            </button>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem
+                              onClick={() =>
+                                setEditingAgent({
+                                  slug: agent.slug,
+                                  cabinetPath:
+                                    agent.cabinetPath || activeCabinet?.path,
+                                })
+                              }
+                            >
+                              <Pencil className="mr-2 h-3.5 w-3.5" />
+                              Edit agent
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
                       );
                     })
                   ) : (
@@ -597,10 +591,10 @@ export function TreeView() {
                         style={pad(1)}
                       >
                         {(() => {
-                          const Icon = getAgentIcon(agent.slug);
+                          const Icon = resolveAgentIcon(agent.slug, agent.iconKey);
                           return <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
                         })()}
-                        <span className="truncate">{agent.name}</span>
+                        <span className="truncate">{getAgentDisplayName(agent)}</span>
                         <span
                           className={cn(
                             "ml-auto w-1.5 h-1.5 rounded-full shrink-0",
@@ -860,6 +854,16 @@ export function TreeView() {
       open={moveToOpen}
       onOpenChange={setMoveToOpen}
       source={moveToSource}
+    />
+
+    <EditAgentIdentityDialog
+      target={editingAgent}
+      onOpenChange={(open) => {
+        if (!open) setEditingAgent(null);
+      }}
+      onSaved={() => {
+        void loadAgents();
+      }}
     />
 
     <Dialog open={cabinetDeleteOpen} onOpenChange={setCabinetDeleteOpen}>

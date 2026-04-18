@@ -288,6 +288,11 @@ async function readAgentPersona(
       cabinetName,
       cabinetDepth,
       inherited,
+      displayName: trimString(data.displayName) || undefined,
+      iconKey: trimString(data.iconKey) || undefined,
+      color: trimString(data.color) || undefined,
+      avatar: trimString(data.avatar) || undefined,
+      avatarExt: trimString(data.avatarExt) || undefined,
     };
   } catch {
     return null;

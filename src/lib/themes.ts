@@ -1,6 +1,19 @@
 // Theme definitions for the multi-theme system
 // Each theme defines CSS custom properties using OKLCh color space
 
+// Shared palette for agent identity tints (sidebar icons, avatars fallback, etc.)
+// Kept muted to sit well against any theme's background.
+export const AGENT_PALETTE: Array<{ bg: string; text: string }> = [
+  { bg: "rgba(139, 94, 60, 0.18)", text: "rgb(139, 94, 60)" },
+  { bg: "rgba(180, 120, 70, 0.18)", text: "rgb(160, 100, 50)" },
+  { bg: "rgba(100, 140, 80, 0.18)", text: "rgb(80, 120, 60)" },
+  { bg: "rgba(70, 100, 150, 0.18)", text: "rgb(60, 90, 140)" },
+  { bg: "rgba(150, 80, 100, 0.18)", text: "rgb(140, 70, 90)" },
+  { bg: "rgba(120, 100, 150, 0.18)", text: "rgb(100, 80, 130)" },
+  { bg: "rgba(150, 130, 60, 0.18)", text: "rgb(130, 110, 40)" },
+  { bg: "rgba(80, 130, 130, 0.18)", text: "rgb(60, 110, 110)" },
+];
+
 export interface ThemeDefinition {
   name: string;
   label: string;

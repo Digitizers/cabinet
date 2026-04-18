@@ -44,6 +44,12 @@ export interface CabinetAgentSummary {
   cabinetName: string;
   cabinetDepth: number;
   inherited: boolean;
+  // Identity customization (optional; sidebar renders from these when set)
+  displayName?: string;
+  iconKey?: string;
+  color?: string;
+  avatar?: string;
+  avatarExt?: string;
 }
 
 export interface CabinetJobSummary {

@@ -25,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { cn } from "@/lib/utils";
+import { AgentIdentity, getAgentDisplayName } from "@/components/agents/agent-identity";
 import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona-manager";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
@@ -882,10 +883,21 @@ export function AgentDetail({ slug }: { slug: string }) {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <span className="text-xl">{persona.emoji}</span>
+          <AgentIdentity
+            agent={{
+              slug: persona.slug,
+              cabinetPath: persona.cabinetPath,
+              displayName: persona.displayName,
+              iconKey: persona.iconKey,
+              color: persona.color,
+              avatar: persona.avatar,
+              avatarExt: persona.avatarExt,
+            }}
+            size="md"
+          />
           <div>
             <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
-              {persona.name}
+              {getAgentDisplayName(persona)}
             </h2>
             <p className="text-[11px] text-muted-foreground">{persona.role}</p>
           </div>

@@ -1,4 +1,5 @@
 import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
+import { AGENT_PALETTE } from "@/lib/themes";
 
 /* ─── Cron → next run computation ─── */
 
@@ -212,21 +213,33 @@ export function getViewRange(
 
 /* ─── Agent color palette ─── */
 
-const AGENT_COLORS = [
-  { bg: "rgba(139, 94, 60, 0.18)", text: "rgb(139, 94, 60)" },
-  { bg: "rgba(180, 120, 70, 0.18)", text: "rgb(160, 100, 50)" },
-  { bg: "rgba(100, 140, 80, 0.18)", text: "rgb(80, 120, 60)" },
-  { bg: "rgba(70, 100, 150, 0.18)", text: "rgb(60, 90, 140)" },
-  { bg: "rgba(150, 80, 100, 0.18)", text: "rgb(140, 70, 90)" },
-  { bg: "rgba(120, 100, 150, 0.18)", text: "rgb(100, 80, 130)" },
-  { bg: "rgba(150, 130, 60, 0.18)", text: "rgb(130, 110, 40)" },
-  { bg: "rgba(80, 130, 130, 0.18)", text: "rgb(60, 110, 110)" },
-];
-
 export function getAgentColor(slug: string): { bg: string; text: string } {
   let hash = 0;
   for (let i = 0; i < slug.length; i++) {
     hash = ((hash << 5) - hash + slug.charCodeAt(i)) | 0;
   }
-  return AGENT_COLORS[Math.abs(hash) % AGENT_COLORS.length];
+  return AGENT_PALETTE[Math.abs(hash) % AGENT_PALETTE.length];
+}
+
+// Derive the tinted { bg, text } pair from a user-picked hex color.
+// Mirrors the existing palette look: 18% alpha bg, full-saturation text.
+export function tintFromHex(hex: string): { bg: string; text: string } {
+  const clean = hex.trim().replace(/^#/, "");
+  const full =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean;
+  if (full.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(full)) {
+    return AGENT_PALETTE[0];
+  }
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return {
+    bg: `rgba(${r}, ${g}, ${b}, 0.18)`,
+    text: `rgb(${r}, ${g}, ${b})`,
+  };
 }

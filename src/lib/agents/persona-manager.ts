@@ -75,6 +75,12 @@ export interface AgentPersona {
   workspace: string;      // relative path under data/.agents/{slug}/
   setupComplete: boolean; // false until agent settings are saved for the first time
   cabinetPath?: string;
+  // Identity customization (all optional; fall back to slug-based defaults)
+  displayName?: string;   // user-chosen name, e.g. "Steve"
+  iconKey?: string;       // Lucide key from icon-catalog (overrides slug default)
+  color?: string;         // hex color (overrides hash-based color)
+  avatar?: string;        // "none" | preset id | "custom" (file at avatar.{ext})
+  avatarExt?: string;     // extension of uploaded custom avatar (png/jpg/svg)
   // Computed
   slug: string;
   body: string; // markdown body (persona instructions)
@@ -179,6 +185,26 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
     workspace: (data.workspace as string) || `workspace`,
     setupComplete: data.setupComplete === true,
     cabinetPath: normalizeCabinetPath(cabinetPath, true),
+    displayName:
+      typeof data.displayName === "string" && data.displayName.trim()
+        ? data.displayName.trim()
+        : undefined,
+    iconKey:
+      typeof data.iconKey === "string" && data.iconKey.trim()
+        ? data.iconKey.trim()
+        : undefined,
+    color:
+      typeof data.color === "string" && data.color.trim()
+        ? data.color.trim()
+        : undefined,
+    avatar:
+      typeof data.avatar === "string" && data.avatar.trim()
+        ? data.avatar.trim()
+        : undefined,
+    avatarExt:
+      typeof data.avatarExt === "string" && data.avatarExt.trim()
+        ? data.avatarExt.trim()
+        : undefined,
     slug,
     body: content.trim(),
   };
@@ -251,6 +277,21 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
       : {}),
     ...(normalizeAdapterConfig(merged.adapterConfig)
       ? { adapterConfig: normalizeAdapterConfig(merged.adapterConfig) }
+      : {}),
+    ...(typeof merged.displayName === "string" && merged.displayName.trim()
+      ? { displayName: merged.displayName.trim() }
+      : {}),
+    ...(typeof merged.iconKey === "string" && merged.iconKey.trim()
+      ? { iconKey: merged.iconKey.trim() }
+      : {}),
+    ...(typeof merged.color === "string" && merged.color.trim()
+      ? { color: merged.color.trim() }
+      : {}),
+    ...(typeof merged.avatar === "string" && merged.avatar.trim()
+      ? { avatar: merged.avatar.trim() }
+      : {}),
+    ...(typeof merged.avatarExt === "string" && merged.avatarExt.trim()
+      ? { avatarExt: merged.avatarExt.trim() }
       : {}),
   };
 
