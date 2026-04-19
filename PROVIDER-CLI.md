@@ -267,9 +267,9 @@ Consolidated list of every item that was raised across this PRD and isn't fully 
 
 | Ref | Item | Notes |
 |---|---|---|
-| UI-1 | Agent detail → "Skills" read-only section listing the agent's current `skills: […]` with `SKILL.md` heading + description | Minimum to make skills visible. |
+| UI-1 | Agent detail → "Skills" read-only section listing the agent's current `skills: […]` with `SKILL.md` heading + description | ✅ Shipped `63d3499` — read-only Field in Details + hint link to Settings Skills |
 | UI-2 | Settings → "Skills catalog" browser — lists everything in `~/.cabinet/skills/` as read-only reference | ✅ Shipped `40c2865` — "coming soon" preview with disabled styling |
-| UI-3 | Task viewer → "with skills: a, b, c" chip in the header when a run has skills attached | Runtime confirmation. |
+| UI-3 | Task viewer → "with skills: a, b, c" chip in the header when a run has skills attached | ✅ Shipped `63d3499` — violet Sparkles chip in both fullscreen terminal and regular task headers |
 | UI-4 | Agent editor → skills multiselect widget backed by the catalog (save via persona API) | Fully editable; removes markdown-poking. Biggest lift of the four. |
 
 #### C. Needs product decision
@@ -295,7 +295,7 @@ Consolidated list of every item that was raised across this PRD and isn't fully 
 **Snapshot:**
 - Provider track (§12.1): 9 / 12 shipped (3 partial).
 - Terminal track (§12.2): 24 / 24 resolved.
-- Skills UI (new track): 1 / 4 shipped.
+- Skills UI (new track): 3 / 4 shipped — only UI-4 (editable multiselect) left.
 
 ### 12.1 Status matrix
 
@@ -352,9 +352,9 @@ The skills system shipped with zero UI (see §12.1 #2). Track the four surfaces 
 
 | # | Item | Status | Commit |
 |---|------|--------|--------|
-| UI-1 | Agent detail → read-only "Skills" section listing `persona.skills` with `SKILL.md` heading + description pulled from the catalog | 🟨 Not started | — |
+| UI-1 | Agent detail → read-only "Skills" field in Details section; renders `persona.skills.join(", ")` or `—` + helper text linking to Settings Skills | ✅ Done | `63d3499` |
 | UI-2 | Settings → "Skills catalog" browser — lists everything in `~/.cabinet/skills/` with name + description + path | ✅ Done (coming-soon preview) | `40c2865` |
-| UI-3 | Task viewer → "with skills: a, b, c" chip in the header when the run has `adapterConfig.skillsDir` attached | 🟨 Not started | — |
+| UI-3 | Task viewer → violet `Sparkles` chip "N skills" (single slug for N=1) in the header when `adapterConfig.skills` is populated; full list on hover | ✅ Done | `63d3499` |
 | UI-4 | Agent editor → skills multiselect widget backed by the catalog (save through persona API) | 🟨 Not started | — |
 
 Current UX: users edit `skills: [slug, slug]` directly in the agent's markdown frontmatter.
