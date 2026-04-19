@@ -21,7 +21,7 @@ import { PeopleRail } from "./people-rail";
 import { DetailPanel } from "./detail-panel";
 import { ViewToggle, type BoardViewMode } from "./view-toggle";
 import { DensityToggle, type BoardDensity } from "./density-toggle";
-import { FilterBar } from "./filter-bar";
+import { FilterBar, type TriggerFilter } from "./filter-bar";
 import { UndoToast, type PendingUndo } from "./undo-toast";
 import { ConfirmPopover, type PendingConfirm } from "./confirm-popover";
 import { useDragHandler } from "./use-drag-handler";
@@ -30,6 +30,7 @@ import { TaskCard } from "./task-card";
 import { CARD_DROP_PREFIX } from "./dnd-keys";
 import { deriveLane, laneSort, type LaneKey } from "./lane-rules";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { useAppStore } from "@/stores/app-store";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { TaskMeta } from "@/types/tasks";
 
@@ -44,13 +45,24 @@ import type { TaskMeta } from "@/types/tasks";
  */
 export function TasksBoardV2({
   cabinetPath = ROOT_CABINET_PATH,
-  visibilityMode = "own",
+  visibilityMode: visibilityModeProp = "own",
   standalone = false,
 }: {
   cabinetPath?: string;
   visibilityMode?: CabinetVisibilityMode;
   standalone?: boolean;
 }) {
+  // Visibility depth is owned by the board (so the in-board segmented
+  // control can change it) but seeded from the caller / the cabinet's
+  // per-path store so sidebar + board share the same default.
+  const [visibilityMode, setVisibilityMode] =
+    useState<CabinetVisibilityMode>(visibilityModeProp);
+  useEffect(() => {
+    setVisibilityMode(visibilityModeProp);
+  }, [visibilityModeProp]);
+  const setCabinetVisibilityMode = useAppStore((s) => s.setCabinetVisibilityMode);
+  const setSection = useAppStore((s) => s.setSection);
+
   const {
     byLane,
     agentsBySlug,
@@ -86,6 +98,14 @@ export function TasksBoardV2({
     null,
     (raw) => (raw === "" || raw === "null" ? null : raw)
   );
+  const [triggerFilter, setTriggerFilter] = usePersistentState<TriggerFilter>(
+    "cabinet.tasks.v2.trigger",
+    "all",
+    (raw) =>
+      raw === "all" || raw === "manual" || raw === "job" || raw === "heartbeat"
+        ? raw
+        : null
+  );
   const [density, setDensity] = usePersistentState<BoardDensity>(
     "cabinet.tasks.v2.density",
     "comfortable",
@@ -110,29 +130,49 @@ export function TasksBoardV2({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, selection.size]);
 
-  // Client-side agent filter. Null = all. Non-null narrows tasks +
-  // conversations to that agent; byLane is rebuilt from the filtered set so
+  // Client-side agent + trigger filters. Null/"all" = no narrowing. Non-null
+  // narrows tasks + conversations; byLane is rebuilt from the filtered set so
   // lane counts reflect what the user actually sees.
-  const filteredTasks = useMemo<TaskMeta[]>(
-    () => (agentFilter ? tasks.filter((t) => t.agentSlug === agentFilter) : tasks),
-    [tasks, agentFilter]
-  );
-  const filteredConversations = useMemo(
-    () =>
-      agentFilter
-        ? conversations.filter((c) => c.agentSlug === agentFilter)
-        : conversations,
-    [conversations, agentFilter]
-  );
+  const filteredTasks = useMemo<TaskMeta[]>(() => {
+    let out = tasks;
+    if (agentFilter) out = out.filter((t) => t.agentSlug === agentFilter);
+    if (triggerFilter !== "all") out = out.filter((t) => t.trigger === triggerFilter);
+    return out;
+  }, [tasks, agentFilter, triggerFilter]);
+  const filteredConversations = useMemo(() => {
+    let out = conversations;
+    if (agentFilter) out = out.filter((c) => c.agentSlug === agentFilter);
+    if (triggerFilter !== "all") out = out.filter((c) => c.trigger === triggerFilter);
+    return out;
+  }, [conversations, agentFilter, triggerFilter]);
   const filteredByLane = useMemo<Record<LaneKey, TaskMeta[]>>(() => {
-    if (!agentFilter) return byLane;
+    if (!agentFilter && triggerFilter === "all") return byLane;
     const map: Record<LaneKey, TaskMeta[]> = {
       inbox: [], needs: [], running: [], done: [], archive: [],
     };
     for (const t of filteredTasks) map[deriveLane(t, now)].push(t);
     for (const lane of Object.keys(map) as LaneKey[]) map[lane].sort(laneSort(lane));
     return map;
-  }, [agentFilter, byLane, filteredTasks, now]);
+  }, [agentFilter, triggerFilter, byLane, filteredTasks, now]);
+
+  // Flat list for the List view — running first (any lane), then newest-first
+  // by lastActivity/started; matches the Agents workspace conversation list.
+  const flatList = useMemo<TaskMeta[]>(() => {
+    const sorted = [...filteredTasks];
+    sorted.sort((a, b) => {
+      const runA = a.status === "running" ? 0 : 1;
+      const runB = b.status === "running" ? 0 : 1;
+      if (runA !== runB) return runA - runB;
+      const ta = new Date(a.lastActivityAt ?? a.startedAt ?? 0).getTime();
+      const tb = new Date(b.lastActivityAt ?? b.startedAt ?? 0).getTime();
+      return tb - ta;
+    });
+    return sorted;
+  }, [filteredTasks]);
+
+  const handleAddTask = () => {
+    setSection({ type: "cabinet", cabinetPath });
+  };
 
   const selected = selectedId ? tasks.find((t) => t.id === selectedId) ?? null : null;
   const selectedLane = selected ? deriveLane(selected, now) : null;
@@ -199,8 +239,15 @@ export function TasksBoardV2({
 
       <FilterBar
         agents={overview?.agents ?? []}
-        value={agentFilter}
-        onChange={setAgentFilter}
+        agentFilter={agentFilter}
+        onAgentChange={setAgentFilter}
+        visibilityMode={visibilityMode}
+        onVisibilityChange={(mode) => {
+          setVisibilityMode(mode);
+          setCabinetVisibilityMode(cabinetPath, mode);
+        }}
+        triggerFilter={triggerFilter}
+        onTriggerChange={setTriggerFilter}
       />
 
     <DndContext
@@ -220,7 +267,7 @@ export function TasksBoardV2({
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
-          <main className="flex min-h-0 flex-1 flex-col">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col">
             {view === "kanban" && (
               <KanbanView
                 byLane={filteredByLane}
@@ -231,12 +278,13 @@ export function TasksBoardV2({
                 onSelect={setSelectedId}
                 onToggleSelection={toggleSelection}
                 onClearSelection={clearSelection}
+                onAddTask={handleAddTask}
                 density={density}
               />
             )}
             {view === "list" && (
               <ListView
-                byLane={filteredByLane}
+                tasks={flatList}
                 agentsBySlug={agentsBySlug}
                 selectedId={selectedId}
                 now={now}

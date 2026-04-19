@@ -9,6 +9,7 @@ import {
   Inbox,
   Loader2,
   MessageCircleQuestion,
+  Plus,
   type LucideIcon,
 } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
@@ -35,7 +36,7 @@ interface LaneDef {
 
 const LANES: LaneDef[] = [
   { key: "inbox", label: "Inbox", hint: "Waiting for you to start", icon: Inbox },
-  { key: "needs", label: "Needs Reply", hint: "Asked a question or failed", icon: MessageCircleQuestion },
+  { key: "needs", label: "Needs attention", hint: "Asked a question or failed", icon: MessageCircleQuestion },
   { key: "running", label: "Running", hint: "Live right now", icon: Loader2, spin: true },
   { key: "done", label: "Just Finished", hint: "Completed in the last hour", icon: CheckCircle2 },
   { key: "archive", label: "Archive", hint: "Older and acknowledged", icon: Archive },
@@ -46,38 +47,55 @@ function LaneHeader({
   count,
   collapsed,
   onToggle,
+  onAddTask,
 }: {
   lane: LaneDef;
   count: number;
   collapsed: boolean;
   onToggle?: () => void;
+  onAddTask?: () => void;
 }) {
   const LaneIcon = lane.icon;
   return (
-    <button
-      type="button"
-      onClick={onToggle}
+    <div
       className={cn(
         "flex w-full items-center gap-2 px-3 py-2 text-left",
-        onToggle ? "cursor-pointer hover:bg-muted/40" : "cursor-default"
+        onToggle && "hover:bg-muted/40"
       )}
     >
-      <LaneIcon
-        className={cn("size-3.5 text-muted-foreground", lane.spin && "animate-spin [animation-duration:3s]")}
-      />
-      <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {lane.label}
-      </span>
-      <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-        {count}
-      </span>
-      {onToggle &&
-        (collapsed ? (
-          <ChevronRight className="size-3.5 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="size-3.5 text-muted-foreground" />
-        ))}
-    </button>
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={!onToggle}
+        className="flex flex-1 items-center gap-2 text-left"
+      >
+        <LaneIcon
+          className={cn("size-3.5 text-muted-foreground", lane.spin && "animate-spin [animation-duration:3s]")}
+        />
+        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {lane.label}
+        </span>
+        <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+          {count}
+        </span>
+        {onToggle &&
+          (collapsed ? (
+            <ChevronRight className="size-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="size-3.5 text-muted-foreground" />
+          ))}
+      </button>
+      {onAddTask ? (
+        <button
+          type="button"
+          onClick={onAddTask}
+          className="ml-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="New task"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -173,6 +191,7 @@ export function KanbanView({
   onSelect,
   onToggleSelection,
   onClearSelection,
+  onAddTask,
   density = "comfortable",
 }: {
   byLane: Record<LaneKey, TaskMeta[]>;
@@ -183,14 +202,16 @@ export function KanbanView({
   onSelect: (id: string) => void;
   onToggleSelection: (id: string) => void;
   onClearSelection: () => void;
+  onAddTask?: () => void;
   density?: "compact" | "comfortable";
 }) {
   const [archiveOpen, setArchiveOpen] = useState(false);
   return (
-    <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-4">
+    <div className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-4">
       {LANES.map((lane) => {
         const items = byLane[lane.key];
         const isArchive = lane.key === "archive";
+        const isInbox = lane.key === "inbox";
         const collapsed = isArchive && !archiveOpen;
         return (
           <DroppableLane
@@ -220,6 +241,7 @@ export function KanbanView({
                   count={items.length}
                   collapsed={false}
                   onToggle={isArchive ? () => setArchiveOpen(false) : undefined}
+                  onAddTask={isInbox && onAddTask ? onAddTask : undefined}
                 />
                 <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 pt-1">
                   <SortableContext
@@ -227,9 +249,23 @@ export function KanbanView({
                     strategy={verticalListSortingStrategy}
                   >
                     {items.length === 0 ? (
-                      <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-[11px] text-muted-foreground">
-                        {lane.hint}
-                      </div>
+                      isInbox && onAddTask ? (
+                        <button
+                          type="button"
+                          onClick={onAddTask}
+                          className="group flex flex-col items-center gap-1.5 rounded-md border border-dashed border-border/50 px-3 py-5 text-center text-muted-foreground transition-colors hover:border-foreground/40 hover:bg-muted/40 hover:text-foreground"
+                        >
+                          <Plus className="size-4 transition-transform group-hover:scale-110" />
+                          <span className="text-[11.5px] font-medium">New task</span>
+                          <span className="text-[10.5px] text-muted-foreground/70">
+                            {lane.hint}
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-[11px] text-muted-foreground">
+                          {lane.hint}
+                        </div>
+                      )
                     ) : (
                       items.map((task) => (
                         <SortableTaskCard

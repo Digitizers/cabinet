@@ -317,9 +317,14 @@ export function AppShell() {
       );
     }
     if (section.type === "tasks") {
+      const visibility =
+        useAppStore.getState().cabinetVisibilityModes[
+          section.cabinetPath ?? ""
+        ] ?? "own";
       return (
         <TasksBoardV2
           cabinetPath={section.cabinetPath}
+          visibilityMode={visibility}
         />
       );
     }

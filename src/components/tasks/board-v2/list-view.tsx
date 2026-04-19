@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Archive,
-  CheckCircle2,
-  Inbox,
-  Loader2,
-  MessageCircleQuestion,
-  type LucideIcon,
-} from "lucide-react";
+import { Bot, Clock3, HeartPulse } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TaskMeta } from "@/types/tasks";
 import type { CabinetAgentSummary } from "@/types/cabinets";
@@ -15,16 +8,11 @@ import type { LaneKey } from "./lane-rules";
 import { AgentPill } from "./agent-pill";
 import { StatusIcon, deriveCardState } from "./status-icon";
 
-const LANE_ICONS: Record<LaneKey, { label: string; icon: LucideIcon; spin?: boolean }> = {
-  inbox: { label: "Inbox", icon: Inbox },
-  needs: { label: "Needs Reply", icon: MessageCircleQuestion },
-  running: { label: "Running", icon: Loader2, spin: true },
-  done: { label: "Just Finished", icon: CheckCircle2 },
-  archive: { label: "Archive", icon: Archive },
-};
-
-const LANE_ORDER: LaneKey[] = ["inbox", "needs", "running", "done", "archive"];
-
+/**
+ * Flat scrolling list — mirrors the Agents workspace task list style.
+ * Status icon · agent pill · title · trigger chip · relative time.
+ * No lane grouping; sort is newest-first across everything.
+ */
 function relTime(fromIso: string | undefined, now: number): string {
   if (!fromIso) return "";
   const mins = Math.max(0, Math.floor((now - new Date(fromIso).getTime()) / 60_000));
@@ -35,102 +23,114 @@ function relTime(fromIso: string | undefined, now: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function TaskRow({
-  task,
-  lane,
-  agent,
-  isActive,
-  now,
-  onClick,
-  density,
-}: {
-  task: TaskMeta;
-  lane: LaneKey;
-  agent: CabinetAgentSummary | undefined;
-  isActive: boolean;
-  now: number;
-  onClick: () => void;
-  density: "compact" | "comfortable";
-}) {
-  const state = deriveCardState(task, lane);
-  const lastActivity = task.lastActivityAt ?? task.startedAt;
+const TRIGGER_STYLES: Record<
+  NonNullable<TaskMeta["trigger"]>,
+  { label: string; className: string }
+> = {
+  manual: {
+    label: "Manual",
+    className: "bg-sky-500/12 text-sky-600 dark:text-sky-400 ring-1 ring-sky-500/20",
+  },
+  job: {
+    label: "Job",
+    className:
+      "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20",
+  },
+  heartbeat: {
+    label: "Heartbeat",
+    className: "bg-pink-500/12 text-pink-600 dark:text-pink-400 ring-1 ring-pink-500/20",
+  },
+};
+
+function TriggerBadge({ trigger }: { trigger: TaskMeta["trigger"] }) {
+  if (!trigger) return null;
+  const style = TRIGGER_STYLES[trigger];
+  const Icon =
+    trigger === "manual" ? Bot : trigger === "job" ? Clock3 : HeartPulse;
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <span
+      title={style.label}
+      aria-label={style.label}
       className={cn(
-        "flex w-full items-center gap-3 rounded-md border border-transparent text-left transition-colors",
-        density === "compact" ? "px-3 py-1" : "px-3 py-2",
-        "hover:bg-muted/40",
-        isActive && "border-border/60 bg-muted/40"
+        "inline-flex size-5 shrink-0 items-center justify-center rounded-full",
+        style.className
       )}
     >
-      <StatusIcon state={state} />
-      <AgentPill agent={agent} slug={task.agentSlug ?? "general"} />
-      <span className="flex-1 truncate text-[13px] text-foreground">{task.title}</span>
-      <span className="w-20 shrink-0 text-right text-[10.5px] text-muted-foreground">
-        {relTime(lastActivity, now)}
-      </span>
-    </button>
+      <Icon className="size-2.75" />
+    </span>
   );
 }
 
 export function ListView({
-  byLane,
+  tasks,
   agentsBySlug,
   selectedId,
   now,
   onSelect,
   density = "comfortable",
 }: {
-  byLane: Record<LaneKey, TaskMeta[]>;
+  /**
+   * Flat ordered list of tasks (pre-sorted: running first, then newest-first).
+   * Lane-bucketed byLane is NOT used here; pass in the flat list directly.
+   */
+  tasks: TaskMeta[];
   agentsBySlug: Map<string, CabinetAgentSummary>;
   selectedId: string | null;
   now: number;
   onSelect: (id: string) => void;
   density?: "compact" | "comfortable";
+  /** Kept in the type for API symmetry even though unused today. */
+  _lane?: LaneKey;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-      {LANE_ORDER.map((key) => {
-        const items = byLane[key];
-        if (items.length === 0) return null;
-        const meta = LANE_ICONS[key];
-        const LaneIcon = meta.icon;
-        return (
-          <section key={key} className="rounded-lg border border-border/60 bg-muted/10">
-            <header className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
-              <LaneIcon
-                className={cn(
-                  "size-3.5 text-muted-foreground",
-                  meta.spin && "animate-spin [animation-duration:3s]"
-                )}
-              />
-              <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {meta.label}
-              </span>
-              <span className="text-[10.5px] tabular-nums text-muted-foreground">
-                {items.length}
-              </span>
-            </header>
-            <ul className="divide-y divide-border/40 px-2 py-1">
-              {items.map((task) => (
-                <li key={task.id}>
-                  <TaskRow
-                    task={task}
-                    lane={key}
-                    agent={agentsBySlug.get(task.agentSlug ?? "")}
-                    isActive={selectedId === task.id}
-                    now={now}
-                    onClick={() => onSelect(task.id)}
-                    density={density}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto">
+      {tasks.length === 0 ? (
+        <div className="flex h-full items-center justify-center p-8 text-[13px] text-muted-foreground">
+          No tasks match these filters.
+        </div>
+      ) : (
+        <ul className="divide-y divide-border/60">
+          {tasks.map((task) => {
+            const agent = agentsBySlug.get(task.agentSlug ?? "");
+            const lastActivity = task.lastActivityAt ?? task.startedAt;
+            // Reuse deriveCardState's status mapping — pass a rough lane hint
+            // based on status so the icon color matches what users see on the
+            // kanban cards. Without a true lane context, "archive" is the
+            // safe default for the tie-breaker branches inside deriveCardState.
+            const state = deriveCardState(task, "archive");
+            const isSelected = selectedId === task.id;
+            return (
+              <li key={task.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(task.id)}
+                  className={cn(
+                    "relative flex w-full items-center gap-3 px-4 text-left transition-colors",
+                    density === "compact" ? "py-1.5" : "py-2.5",
+                    isSelected ? "bg-primary/5" : "hover:bg-accent/35"
+                  )}
+                >
+                  {isSelected ? (
+                    <span
+                      aria-hidden
+                      className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary"
+                    />
+                  ) : null}
+                  <StatusIcon state={state} />
+                  <AgentPill agent={agent} slug={task.agentSlug ?? "general"} size="sm" />
+                  <span className="flex-1 truncate text-[13px] font-medium text-foreground">
+                    {task.title}
+                  </span>
+                  <TriggerBadge trigger={task.trigger} />
+                  <span className="w-20 shrink-0 text-right text-[10.5px] tabular-nums text-muted-foreground">
+                    {relTime(lastActivity, now)}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
