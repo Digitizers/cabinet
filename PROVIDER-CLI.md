@@ -359,6 +359,13 @@ The skills system shipped with zero UI (see §12.1 #2). Track the four surfaces 
 
 Current UX: users edit `skills: [slug, slug]` directly in the agent's markdown frontmatter.
 
+### 12.4 Runtime picker UX polish
+
+| # | Item | Status | Commit |
+|---|------|--------|--------|
+| UX-1 | EFFORT_TONES table: dark-mode variants on every tone (header text, bg fills, borders, selected shadow) so the `SELECTED MODEL` banner + matrix chips read correctly against dark themes | ✅ Done | `2981581` |
+| UX-2 | Terminal mode: replace the Tabs + matrix with a dedicated `TerminalProviderPanel` (dark card, header "Pick a CLI to spawn in a PTY:", 2-3 col grid of CLI cards with glyph + name + ready/log-in/not-installed status, footer noting model/effort defaults + resume-capable providers). Click a ready card = select it with an emerald highlight. | ✅ Done | `2981581` |
+
 ## 13. Operational Notes
 
 - **Adding a new provider**: (1) drop metadata in `providers/<id>.ts`, (2) add an adapter in `adapters/<type>-local.ts`, (3) register both, (4) drop an SVG in `public/providers/`, (5) ensure the final install step is a `Verify setup` command that exits 0 on success. UI surfaces (composer picker, Settings, onboarding, glyph, demo) pick the provider up automatically.
