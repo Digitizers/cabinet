@@ -84,6 +84,7 @@ export async function postTurn(
         adapterType: runtime.adapterType,
         model: runtime.model,
         effort: runtime.effort,
+        runtimeMode: runtime.runtimeMode,
       }),
     }
   );
@@ -158,6 +159,7 @@ export async function createTaskRequest(input: {
       adapterType: runtime.adapterType,
       model: runtime.model,
       effort: runtime.effort,
+      runtimeMode: runtime.runtimeMode,
     }),
   });
   const data = await jsonOrThrow<{ ok: boolean; conversation: ConversationMeta }>(res);

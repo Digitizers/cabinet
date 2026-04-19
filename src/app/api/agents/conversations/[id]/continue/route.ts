@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { defaultAdapterTypeForProvider } from "@/lib/agents/adapters";
+import {
+  defaultAdapterTypeForProvider,
+  LEGACY_ADAPTER_BY_PROVIDER_ID,
+} from "@/lib/agents/adapters";
 import { continueConversationRun } from "@/lib/agents/conversation-runner";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 
@@ -11,6 +14,7 @@ interface ContinueBody {
   adapterType?: string;
   model?: string;
   effort?: string;
+  runtimeMode?: "native" | "terminal";
 }
 
 export async function POST(
@@ -61,16 +65,28 @@ export async function POST(
     typeof body.providerId === "string" && body.providerId.trim()
       ? body.providerId.trim()
       : undefined;
-  const adapterType =
+  let adapterType =
     typeof body.adapterType === "string" && body.adapterType.trim()
       ? body.adapterType.trim()
       : providerId
         ? defaultAdapterTypeForProvider(providerId)
         : undefined;
+  // Terminal runtime mode — swap to the provider's legacy PTY adapter so the
+  // continuation streams live through the same xterm view.
+  if (body.runtimeMode === "terminal") {
+    const resolvedProviderId = providerId || existing.providerId;
+    if (resolvedProviderId) {
+      const legacyAdapterType = LEGACY_ADAPTER_BY_PROVIDER_ID[resolvedProviderId];
+      if (legacyAdapterType) adapterType = legacyAdapterType;
+    }
+  }
+  const isTerminalMode = body.runtimeMode === "terminal";
   const model =
-    typeof body.model === "string" && body.model.trim() ? body.model.trim() : undefined;
+    !isTerminalMode && typeof body.model === "string" && body.model.trim()
+      ? body.model.trim()
+      : undefined;
   const effort =
-    typeof body.effort === "string" && body.effort.trim()
+    !isTerminalMode && typeof body.effort === "string" && body.effort.trim()
       ? body.effort.trim()
       : undefined;
 
