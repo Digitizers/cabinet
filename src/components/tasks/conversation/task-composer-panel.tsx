@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Terminal } from "lucide-react";
 import { ComposerInput } from "@/components/composer/composer-input";
 import {
   TaskRuntimePicker,
@@ -165,6 +166,15 @@ export function TaskComposerPanel({
             <span className="relative inline-flex size-1.5 rounded-full bg-amber-500" />
           </span>
           Agent is waiting for your reply
+        </div>
+      ) : null}
+
+      {effectiveRuntime.runtimeMode === "terminal" ? (
+        <div className="mb-2 flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+          <Terminal className="size-3" />
+          <span>
+            Sending in <strong>terminal mode</strong> — opens a live PTY stream
+          </span>
         </div>
       ) : null}
 
