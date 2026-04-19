@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BrainCircuit, Sparkles, Terminal } from "lucide-react";
+import { BrainCircuit, Check, Sparkles, Terminal } from "lucide-react";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { cn } from "@/lib/utils";
 import {
@@ -58,84 +58,100 @@ const EFFORT_TONES: Record<
   }
 > = {
   [AUTO_EFFORT_ID]: {
-    header: "text-slate-600",
-    bg: "bg-slate-100 border border-slate-200",
-    line: "bg-slate-400",
-    dot: "bg-slate-500",
-    selected: "border-slate-600 bg-slate-100 shadow-[0_0_0_1px_rgba(71,85,105,0.24)]",
-    selectedDot: "bg-slate-700",
+    header: "text-slate-600 dark:text-slate-200",
+    bg: "bg-slate-100 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700",
+    line: "bg-slate-400 dark:bg-slate-500",
+    dot: "bg-slate-500 dark:bg-slate-400",
+    selected:
+      "border-slate-600 bg-slate-100 shadow-[0_0_0_1px_rgba(71,85,105,0.24)] dark:border-slate-400 dark:bg-slate-800/60 dark:shadow-[0_0_0_1px_rgba(203,213,225,0.18)]",
+    selectedDot: "bg-slate-700 dark:bg-slate-200",
     focus: "focus-visible:ring-slate-400/80",
-    idle: "border-slate-300 hover:border-slate-400",
+    idle:
+      "border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-500",
   },
   none: {
-    header: "text-slate-600",
-    bg: "bg-slate-100 border border-slate-200",
-    line: "bg-slate-400",
-    dot: "bg-slate-500",
-    selected: "border-slate-600 bg-slate-100 shadow-[0_0_0_1px_rgba(71,85,105,0.24)]",
-    selectedDot: "bg-slate-700",
+    header: "text-slate-600 dark:text-slate-200",
+    bg: "bg-slate-100 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700",
+    line: "bg-slate-400 dark:bg-slate-500",
+    dot: "bg-slate-500 dark:bg-slate-400",
+    selected:
+      "border-slate-600 bg-slate-100 shadow-[0_0_0_1px_rgba(71,85,105,0.24)] dark:border-slate-400 dark:bg-slate-800/60 dark:shadow-[0_0_0_1px_rgba(203,213,225,0.18)]",
+    selectedDot: "bg-slate-700 dark:bg-slate-200",
     focus: "focus-visible:ring-slate-400/80",
-    idle: "border-slate-300 hover:border-slate-400",
+    idle:
+      "border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-500",
   },
   minimal: {
-    header: "text-yellow-700",
-    bg: "bg-yellow-50 border border-yellow-200",
-    line: "bg-yellow-400",
-    dot: "bg-yellow-500",
-    selected: "border-yellow-600 bg-yellow-50 shadow-[0_0_0_1px_rgba(234,179,8,0.26)]",
-    selectedDot: "bg-yellow-600",
+    header: "text-yellow-700 dark:text-yellow-300",
+    bg: "bg-yellow-50 border border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800/60",
+    line: "bg-yellow-400 dark:bg-yellow-500",
+    dot: "bg-yellow-500 dark:bg-yellow-400",
+    selected:
+      "border-yellow-600 bg-yellow-50 shadow-[0_0_0_1px_rgba(234,179,8,0.26)] dark:border-yellow-400 dark:bg-yellow-900/40 dark:shadow-[0_0_0_1px_rgba(250,204,21,0.28)]",
+    selectedDot: "bg-yellow-600 dark:bg-yellow-300",
     focus: "focus-visible:ring-yellow-400/80",
-    idle: "border-yellow-300 hover:border-yellow-400",
+    idle:
+      "border-yellow-300 hover:border-yellow-400 dark:border-yellow-800/60 dark:hover:border-yellow-600",
   },
   low: {
-    header: "text-amber-700",
-    bg: "bg-amber-50 border border-amber-200",
-    line: "bg-amber-400",
-    dot: "bg-amber-500",
-    selected: "border-amber-600 bg-amber-50 shadow-[0_0_0_1px_rgba(245,158,11,0.26)]",
-    selectedDot: "bg-amber-600",
+    header: "text-amber-700 dark:text-amber-300",
+    bg: "bg-amber-50 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-800/60",
+    line: "bg-amber-400 dark:bg-amber-500",
+    dot: "bg-amber-500 dark:bg-amber-400",
+    selected:
+      "border-amber-600 bg-amber-50 shadow-[0_0_0_1px_rgba(245,158,11,0.26)] dark:border-amber-400 dark:bg-amber-900/40 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.28)]",
+    selectedDot: "bg-amber-600 dark:bg-amber-300",
     focus: "focus-visible:ring-amber-400/80",
-    idle: "border-amber-300 hover:border-amber-400",
+    idle:
+      "border-amber-300 hover:border-amber-400 dark:border-amber-800/60 dark:hover:border-amber-600",
   },
   medium: {
-    header: "text-orange-700",
-    bg: "bg-orange-50 border border-orange-200",
-    line: "bg-orange-400",
-    dot: "bg-orange-500",
-    selected: "border-orange-600 bg-orange-50 shadow-[0_0_0_1px_rgba(249,115,22,0.28)]",
-    selectedDot: "bg-orange-600",
+    header: "text-orange-700 dark:text-orange-300",
+    bg: "bg-orange-50 border border-orange-200 dark:bg-orange-900/30 dark:border-orange-800/60",
+    line: "bg-orange-400 dark:bg-orange-500",
+    dot: "bg-orange-500 dark:bg-orange-400",
+    selected:
+      "border-orange-600 bg-orange-50 shadow-[0_0_0_1px_rgba(249,115,22,0.28)] dark:border-orange-400 dark:bg-orange-900/40 dark:shadow-[0_0_0_1px_rgba(251,146,60,0.28)]",
+    selectedDot: "bg-orange-600 dark:bg-orange-300",
     focus: "focus-visible:ring-orange-400/80",
-    idle: "border-orange-300 hover:border-orange-400",
+    idle:
+      "border-orange-300 hover:border-orange-400 dark:border-orange-800/60 dark:hover:border-orange-600",
   },
   high: {
-    header: "text-emerald-700",
-    bg: "bg-emerald-50 border border-emerald-200",
-    line: "bg-emerald-400",
-    dot: "bg-emerald-500",
-    selected: "border-emerald-600 bg-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.26)]",
-    selectedDot: "bg-emerald-600",
+    header: "text-emerald-700 dark:text-emerald-300",
+    bg: "bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800/60",
+    line: "bg-emerald-400 dark:bg-emerald-500",
+    dot: "bg-emerald-500 dark:bg-emerald-400",
+    selected:
+      "border-emerald-600 bg-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.26)] dark:border-emerald-400 dark:bg-emerald-900/40 dark:shadow-[0_0_0_1px_rgba(52,211,153,0.28)]",
+    selectedDot: "bg-emerald-600 dark:bg-emerald-300",
     focus: "focus-visible:ring-emerald-400/80",
-    idle: "border-emerald-300 hover:border-emerald-400",
+    idle:
+      "border-emerald-300 hover:border-emerald-400 dark:border-emerald-800/60 dark:hover:border-emerald-600",
   },
   xhigh: {
-    header: "text-rose-700",
-    bg: "bg-rose-50 border border-rose-200",
-    line: "bg-rose-400",
-    dot: "bg-rose-500",
-    selected: "border-rose-600 bg-rose-50 shadow-[0_0_0_1px_rgba(244,63,94,0.26)]",
-    selectedDot: "bg-rose-600",
+    header: "text-rose-700 dark:text-rose-300",
+    bg: "bg-rose-50 border border-rose-200 dark:bg-rose-900/30 dark:border-rose-800/60",
+    line: "bg-rose-400 dark:bg-rose-500",
+    dot: "bg-rose-500 dark:bg-rose-400",
+    selected:
+      "border-rose-600 bg-rose-50 shadow-[0_0_0_1px_rgba(244,63,94,0.26)] dark:border-rose-400 dark:bg-rose-900/40 dark:shadow-[0_0_0_1px_rgba(251,113,133,0.28)]",
+    selectedDot: "bg-rose-600 dark:bg-rose-300",
     focus: "focus-visible:ring-rose-400/80",
-    idle: "border-rose-300 hover:border-rose-400",
+    idle:
+      "border-rose-300 hover:border-rose-400 dark:border-rose-800/60 dark:hover:border-rose-600",
   },
   max: {
-    header: "text-red-700",
-    bg: "bg-red-50 border border-red-200",
-    line: "bg-red-400",
-    dot: "bg-red-500",
-    selected: "border-red-600 bg-red-50 shadow-[0_0_0_1px_rgba(239,68,68,0.28)]",
-    selectedDot: "bg-red-600",
+    header: "text-red-700 dark:text-red-300",
+    bg: "bg-red-50 border border-red-200 dark:bg-red-900/30 dark:border-red-800/60",
+    line: "bg-red-400 dark:bg-red-500",
+    dot: "bg-red-500 dark:bg-red-400",
+    selected:
+      "border-red-600 bg-red-50 shadow-[0_0_0_1px_rgba(239,68,68,0.28)] dark:border-red-400 dark:bg-red-900/40 dark:shadow-[0_0_0_1px_rgba(248,113,113,0.28)]",
+    selectedDot: "bg-red-600 dark:bg-red-300",
     focus: "focus-visible:ring-red-400/80",
-    idle: "border-red-300 hover:border-red-400",
+    idle:
+      "border-red-300 hover:border-red-400 dark:border-red-800/60 dark:hover:border-red-600",
   },
 };
 
@@ -809,85 +825,63 @@ export function RuntimeMatrixPicker({
         </div>
       )}
 
-      <Tabs
-        value={activeProviderIdValue}
-        onValueChange={(next) => {
-          setActiveProviderId(next);
-          if (isTerminal && next) {
-            onChange({ providerId: next, runtimeMode: "terminal" });
+      {isTerminal ? (
+        <TerminalProviderPanel
+          providers={selectableProviders}
+          readyProviderIds={readyProviderIds}
+          selectedProviderId={value.providerId ?? activeProviderIdValue ?? null}
+          onSelect={(providerId) =>
+            onChange({ providerId, runtimeMode: "terminal" })
           }
-        }}
-        className="gap-0"
-      >
-        <div
-          className={cn(
-            "overflow-hidden rounded-lg border",
-            isTerminal ? "border-zinc-800" : "border-border/70"
-          )}
+        />
+      ) : (
+        <Tabs
+          value={activeProviderIdValue}
+          onValueChange={setActiveProviderId}
+          className="gap-0"
         >
-          <div
-            className={cn(
-              "flex px-1.5 pt-1.5 overflow-x-auto scrollbar-none",
-              isTerminal && "bg-zinc-900"
-            )}
-          >
-            <TabsList
-              variant="line"
-              aria-label="Providers"
-              className={cn(
-                "h-auto w-max min-w-full justify-start gap-1.5 rounded-none p-0 !border-b-0",
-                isTerminal ? "bg-zinc-900" : "bg-transparent"
-              )}
-            >
-              {selectableProviders.map((provider) => {
-                const ready = readyProviderIds.has(provider.id);
-                const unreadyReason = describeProviderUnreadyReason(provider);
-                return (
-                  <TabsTrigger
-                    key={provider.id}
-                    value={provider.id}
-                    disabled={!ready}
-                    aria-disabled={!ready}
-                    title={
-                      ready
-                        ? provider.name
-                        : `${provider.name} — ${unreadyReason || "Not available"}`
-                    }
-                    className={cn(
-                      "relative -mb-px h-7 flex-none gap-1.5 rounded-t-md rounded-b-none border-0 px-2.5 py-1 text-[9px] font-medium shadow-none after:hidden data-active:z-10 data-active:shadow-none",
-                      isTerminal
-                        ? "!bg-zinc-800 text-zinc-400 data-active:!bg-zinc-950 data-active:text-zinc-100"
-                        : "!bg-muted/60 text-muted-foreground data-active:!bg-background data-active:text-foreground",
-                      ready
-                        ? isTerminal
-                          ? "hover:text-zinc-100"
-                          : "hover:text-foreground"
-                        : "cursor-not-allowed opacity-50 grayscale data-[disabled]:pointer-events-none"
-                    )}
-                  >
-                    <ProviderGlyph icon={provider.icon} className="h-3 w-3" />
-                    <span>{provider.name}</span>
-                    {!ready && (
-                      <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-                        Not ready
-                      </span>
-                    )}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </div>
-
-          {isTerminal ? (
-            <div className="flex items-center gap-2 bg-zinc-950 px-3 py-2.5 font-mono text-[10px] text-zinc-300">
-              <Terminal className="h-3 w-3 shrink-0 text-emerald-400" />
-              <span className="shrink-0 text-zinc-500">runtime:</span>
-              <span className="truncate text-zinc-100">
-                PTY passthrough · model &amp; effort controlled by the CLI
-              </span>
+          <div className="overflow-hidden rounded-lg border border-border/70">
+            <div className="flex px-1.5 pt-1.5 overflow-x-auto scrollbar-none">
+              <TabsList
+                variant="line"
+                aria-label="Providers"
+                className="h-auto w-max min-w-full justify-start gap-1.5 rounded-none bg-transparent p-0 !border-b-0"
+              >
+                {selectableProviders.map((provider) => {
+                  const ready = readyProviderIds.has(provider.id);
+                  const unreadyReason = describeProviderUnreadyReason(provider);
+                  return (
+                    <TabsTrigger
+                      key={provider.id}
+                      value={provider.id}
+                      disabled={!ready}
+                      aria-disabled={!ready}
+                      title={
+                        ready
+                          ? provider.name
+                          : `${provider.name} — ${unreadyReason || "Not available"}`
+                      }
+                      className={cn(
+                        "relative -mb-px h-7 flex-none gap-1.5 rounded-t-md rounded-b-none border-0 !bg-muted/60 px-2.5 py-1 text-[9px] font-medium text-muted-foreground shadow-none after:hidden data-active:z-10 data-active:!bg-background data-active:text-foreground data-active:shadow-none",
+                        ready
+                          ? "hover:text-foreground"
+                          : "cursor-not-allowed opacity-50 grayscale data-[disabled]:pointer-events-none"
+                      )}
+                    >
+                      <ProviderGlyph icon={provider.icon} className="h-3 w-3" />
+                      <span>{provider.name}</span>
+                      {!ready && (
+                        <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+                          Not ready
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
             </div>
-          ) : (
-            selectableProviders.map((provider) => (
+
+            {selectableProviders.map((provider) => (
               <TabsContent
                 key={provider.id}
                 value={provider.id}
@@ -908,10 +902,114 @@ export function RuntimeMatrixPicker({
                   }
                 />
               </TabsContent>
-            ))
-          )}
-        </div>
-      </Tabs>
+            ))}
+          </div>
+        </Tabs>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Dedicated Terminal-mode picker. Replaces the Tabs/matrix layout with a
+ * grid of CLI cards — one click = spawn. No model/effort because PTY always
+ * uses the CLI's own defaults. Ready providers highlight their selected
+ * state; unready providers render disabled with the reason in the title.
+ */
+function TerminalProviderPanel({
+  providers,
+  readyProviderIds,
+  selectedProviderId,
+  onSelect,
+}: {
+  providers: ProviderInfo[];
+  readyProviderIds: Set<string>;
+  selectedProviderId: string | null;
+  onSelect: (providerId: string) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+      <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[10px] font-medium text-zinc-300">
+        <Terminal className="size-3 text-emerald-400" />
+        <span>Pick a CLI to spawn in a PTY:</span>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 p-2 sm:grid-cols-3">
+        {providers.map((provider) => {
+          const ready = readyProviderIds.has(provider.id);
+          const unreadyReason = describeProviderUnreadyReason(provider);
+          const selected = ready && selectedProviderId === provider.id;
+          const statusLabel = ready
+            ? "Ready"
+            : provider.available
+              ? "Log in"
+              : "Not installed";
+          return (
+            <button
+              key={provider.id}
+              type="button"
+              disabled={!ready}
+              onClick={() => {
+                if (!ready) return;
+                onSelect(provider.id);
+              }}
+              title={
+                ready
+                  ? `Click to launch ${provider.name} in a PTY terminal`
+                  : `${provider.name} — ${unreadyReason || "Not available"}`
+              }
+              className={cn(
+                "group relative flex flex-col items-start gap-1.5 rounded-md border px-2.5 py-2 text-left transition-all",
+                selected
+                  ? "border-emerald-500/60 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]"
+                  : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-600 hover:bg-zinc-900",
+                !ready &&
+                  "cursor-not-allowed opacity-50 grayscale hover:border-zinc-800 hover:bg-zinc-900/40"
+              )}
+            >
+              <div className="flex w-full items-center gap-1.5">
+                <div
+                  className={cn(
+                    "flex size-5 shrink-0 items-center justify-center rounded",
+                    selected
+                      ? "bg-emerald-500/20 text-emerald-300"
+                      : "bg-zinc-800 text-zinc-400 group-hover:text-zinc-200"
+                  )}
+                >
+                  <ProviderGlyph icon={provider.icon} className="size-3" />
+                </div>
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 truncate text-[11.5px] font-medium",
+                    selected ? "text-emerald-100" : "text-zinc-100"
+                  )}
+                >
+                  {provider.name}
+                </span>
+                {selected && (
+                  <Check className="size-3 shrink-0 text-emerald-400" />
+                )}
+              </div>
+              <span
+                className={cn(
+                  "text-[9px] font-medium uppercase tracking-wide",
+                  ready
+                    ? selected
+                      ? "text-emerald-400/90"
+                      : "text-emerald-500/70"
+                    : "text-zinc-500"
+                )}
+              >
+                {statusLabel}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="border-t border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-[9px] text-zinc-500">
+        Model &amp; effort use each CLI&apos;s own defaults. Resume {""}
+        <span className="text-zinc-400">--resume</span>/<span className="text-zinc-400">--session</span>{" "}
+        is wired for Claude, Cursor, and OpenCode.
+      </div>
     </div>
   );
 }
