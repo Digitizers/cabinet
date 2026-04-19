@@ -6,11 +6,13 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useBoardData } from "./use-board-data";
 import { KanbanView } from "./kanban-view";
 import { ListView } from "./list-view";
@@ -96,7 +98,8 @@ export function TasksBoardV2({
   const selectedAgent = selected ? agentsBySlug.get(selected.agentSlug ?? "") : undefined;
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragEnd = useDragHandler({

@@ -108,7 +108,13 @@ function SortableTaskCard({
     opacity: isDragging ? 0.3 : 1,
   };
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-foreground/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
       <TaskCard
         task={task}
         lane={lane}
