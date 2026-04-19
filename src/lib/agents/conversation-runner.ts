@@ -964,7 +964,16 @@ export async function continueConversationRun(
       }
     }
 
-    // 2. Fallback: spawn a fresh PTY under the same session id.
+    // 2. Fallback: spawn a fresh PTY under the same session id. If the
+    //    previous PTY captured a provider session id via its stream parser
+    //    (Claude `session_id`, etc.), feed it back as adapterSessionId —
+    //    the daemon forwards it as `--resume` / `--session` so the CLI
+    //    rehydrates the prior conversation instead of starting empty.
+    const priorSession = await readSession(conversationId, cp);
+    const legacyResumeId =
+      priorSession?.resumeId && priorSession.resumeId.trim()
+        ? priorSession.resumeId.trim()
+        : null;
     try {
       await createDaemonSession({
         id: conversationId,
@@ -974,6 +983,7 @@ export async function continueConversationRun(
         adapterConfig: meta.adapterConfig,
         cwd: legacyCwd,
         timeoutSeconds: undefined,
+        adapterSessionId: legacyResumeId,
       });
     } catch (error) {
       const message =

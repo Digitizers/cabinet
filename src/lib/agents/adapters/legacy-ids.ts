@@ -24,3 +24,20 @@ const LEGACY_SET = new Set<string>(LEGACY_ADAPTER_TYPES);
 export function isLegacyAdapterType(adapterType?: string | null): boolean {
   return typeof adapterType === "string" && LEGACY_SET.has(adapterType);
 }
+
+/**
+ * Provider ids whose CLIs support resuming a prior terminal-mode session
+ * via their own flag (mirrors `provider.supportsTerminalResume` on the
+ * server). Claude `--resume`, Cursor `--resume`, OpenCode `--session`.
+ * Kept client-safe so task-viewer UI can decide whether to show a
+ * "new session" advisory without an extra providers fetch.
+ */
+export const PROVIDERS_WITH_TERMINAL_RESUME = new Set<string>([
+  "claude-code",
+  "cursor-cli",
+  "opencode",
+]);
+
+export function supportsTerminalResume(providerId?: string | null): boolean {
+  return typeof providerId === "string" && PROVIDERS_WITH_TERMINAL_RESUME.has(providerId);
+}

@@ -118,6 +118,13 @@ export interface ProviderInfo {
   models?: ProviderModel[];
   effortLevels?: ProviderEffortLevel[];
   defaultAdapterType?: string;
+  /**
+   * True when the CLI supports resuming a prior terminal-mode session via
+   * its own flag (Claude `--resume`, Cursor `--resume`, OpenCode `--session`).
+   * UI surfaces use this to decide whether to show "New session — prior
+   * context not preserved" on Continue for providers without resume.
+   */
+  supportsTerminalResume?: boolean;
   adapters?: Array<{
     type: string;
     name: string;

@@ -49,6 +49,7 @@ export const claudeCodeProvider: AgentProvider = {
     },
   ],
   detachedPromptLaunchMode: "session",
+  supportsTerminalResume: true,
   effortLevels: [...CLAUDE_THINKING_LEVELS],
   command: "claude",
   commandCandidates: [
@@ -75,10 +76,16 @@ export const claudeCodeProvider: AgentProvider = {
     };
   },
 
-  buildSessionInvocation(prompt: string | undefined, _workdir: string) {
+  buildSessionInvocation(prompt: string | undefined, _workdir: string, opts) {
+    const args = ["--dangerously-skip-permissions"];
+    if (opts?.resumeId) {
+      // `claude --resume <sessionId>` rehydrates the prior conversation so
+      // the user's follow-up prompt reads into the same context.
+      args.push("--resume", opts.resumeId);
+    }
     return {
       command: this.command || "claude",
-      args: ["--dangerously-skip-permissions"],
+      args,
       initialPrompt: prompt?.trim() || undefined,
       readyStrategy: prompt ? "claude" : undefined,
     };

@@ -21,7 +21,10 @@ import {
   Square,
   Terminal,
 } from "lucide-react";
-import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
+import {
+  isLegacyAdapterType,
+  supportsTerminalResume,
+} from "@/lib/agents/adapters/legacy-ids";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { stopConversation } from "@/components/tasks/board-v2/board-actions";
 import { cn } from "@/lib/utils";
@@ -608,29 +611,46 @@ export function TaskConversationPage({
         </div>
 
         {/* Composer: only shows when the PTY has exited. */}
-        {!readOnly && task.meta.status === "idle" ? (
-          <div className="shrink-0 border-t border-zinc-800 bg-zinc-950">
-            <div className="mx-auto w-full max-w-4xl px-3 py-2">
-              <div className="mb-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500">
-                <CheckCircle2 className="size-3 text-emerald-500" />
-                <span>Session exited — type to continue in the same terminal.</span>
-              </div>
-              <div className="[&_textarea]:bg-zinc-900 [&_textarea]:text-zinc-100 [&_textarea]:placeholder:text-zinc-500 [&_textarea]:border-zinc-800">
-                <TaskComposerPanel
-                  awaitingInput={false}
-                  onSend={handleSend}
-                  initialRuntime={{
-                    providerId: task.meta.providerId,
-                    adapterType: task.meta.adapterType,
-                    model: readRuntimeModel(task.meta.adapterConfig),
-                    effort: readRuntimeEffort(task.meta.adapterConfig),
-                    runtimeMode: "terminal",
-                  }}
-                />
+        {!readOnly && task.meta.status === "idle" ? (() => {
+          const canResume = supportsTerminalResume(task.meta.providerId);
+          return (
+            <div className="shrink-0 border-t border-zinc-800 bg-zinc-950">
+              <div className="mx-auto w-full max-w-4xl px-3 py-2">
+                {canResume ? (
+                  <div className="mb-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500">
+                    <CheckCircle2 className="size-3 text-emerald-500" />
+                    <span>
+                      Session exited — your next turn resumes in the same{" "}
+                      {task.meta.providerId} session.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mb-1.5 flex items-center gap-1.5 text-[10px] text-amber-400/80">
+                    <CircleAlert className="size-3" />
+                    <span>
+                      Session exited. {task.meta.providerId ?? "This CLI"} doesn&apos;t
+                      support resume — Continue will start a fresh session without prior
+                      context.
+                    </span>
+                  </div>
+                )}
+                <div className="[&_textarea]:bg-zinc-900 [&_textarea]:text-zinc-100 [&_textarea]:placeholder:text-zinc-500 [&_textarea]:border-zinc-800">
+                  <TaskComposerPanel
+                    awaitingInput={false}
+                    onSend={handleSend}
+                    initialRuntime={{
+                      providerId: task.meta.providerId,
+                      adapterType: task.meta.adapterType,
+                      model: readRuntimeModel(task.meta.adapterConfig),
+                      effort: readRuntimeEffort(task.meta.adapterConfig),
+                      runtimeMode: "terminal",
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        ) : null}
+          );
+        })() : null}
       </div>
     );
   }

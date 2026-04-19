@@ -38,7 +38,7 @@ function buildLaunchSpec(
   prompt: string | undefined,
   workdir: string,
   mode: "one-shot" | "session",
-  opts?: { model?: string; effort?: string }
+  opts?: { model?: string; effort?: string; resumeId?: string }
 ): ProviderLaunchSpec {
   const provider = resolveProviderOrThrow(providerId);
 
@@ -53,7 +53,9 @@ function buildLaunchSpec(
   }
 
   if (mode === "session" && provider.buildSessionInvocation) {
-    invocation = provider.buildSessionInvocation(prompt, workdir);
+    invocation = provider.buildSessionInvocation(prompt, workdir, {
+      resumeId: opts?.resumeId,
+    });
   }
 
   if (!invocation && prompt && provider.buildArgs && provider.command) {
@@ -105,8 +107,11 @@ export function getSessionLaunchSpec(input: {
   providerId?: string;
   prompt?: string;
   workdir: string;
+  resumeId?: string;
 }): ProviderLaunchSpec {
-  return buildLaunchSpec(input.providerId, input.prompt, input.workdir, "session");
+  return buildLaunchSpec(input.providerId, input.prompt, input.workdir, "session", {
+    resumeId: input.resumeId,
+  });
 }
 
 export function getOneShotLaunchSpec(input: {
@@ -115,13 +120,14 @@ export function getOneShotLaunchSpec(input: {
   workdir: string;
   model?: string;
   effort?: string;
+  resumeId?: string;
 }): ProviderLaunchSpec {
   return buildLaunchSpec(
     input.providerId,
     input.prompt,
     input.workdir,
     "one-shot",
-    { model: input.model, effort: input.effort }
+    { model: input.model, effort: input.effort, resumeId: input.resumeId }
   );
 }
 

@@ -51,6 +51,7 @@ export const openCodeProvider: AgentProvider = {
     },
   ],
   detachedPromptLaunchMode: "one-shot",
+  supportsTerminalResume: true,
   models: OPENCODE_FALLBACK_MODELS.map((model) => ({
     id: model.id,
     name: model.name,
@@ -77,6 +78,9 @@ export const openCodeProvider: AgentProvider = {
     }
     if (opts?.effort) {
       args.push("--variant", opts.effort);
+    }
+    if (opts?.resumeId) {
+      args.push("--session", opts.resumeId);
     }
     return {
       command: this.command || "opencode",

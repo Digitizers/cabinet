@@ -489,6 +489,34 @@ async function finalizeSessionConversation(session: ActiveSession): Promise<void
     errorHint: adapterErrorHint ?? undefined,
     errorRetryAfterSec: adapterErrorRetryAfterSec ?? undefined,
   }, meta.cabinetPath);
+
+  // Legacy PTY terminal-mode resume: if the provider's stream parser caught
+  // a session id during the run, persist it via writeSession so the next
+  // continue turn can pass it back to the CLI as `--resume` / `--session`.
+  // Currently only Claude's `claude-stream-json` accumulator runs in the
+  // PTY path (one-shot mode) — Cursor/OpenCode capture their session ids
+  // only when routed through the structured adapter, so this block is a
+  // no-op for them until we wire stream-parsing for their PTY modes too.
+  if (session.kind === "pty" && session.structuredOutput) {
+    const resumeId = session.structuredOutput.sessionId ?? null;
+    if (resumeId) {
+      try {
+        await writeSession(
+          session.id,
+          {
+            kind: session.adapterType || "legacy_pty_cli",
+            resumeId,
+            alive: false,
+            lastUsedAt: new Date().toISOString(),
+            codecBlob: { resumeId },
+          },
+          meta.cabinetPath
+        );
+      } catch (err) {
+        console.warn(`Session ${session.id}: failed to persist PTY resume id`, err);
+      }
+    }
+  }
 }
 
 function sessionStatus(session: ActiveSession): "running" | "completed" | "failed" {
@@ -690,23 +718,36 @@ function createDetachedSession(input: {
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
   launchMode?: "session" | "one-shot";
+  /**
+   * Provider-specific session id captured from a prior terminal-mode PTY
+   * run. Threaded into the launch spec so the CLI resumes the old session
+   * (e.g. `claude --resume <id>`, `opencode --session <id>`) instead of
+   * starting fresh. Absent on first turns.
+   */
+  adapterResumeId?: string | null;
 }): PtySession {
   const cwd = resolveSessionCwd(input.cwd);
   const executionProviderId = resolveLegacyExecutionProviderId({
     adapterType: input.adapterType,
     providerId: input.providerId,
   });
+  const resumeId =
+    typeof input.adapterResumeId === "string" && input.adapterResumeId.trim()
+      ? input.adapterResumeId.trim()
+      : undefined;
   let launch =
     input.launchMode === "one-shot" && input.prompt?.trim()
       ? getOneShotLaunchSpec({
           providerId: executionProviderId,
           prompt: input.prompt,
           workdir: cwd,
+          resumeId,
         })
       : getSessionLaunchSpec({
           providerId: executionProviderId,
           prompt: input.prompt,
           workdir: cwd,
+          resumeId,
         });
   const resolvedProviderId = resolveProviderId(executionProviderId);
 
@@ -1082,7 +1123,13 @@ function createSession(input: {
     });
   }
 
-  return createDetachedSession(input);
+  // Legacy PTY path: forward the adapter session id as `adapterResumeId` so
+  // the launch spec can append `--resume` / `--session` for providers that
+  // support terminal-mode resume (Claude, Cursor, OpenCode).
+  return createDetachedSession({
+    ...input,
+    adapterResumeId: input.adapterSessionId ?? null,
+  });
 }
 
 // ===== WebSocket Event Bus =====

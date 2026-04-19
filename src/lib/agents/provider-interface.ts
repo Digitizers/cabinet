@@ -15,6 +15,22 @@ export interface CliProviderInvocation {
 export interface OneShotInvocationOptions {
   model?: string;
   effort?: string;
+  /**
+   * Provider-specific session id captured from a previous PTY run. When
+   * present, the provider appends the CLI's own resume flag (Claude
+   * `--resume`, Cursor `--resume`, OpenCode `--session`) so the follow-up
+   * turn reads into the same context instead of starting fresh.
+   */
+  resumeId?: string;
+}
+
+/**
+ * Per-turn options passed to `buildSessionInvocation`. Session mode is the
+ * Claude REPL-style launch; for most providers one-shot is what terminal-mode
+ * actually uses and they accept `resumeId` through `OneShotInvocationOptions`.
+ */
+export interface SessionInvocationOptions {
+  resumeId?: string;
 }
 
 export interface ProviderModel {
@@ -56,7 +72,19 @@ export interface AgentProvider {
     workdir: string,
     opts?: OneShotInvocationOptions
   ): CliProviderInvocation;
-  buildSessionInvocation?(prompt: string | undefined, workdir: string): CliProviderInvocation;
+  buildSessionInvocation?(
+    prompt: string | undefined,
+    workdir: string,
+    opts?: SessionInvocationOptions
+  ): CliProviderInvocation;
+  /**
+   * Whether this provider's CLI accepts a `resumeId` in the terminal-mode
+   * launch spec. UI surfaces (continue composer, "new session" advisory)
+   * key off this flag to decide whether a follow-up turn will actually
+   * resume the prior session or start fresh. Optional — defaults to
+   * false for safety.
+   */
+  supportsTerminalResume?: boolean;
 
   // API providers
   apiKeyEnvVar?: string;

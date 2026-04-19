@@ -45,6 +45,7 @@ export const cursorCliProvider: AgentProvider = {
     },
   ],
   detachedPromptLaunchMode: "one-shot",
+  supportsTerminalResume: true,
   models: CURSOR_MODEL_IDS.map((model) => ({
     id: model.id,
     name: model.name,
@@ -70,6 +71,9 @@ export const cursorCliProvider: AgentProvider = {
     const args = [...baseArgs];
     if (opts?.model) {
       args.push("--model", opts.model);
+    }
+    if (opts?.resumeId) {
+      args.push("--resume", opts.resumeId);
     }
     return {
       command: this.command || "cursor-agent",

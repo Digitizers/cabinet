@@ -65,6 +65,7 @@ export async function GET() {
           effortLevels: p.effortLevels || [],
           defaultAdapterType,
           adapters,
+          supportsTerminalResume: p.supportsTerminalResume === true,
           enabled: isProviderEnabled(p.id, settings),
           usage: usage[p.id] || {
             agentSlugs: [],
