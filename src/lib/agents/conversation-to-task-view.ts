@@ -50,6 +50,8 @@ export function conversationMetaToTaskMeta(meta: ConversationMeta): TaskMeta {
     errorHint: meta.errorHint,
     errorRetryAfterSec: meta.errorRetryAfterSec,
     lastResumeAttempt: meta.lastResumeAttempt,
+    archivedAt: meta.archivedAt,
+    boardOrder: meta.boardOrder,
   };
 }
 

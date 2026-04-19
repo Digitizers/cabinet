@@ -132,6 +132,10 @@ export interface TaskMeta {
     result: "resumed" | "replayed" | "failed";
     reason?: string;
   };
+  /** Soft-archive timestamp. Mirrors ConversationMeta.archivedAt. */
+  archivedAt?: string;
+  /** Within-lane sort index for the v2 task board. Default 0. */
+  boardOrder?: number;
 }
 
 export interface ArtifactsIndex {

@@ -123,6 +123,10 @@ export interface ConversationMeta {
   titlePinned?: boolean;
   summaryEditedAt?: string;
 
+  /** Within-lane sort index for the v2 task board. Additive; default 0.
+   *  Written by drag-to-reorder in Phase 2; read by the board in Phase 2+. */
+  boardOrder?: number;
+
   /** Classified failure kind from the last failed run. Cleared on success. */
   errorKind?: ConversationErrorKind;
   /** Human-facing remediation hint for `errorKind`. */
