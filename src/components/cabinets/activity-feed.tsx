@@ -1,42 +1,89 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Users } from "lucide-react";
+import {
+  Archive,
+  CheckCircle2,
+  Circle,
+  CircleAlert,
+  Loader2,
+  Pause,
+  Play,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { buildConversationInstanceKey } from "@/lib/agents/conversation-identity";
-import {
-  formatRelative,
-  StatusIcon,
-  TriggerIcon,
-  TRIGGER_LABELS,
-  TRIGGER_STYLES,
-} from "./cabinet-utils";
+import { deriveStatus } from "@/lib/agents/conversation-to-task-view";
+import { formatRelative } from "./cabinet-utils";
 import type { ConversationMeta } from "@/types/conversations";
+import type { TaskStatus } from "@/types/tasks";
 
 interface ActivityFeedProps {
   cabinetPath: string;
   visibilityMode: string;
-  agents: { slug: string; emoji: string; name: string; cabinetPath?: string }[];
   onOpen: (conv: ConversationMeta) => void;
   onOpenWorkspace: () => void;
+}
+
+const STATUS_META: Record<
+  TaskStatus,
+  { label: string; tone: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  idle: { label: "Idle", tone: "bg-muted text-muted-foreground", icon: Circle },
+  running: {
+    label: "Running",
+    tone: "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+    icon: Play,
+  },
+  "awaiting-input": {
+    label: "Awaiting input",
+    tone: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+    icon: Pause,
+  },
+  done: {
+    label: "Done",
+    tone: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+    icon: CheckCircle2,
+  },
+  failed: {
+    label: "Failed",
+    tone: "bg-red-500/15 text-red-700 dark:text-red-400",
+    icon: CircleAlert,
+  },
+  archived: { label: "Archived", tone: "bg-muted text-muted-foreground", icon: Archive },
+};
+
+function StatusBadge({ status }: { status: TaskStatus }) {
+  const meta = STATUS_META[status];
+  const Icon = meta.icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-medium",
+        meta.tone
+      )}
+    >
+      <Icon className="size-2.5" />
+      {meta.label}
+    </span>
+  );
+}
+
+function runtimeLabel(conv: ConversationMeta): string | null {
+  const config = conv.adapterConfig as { model?: string; effort?: string } | undefined;
+  const parts = [config?.model, conv.providerId].filter(Boolean) as string[];
+  return parts.length ? parts.join(" · ") : null;
 }
 
 export function ActivityFeed({
   cabinetPath,
   visibilityMode,
-  agents,
   onOpen,
   onOpenWorkspace,
 }: ActivityFeedProps) {
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const agentBySlug = useMemo(() => {
-    const map = new Map<string, { emoji: string; name: string }>();
-    for (const a of agents) map.set(a.slug, { emoji: a.emoji, name: a.name });
-    return map;
-  }, [agents]);
 
   const refresh = useCallback(async () => {
     try {
@@ -108,62 +155,52 @@ export function ActivityFeed({
           No conversations yet. Run a heartbeat or send a task to an agent.
         </p>
       ) : (
-        <div className="space-y-1">
+        <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
           {sorted.map((conv) => {
-            const agent = agentBySlug.get(conv.agentSlug);
-            const isRunning = conv.status === "running";
-
+            const status = deriveStatus(conv);
+            const runtime = runtimeLabel(conv);
+            const tokens = conv.tokens?.total ?? 0;
             return (
-              <button
-                key={buildConversationInstanceKey(conv)}
-                onClick={() => onOpen(conv)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
-                  "hover:bg-muted/30",
-                  isRunning && "border-l-2 border-emerald-500/50 bg-emerald-500/5"
-                )}
-              >
-                {/* Agent avatar with status overlay */}
-                <div className="relative shrink-0">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/40 text-base leading-none">
-                    {agent?.emoji || "🤖"}
-                  </span>
-                  <div className="absolute -bottom-0.5 -right-0.5">
-                    <StatusIcon status={conv.status} />
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium leading-snug text-foreground">
-                    {conv.title}
-                  </p>
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                    {agent?.name || conv.agentSlug}
-                    {conv.summary ? ` · ${conv.summary}` : ""}
-                  </p>
-                </div>
-
-                {/* Trigger badge */}
-                <span
-                  className={cn(
-                    "shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                    TRIGGER_STYLES[conv.trigger]
-                  )}
-                  title={TRIGGER_LABELS[conv.trigger]}
+              <li key={buildConversationInstanceKey(conv)}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(conv)}
+                  className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
                 >
-                  <TriggerIcon trigger={conv.trigger} />
-                  {TRIGGER_LABELS[conv.trigger]}
-                </span>
-
-                {/* Time */}
-                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/60">
-                  {formatRelative(conv.startedAt)}
-                </span>
-              </button>
+                  <div className="mt-0.5">
+                    <StatusBadge status={status} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <p className="truncate text-[13.5px] font-medium text-foreground">
+                        {conv.title}
+                      </p>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {formatRelative(conv.lastActivityAt || conv.startedAt)}
+                      </span>
+                    </div>
+                    {conv.summary ? (
+                      <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-relaxed text-muted-foreground">
+                        {conv.summary}
+                      </p>
+                    ) : null}
+                    {(runtime || tokens > 0) && (
+                      <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground/80">
+                        {runtime ? <span>{runtime}</span> : null}
+                        {runtime && tokens > 0 ? <span>·</span> : null}
+                        {tokens > 0 ? (
+                          <span className="font-mono tabular-nums">
+                            {(tokens / 1000).toFixed(1)}k tok
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

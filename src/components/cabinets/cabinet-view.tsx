@@ -402,12 +402,6 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
                 <ActivityFeed
                   cabinetPath={cabinetPath}
                   visibilityMode={cabinetVisibilityMode}
-                  agents={(overview?.agents || []).map((agent) => ({
-                    slug: agent.slug,
-                    emoji: agent.emoji,
-                    name: agent.name,
-                    cabinetPath: agent.cabinetPath,
-                  }))}
                   onOpen={openConversation}
                   onOpenWorkspace={openCabinetAgentsWorkspace}
                 />
