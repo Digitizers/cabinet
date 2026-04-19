@@ -251,29 +251,51 @@ Phased work that landed on this branch (see commit trail below):
 
 ## 12. Next Steps
 
-### 12.0 TL;DR — what's left
+### 12.0 TL;DR — unclosed issues
 
-**Provider track (§12.1):** 9 of 12 items shipped (3 of those partial). 3 still fully deferred:
+Consolidated list of every item that was raised across this PRD and isn't fully shipped. Grouped by what they're waiting on.
 
-| Deferred | Reason |
-|---|---|
-| #2 Skills injection | Partial — catalog + symlink + Claude wired; Cursor/OpenCode/Pi/Gemini/Codex/Grok/Copilot need per-CLI skill-dir flags wired |
-| #4 Per-provider directory refactor | Partial — `_shared/cli-args.ts` extracted, 8 adapters deduped. Full directory split deferred as low-ROI mechanical churn. |
-| #5 `agent-live-panel` adapter awareness | Minor; WebTerminal works fine for both paths |
-| #9 Reasoning-effort policy per provider | Product call |
-| #11 Polish placeholder glyphs | Needs licensed artwork |
+#### A. Needs code — mechanical, no decisions required
 
-**Terminal track (§12.2):** 24 of 24 items resolved.
+| Ref | Item | Notes |
+|---|---|---|
+| #2b | Skills injection for the other 6 providers — extend `adapterConfig.skillsDir` wiring to Cursor, OpenCode, Pi, Codex, Gemini, Grok, Copilot | Claude is done via `--add-dir`. Each CLI has its own context-dir flag (Cursor `--add-dir` too, OpenCode env var, Pi env var, Codex `-c`, Gemini ?, Grok/Copilot likely none). |
+| #4 | Full per-provider directory split — `adapters/<provider>-local/{index,execute,parse,test,skills}.ts` + extract remaining shared helpers into `_shared/` (stream-json consumer, stderr-filter, session-codec, health-check) | Phase 1 shipped (`_shared/cli-args.ts`). Behavior-neutral churn; low ROI. |
+| #5 | `agent-live-panel.tsx` should not render `WebTerminal` for structured-adapter conversations | WebTerminal works fine for both today; this is cleanup, not a bug. |
 
-T19 (distill PTY output) shipped as a deterministic summary line.
-T21 (reconnect UX) verified by audit — works correctly.
+#### B. Needs UI work — surfaces for skills (discussed this session)
 
-**Genuinely actionable remaining:**
-1. **#2b Skills injection — other 6 providers** — Cursor/OpenCode/Pi/Codex each need to read `adapterConfig.skillsDir` and thread it into the CLI's own context-dir flag. Mechanical once the per-CLI flag mapping is decided.
-2. **#9 Reasoning-effort policy** — product call on per-provider effort UX.
-3. **#11 Glyph artwork** — if/when licensed artwork is available.
+| Ref | Item | Notes |
+|---|---|---|
+| UI-1 | Agent detail → "Skills" read-only section listing the agent's current `skills: […]` with `SKILL.md` heading + description | Minimum to make skills visible. |
+| UI-2 | Settings → "Skills catalog" browser — lists everything in `~/.cabinet/skills/` as read-only reference | "What's available" view. |
+| UI-3 | Task viewer → "with skills: a, b, c" chip in the header when a run has skills attached | Runtime confirmation. |
+| UI-4 | Agent editor → skills multiselect widget backed by the catalog (save via persona API) | Fully editable; removes markdown-poking. Biggest lift of the four. |
 
-Everything else is shipped, by-design skipped, partial with the rest deferred as low-ROI, or waiting on product/artwork input.
+#### C. Needs product decision
+
+| Ref | Item | Decision needed |
+|---|---|---|
+| #9 | Reasoning-effort policy per provider | How far to push effort controls — Cursor has none, OpenCode/Pi have per-variant levels, Codex has low/medium/high, Claude/Gemini/Grok/Copilot have none. Which providers should expose effort at all in UI? |
+
+#### D. Needs external input
+
+| Ref | Item | Blocked on |
+|---|---|---|
+| #11 | Polish placeholder glyphs for Cursor/OpenCode/Pi/Grok/Copilot | Licensed artwork |
+| T21-QA | Manual QA pass of WebTerminal reconnect-after-navigate-away | Audit says it works; needs human verification across browsers |
+
+#### E. Known limitations (out-of-scope by design)
+
+| Ref | Item | Why out of scope |
+|---|---|---|
+| T19-full | Distill PTY output into a clean agent turn with artifact extraction + `<ask_user>` detection | Terminal mode is "I drive the CLI"; structured summary/artifacts belong to native mode. Current distillation is a 1-line deterministic summary. |
+| T20-repl | Same-process continue keeping an interactive REPL alive across turns with a persistent read-eval loop | Current impl opportunistically stdin-injects when the PTY is alive, spawns fresh otherwise. True always-alive REPL would need a launch-mode refactor and only benefits providers with REPL mode. |
+
+**Snapshot:**
+- Provider track (§12.1): 9 / 12 shipped (3 partial).
+- Terminal track (§12.2): 24 / 24 resolved.
+- Skills UI (new track): 0 / 4 shipped.
 
 ### 12.1 Status matrix
 
@@ -323,6 +345,19 @@ Separate track covering the "user runs task in Terminal mode" experience. Audit 
 | T22 | Token bar / context window hidden in terminal fullscreen layout | ✅ Done — fullscreen top strip already omits `TokenBar` (PTY output doesn't self-report usage uniformly) | `4313979` |
 | T23 | Stop-PTY button in the top strip — calls `stopConversation()` → PATCH `{ action: "stop" }` → daemon SIGTERMs the PTY | ✅ Done | `a012478` |
 | T24 | Terminal-mode "experimental" advisory vs. first-class messaging | ✅ First-class — Native/Terminal is a positive product choice, not a warning |
+
+### 12.3 Skills UI — status matrix
+
+The skills system shipped with zero UI (see §12.1 #2). Track the four surfaces that would make skills visible:
+
+| # | Item | Status | Commit |
+|---|------|--------|--------|
+| UI-1 | Agent detail → read-only "Skills" section listing `persona.skills` with `SKILL.md` heading + description pulled from the catalog | 🟨 Not started | — |
+| UI-2 | Settings → "Skills catalog" browser — lists everything in `~/.cabinet/skills/` with name + description + path | 🟨 Not started | — |
+| UI-3 | Task viewer → "with skills: a, b, c" chip in the header when the run has `adapterConfig.skillsDir` attached | 🟨 Not started | — |
+| UI-4 | Agent editor → skills multiselect widget backed by the catalog (save through persona API) | 🟨 Not started | — |
+
+Current UX: users edit `skills: [slug, slug]` directly in the agent's markdown frontmatter.
 
 ## 13. Operational Notes
 
