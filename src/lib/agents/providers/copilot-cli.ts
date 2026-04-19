@@ -80,10 +80,15 @@ export const copilotCliProvider: AgentProvider = {
     return ["-p", prompt, "--allow-all-tools"];
   },
 
-  buildOneShotInvocation(prompt: string, workdir: string) {
+  buildOneShotInvocation(prompt: string, workdir: string, opts) {
+    const baseArgs = this.buildArgs ? this.buildArgs(prompt, workdir) : [];
+    const args = [...baseArgs];
+    if (opts?.model) {
+      args.push("--model", opts.model);
+    }
     return {
       command: this.command || "copilot",
-      args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
+      args,
     };
   },
 

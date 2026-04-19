@@ -65,10 +65,15 @@ export const cursorCliProvider: AgentProvider = {
     return ["-p", prompt, "--output-format", "text", "--yolo"];
   },
 
-  buildOneShotInvocation(prompt: string, workdir: string) {
+  buildOneShotInvocation(prompt: string, workdir: string, opts) {
+    const baseArgs = this.buildArgs ? this.buildArgs(prompt, workdir) : [];
+    const args = [...baseArgs];
+    if (opts?.model) {
+      args.push("--model", opts.model);
+    }
     return {
       command: this.command || "cursor-agent",
-      args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
+      args,
     };
   },
 

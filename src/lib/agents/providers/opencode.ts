@@ -69,10 +69,18 @@ export const openCodeProvider: AgentProvider = {
     return ["run", prompt];
   },
 
-  buildOneShotInvocation(prompt: string, workdir: string) {
+  buildOneShotInvocation(prompt: string, workdir: string, opts) {
+    const baseArgs = this.buildArgs ? this.buildArgs(prompt, workdir) : [];
+    const args = [...baseArgs];
+    if (opts?.model) {
+      args.push("--model", opts.model);
+    }
+    if (opts?.effort) {
+      args.push("--variant", opts.effort);
+    }
     return {
       command: this.command || "opencode",
-      args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
+      args,
     };
   },
 

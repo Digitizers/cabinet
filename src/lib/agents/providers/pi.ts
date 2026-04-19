@@ -67,10 +67,18 @@ export const piProvider: AgentProvider = {
     return ["-p", prompt];
   },
 
-  buildOneShotInvocation(prompt: string, workdir: string) {
+  buildOneShotInvocation(prompt: string, workdir: string, opts) {
+    const baseArgs = this.buildArgs ? this.buildArgs(prompt, workdir) : [];
+    const args = [...baseArgs];
+    if (opts?.model) {
+      args.push("--model", opts.model);
+    }
+    if (opts?.effort) {
+      args.push("--thinking", opts.effort);
+    }
     return {
       command: this.command || "pi",
-      args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
+      args,
     };
   },
 
