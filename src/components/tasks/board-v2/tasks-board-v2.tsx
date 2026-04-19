@@ -20,6 +20,7 @@ import { ScheduleView } from "./schedule-view";
 import { PeopleRail } from "./people-rail";
 import { DetailPanel } from "./detail-panel";
 import { ViewToggle, type BoardViewMode } from "./view-toggle";
+import { DensityToggle, type BoardDensity } from "./density-toggle";
 import { FilterBar } from "./filter-bar";
 import { UndoToast, type PendingUndo } from "./undo-toast";
 import { ConfirmPopover, type PendingConfirm } from "./confirm-popover";
@@ -72,6 +73,11 @@ export function TasksBoardV2({
     "cabinet.tasks.v2.agent",
     null,
     (raw) => (raw === "" || raw === "null" ? null : raw)
+  );
+  const [density, setDensity] = usePersistentState<BoardDensity>(
+    "cabinet.tasks.v2.density",
+    "comfortable",
+    (raw) => (raw === "compact" || raw === "comfortable" ? raw : null)
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
@@ -136,8 +142,9 @@ export function TasksBoardV2({
         )}
         <h1 className="text-[14px] font-semibold tracking-tight">Tasks</h1>
         {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
-        <div className="ml-4">
+        <div className="ml-4 flex items-center gap-2">
           <ViewToggle value={view} onChange={setView} />
+          <DensityToggle value={density} onChange={setDensity} />
         </div>
         <span className="ml-auto text-[11px] text-muted-foreground">
           {agentFilter ? `${filteredTasks.length} of ${tasks.length}` : `${tasks.length}`}
@@ -176,6 +183,7 @@ export function TasksBoardV2({
                 selectedId={selectedId}
                 now={now}
                 onSelect={setSelectedId}
+                density={density}
               />
             )}
             {view === "list" && (
@@ -185,6 +193,7 @@ export function TasksBoardV2({
                 selectedId={selectedId}
                 now={now}
                 onSelect={setSelectedId}
+                density={density}
               />
             )}
             {view === "schedule" && (

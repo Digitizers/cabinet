@@ -42,6 +42,7 @@ function TaskRow({
   isActive,
   now,
   onClick,
+  density,
 }: {
   task: TaskMeta;
   lane: LaneKey;
@@ -49,6 +50,7 @@ function TaskRow({
   isActive: boolean;
   now: number;
   onClick: () => void;
+  density: "compact" | "comfortable";
 }) {
   const state = deriveCardState(task, lane);
   const lastActivity = task.lastActivityAt ?? task.startedAt;
@@ -57,7 +59,8 @@ function TaskRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-md border border-transparent px-3 py-2 text-left transition-colors",
+        "flex w-full items-center gap-3 rounded-md border border-transparent text-left transition-colors",
+        density === "compact" ? "px-3 py-1" : "px-3 py-2",
         "hover:bg-muted/40",
         isActive && "border-border/60 bg-muted/40"
       )}
@@ -78,12 +81,14 @@ export function ListView({
   selectedId,
   now,
   onSelect,
+  density = "comfortable",
 }: {
   byLane: Record<LaneKey, TaskMeta[]>;
   agentsBySlug: Map<string, CabinetAgentSummary>;
   selectedId: string | null;
   now: number;
   onSelect: (id: string) => void;
+  density?: "compact" | "comfortable";
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
@@ -118,6 +123,7 @@ export function ListView({
                     isActive={selectedId === task.id}
                     now={now}
                     onClick={() => onSelect(task.id)}
+                    density={density}
                   />
                 </li>
               ))}

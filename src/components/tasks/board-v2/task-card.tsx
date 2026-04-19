@@ -26,6 +26,7 @@ export function TaskCard({
   isActive,
   now,
   onClick,
+  density = "comfortable",
 }: {
   task: TaskMeta;
   lane: LaneKey;
@@ -33,19 +34,22 @@ export function TaskCard({
   isActive: boolean;
   now: number;
   onClick: () => void;
+  density?: "compact" | "comfortable";
 }) {
   const state = deriveCardState(task, lane);
   const lastActivity = task.lastActivityAt ?? task.startedAt;
   const isTerminal = isLegacyAdapterType(task.adapterType);
   const groupSize = task.groupSize && task.groupSize > 1 ? task.groupSize : 0;
 
+  const compact = density === "compact";
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative w-full rounded-md border bg-card p-3 text-left transition-all",
+        "group relative w-full rounded-md border bg-card text-left transition-all",
         "hover:border-foreground/30 hover:shadow-sm",
+        compact ? "px-2.5 py-2" : "p-3",
         isActive ? "border-foreground/50 shadow-sm" : "border-border/60",
         isTerminal &&
           "border-l-2 border-l-emerald-500/60 bg-[linear-gradient(to_right,rgba(16,185,129,0.035),transparent_30%)]"
@@ -72,12 +76,19 @@ export function TaskCard({
           </span>
         )}
       </div>
-      <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-foreground">
+      <p
+        className={cn(
+          "line-clamp-2 text-[13px] leading-snug text-foreground",
+          compact ? "mt-1" : "mt-2"
+        )}
+      >
         {task.title}
       </p>
-      <div className="mt-2 flex items-center gap-2 text-[10.5px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-        <span>{relTime(lastActivity, now)}</span>
-      </div>
+      {!compact && (
+        <div className="mt-2 flex items-center gap-2 text-[10.5px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          <span>{relTime(lastActivity, now)}</span>
+        </div>
+      )}
     </button>
   );
 }

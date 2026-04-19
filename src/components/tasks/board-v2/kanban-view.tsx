@@ -90,6 +90,7 @@ function SortableTaskCard({
   isActive,
   now,
   onClick,
+  density,
 }: {
   task: TaskMeta;
   lane: LaneKey;
@@ -97,6 +98,7 @@ function SortableTaskCard({
   isActive: boolean;
   now: number;
   onClick: () => void;
+  density: "compact" | "comfortable";
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `${CARD_DROP_PREFIX}${task.id}`,
@@ -122,6 +124,7 @@ function SortableTaskCard({
         isActive={isActive}
         now={now}
         onClick={onClick}
+        density={density}
       />
     </div>
   );
@@ -159,12 +162,14 @@ export function KanbanView({
   selectedId,
   now,
   onSelect,
+  density = "comfortable",
 }: {
   byLane: Record<LaneKey, TaskMeta[]>;
   agentsBySlug: Map<string, CabinetAgentSummary>;
   selectedId: string | null;
   now: number;
   onSelect: (id: string) => void;
+  density?: "compact" | "comfortable";
 }) {
   const [archiveOpen, setArchiveOpen] = useState(false);
   return (
@@ -221,6 +226,7 @@ export function KanbanView({
                           isActive={selectedId === task.id}
                           now={now}
                           onClick={() => onSelect(task.id)}
+                          density={density}
                         />
                       ))
                     )}
