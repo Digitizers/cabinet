@@ -111,11 +111,16 @@ export function ComposerInput({
           )}
         >
           {actionsStart ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {actionsStart}
             </div>
           ) : null}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 ml-auto">
+            <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/35 select-none">
+              <kbd className="rounded border border-border/40 bg-muted/40 px-1 py-0.5 font-mono text-[10px]">⌘</kbd>
+              <kbd className="rounded border border-border/40 bg-muted/40 px-1 py-0.5 font-mono text-[10px]">↵</kbd>
+              <span>newline</span>
+            </div>
             {secondaryAction && (
               <Button
                 variant="outline"
@@ -150,16 +155,10 @@ export function ComposerInput({
       </div>
 
       {showKeyHint && (
-        <div className="flex items-center justify-between px-2 pt-2">
+        <div className="flex items-center justify-end px-2 pt-2">
           <span className="text-[11px] text-muted-foreground/50">
-            use <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">@</kbd> to mention
+            use <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">@</kbd> to mention agents &amp; pages
           </span>
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/50">
-            <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">Shift</kbd>
-            <span>+</span>
-            <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">↵</kbd>
-            <span className="ml-0.5">new line</span>
-          </div>
         </div>
       )}
     </div>

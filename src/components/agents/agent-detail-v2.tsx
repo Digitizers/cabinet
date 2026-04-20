@@ -26,6 +26,7 @@ import {
   Loader2,
   MessageSquare,
   MoreHorizontal,
+  Pencil,
   Play,
   Plus,
   Power,
@@ -57,6 +58,8 @@ import {
   AgentIdentity,
   getAgentDisplayName,
 } from "@/components/agents/agent-identity";
+import { ICON_CATALOG, ICON_PICKER_KEYS } from "@/lib/agents/icon-catalog";
+import { AVATAR_PRESETS } from "@/lib/agents/avatar-catalog";
 import type { AgentPersona } from "@/lib/agents/persona-manager";
 import type { AgentTask } from "@/types/agents";
 import type { ConversationMeta } from "@/types/conversations";
@@ -531,14 +534,239 @@ function TopBar({
   );
 }
 
+/* ─── AvatarEditorPopover ─── */
+const COLOR_PRESETS = [
+  "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444", "#f97316",
+  "#f59e0b", "#22c55e", "#14b8a6", "#06b6d4", "#64748b",
+  "#f43f5e", "#6366f1",
+];
+
+function AvatarEditorPopover({
+  persona,
+  onSaveFields,
+  onApplyOptimistic,
+  onClose,
+}: {
+  persona: AgentPersona;
+  onSaveFields: (fields: Record<string, string>) => void;
+  /** Apply state change locally without an extra API call (used after upload/delete which handle their own write). */
+  onApplyOptimistic: (fields: Record<string, string>) => void;
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<"icon" | "avatar">("icon");
+  const [uploading, setUploading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    if (persona.cabinetPath) form.append("cabinetPath", persona.cabinetPath);
+    try {
+      const res = await fetch(`/api/agents/personas/${persona.slug}/avatar`, {
+        method: "POST",
+        body: form,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onApplyOptimistic({ avatar: "custom", avatarExt: data.ext });
+        onClose();
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    const qs = persona.cabinetPath
+      ? `?cabinet=${encodeURIComponent(persona.cabinetPath)}`
+      : "";
+    await fetch(`/api/agents/personas/${persona.slug}/avatar${qs}`, { method: "DELETE" });
+    onApplyOptimistic({ avatar: "", avatarExt: "" });
+    onClose();
+  };
+
+  const palette = persona.color ? tintFromHex(persona.color) : getAgentColor(persona.slug);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full left-0 mt-2 z-50 w-72 rounded-xl border border-border bg-popover shadow-xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Tab bar */}
+      <div className="flex border-b border-border">
+        {(["icon", "avatar"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={cn(
+              "flex-1 py-2 text-[12px] font-medium transition-colors relative",
+              tab === t
+                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t === "icon" ? "Icon & Color" : "Avatar"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "icon" ? (
+        <div className="p-3 space-y-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Icon</p>
+            <div className="grid grid-cols-8 gap-1">
+              {ICON_PICKER_KEYS.map((key) => {
+                const IconComp = ICON_CATALOG[key];
+                const isSelected = persona.iconKey === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    title={key}
+                    onClick={() => onSaveFields({ iconKey: key, avatar: "" })}
+                    className={cn(
+                      "flex items-center justify-center h-8 w-8 rounded-md transition-all",
+                      isSelected
+                        ? "ring-2 ring-offset-1 ring-primary"
+                        : "hover:bg-accent text-muted-foreground hover:text-foreground"
+                    )}
+                    style={isSelected ? { backgroundColor: palette.bg, color: palette.text } : undefined}
+                  >
+                    <IconComp className="h-4 w-4" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Color</p>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {COLOR_PRESETS.map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  onClick={() => onSaveFields({ color: hex })}
+                  className={cn(
+                    "h-6 w-6 rounded-full border-2 transition-transform hover:scale-110",
+                    persona.color === hex ? "border-foreground scale-110" : "border-transparent"
+                  )}
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+              <label
+                title="Custom color"
+                className="relative h-6 w-6 rounded-full border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-foreground/60 transition-colors overflow-hidden"
+              >
+                <input
+                  type="color"
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  value={persona.color || "#6366f1"}
+                  onChange={(e) => onSaveFields({ color: e.target.value })}
+                />
+                <Plus className="h-3 w-3 text-muted-foreground pointer-events-none" />
+              </label>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-3 space-y-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Preset</p>
+            <div className="grid grid-cols-6 gap-1.5">
+              {AVATAR_PRESETS.map((preset) => {
+                const isSelected = persona.avatar === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    title={preset.label}
+                    onClick={() => { onSaveFields({ avatar: preset.id, iconKey: "" }); onClose(); }}
+                    className={cn(
+                      "relative h-10 w-10 rounded-lg overflow-hidden border-2 transition-all",
+                      isSelected ? "border-primary" : "border-transparent hover:border-border"
+                    )}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={preset.file} alt={preset.label} className="h-full w-full object-cover" />
+                    {isSelected && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Check className="h-4 w-4 text-white" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-md border border-dashed border-border text-[12px] text-muted-foreground hover:text-foreground hover:border-border/70 transition-colors disabled:opacity-50"
+            >
+              {uploading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ImageIcon className="h-3.5 w-3.5" />
+              )}
+              Upload image
+            </button>
+            {persona.avatar && persona.avatar !== "none" && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                className="h-8 px-2.5 rounded-md border border-border text-[12px] text-muted-foreground hover:text-red-500 hover:border-red-300 transition-colors"
+              >
+                Remove
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground/70">PNG, JPG, or SVG · max 1 MB</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Hero (identity only; top-bar handled separately) ─── */
 function Hero({
   persona,
   status,
+  onSaveFields,
+  onApplyOptimistic,
 }: {
   persona: AgentPersona;
   status: AgentStatus;
+  onSaveFields: (fields: Record<string, string>) => void;
+  onApplyOptimistic: (fields: Record<string, string>) => void;
 }) {
+  const [editorOpen, setEditorOpen] = useState(false);
   const palette = persona.color
     ? tintFromHex(persona.color)
     : getAgentColor(persona.slug);
@@ -546,19 +774,42 @@ function Hero({
   return (
     <div className="px-6 pt-5 pb-5">
       <div className="flex items-center gap-4">
-        <AgentIdentity
-          agent={{
-            slug: persona.slug,
-            cabinetPath: persona.cabinetPath,
-            displayName: persona.displayName,
-            iconKey: persona.iconKey,
-            color: persona.color,
-            avatar: persona.avatar,
-            avatarExt: persona.avatarExt,
-          }}
-          size="lg"
-          className="!h-16 !w-16 rounded-2xl [&>svg]:!h-7 [&>svg]:!w-7"
-        />
+        {/* Clickable avatar with edit hint */}
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setEditorOpen((v) => !v)}
+            className="group relative focus:outline-none"
+            title="Edit icon, color, or avatar"
+          >
+            <AgentIdentity
+              agent={{
+                slug: persona.slug,
+                cabinetPath: persona.cabinetPath,
+                displayName: persona.displayName,
+                iconKey: persona.iconKey,
+                color: persona.color,
+                avatar: persona.avatar,
+                avatarExt: persona.avatarExt,
+              }}
+              size="lg"
+              className="!h-16 !w-16 rounded-2xl [&>svg]:!h-7 [&>svg]:!w-7 transition-opacity group-hover:opacity-80"
+            />
+            <span className="absolute inset-0 flex items-center justify-center rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+              <Pencil className="h-5 w-5 text-white drop-shadow" />
+            </span>
+          </button>
+
+          {editorOpen && (
+            <AvatarEditorPopover
+              persona={persona}
+              onSaveFields={onSaveFields}
+              onApplyOptimistic={onApplyOptimistic}
+              onClose={() => setEditorOpen(false)}
+            />
+          )}
+        </div>
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-[24px] font-semibold tracking-[-0.02em] leading-tight truncate">
@@ -1658,11 +1909,15 @@ function PersonaEditor({
 /* ─── Main ─── */
 export function AgentDetailV2({
   slug,
+  cabinetPath,
   onBack,
   onOpenConversation,
   onSeeAllConversations,
 }: {
   slug: string;
+  /** Cabinet the agent lives in. Required to resolve personas outside the
+   *  root cabinet — if omitted, the API falls back to the root ("."). */
+  cabinetPath?: string;
   onBack?: () => void;
   onOpenConversation?: (c: ConversationMeta) => void;
   onSeeAllConversations?: () => void;
@@ -1679,13 +1934,20 @@ export function AgentDetailV2({
 
   const refresh = useCallback(async () => {
     try {
+      const cabinetQuery = cabinetPath
+        ? `?cabinetPath=${encodeURIComponent(cabinetPath)}`
+        : "";
+      const agentConvosQuery =
+        `agent=${encodeURIComponent(slug)}&limit=50` +
+        (cabinetPath ? `&cabinetPath=${encodeURIComponent(cabinetPath)}` : "");
+      const tasksQuery =
+        `agent=${encodeURIComponent(slug)}` +
+        (cabinetPath ? `&cabinetPath=${encodeURIComponent(cabinetPath)}` : "");
       const [personaRes, convoRes, jobsRes, tasksRes] = await Promise.all([
-        fetch(`/api/agents/personas/${slug}`),
-        fetch(
-          `/api/agents/conversations?agent=${encodeURIComponent(slug)}&limit=50`
-        ),
-        fetch(`/api/agents/${slug}/jobs`),
-        fetch(`/api/agents/tasks?agent=${encodeURIComponent(slug)}`),
+        fetch(`/api/agents/personas/${slug}${cabinetQuery}`),
+        fetch(`/api/agents/conversations?${agentConvosQuery}`),
+        fetch(`/api/agents/${slug}/jobs${cabinetQuery}`),
+        fetch(`/api/agents/tasks?${tasksQuery}`),
       ]);
       if (personaRes.ok) {
         const data = await personaRes.json();
@@ -1708,7 +1970,7 @@ export function AgentDetailV2({
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, cabinetPath]);
 
   useEffect(() => {
     refresh();
@@ -1895,6 +2157,10 @@ export function AgentDetailV2({
 
   const saveField = useCallback(
     async (field: string, value: string) => {
+      // Optimistic update so UI responds instantly (avatar, icon, color, etc.)
+      if (field !== "tags") {
+        setPersona((prev) => prev ? { ...prev, [field]: value } : prev);
+      }
       const body: Record<string, unknown> = { [field]: value };
       if (field === "tags") {
         body.tags = value
@@ -1908,6 +2174,28 @@ export function AgentDetailV2({
         body: JSON.stringify(body),
       });
       refresh();
+    },
+    [slug, refresh]
+  );
+
+  const applyOptimistic = useCallback(
+    (fields: Record<string, string>) => {
+      setPersona((prev) => prev ? { ...prev, ...fields } : prev);
+    },
+    []
+  );
+
+  const saveFields = useCallback(
+    async (fields: Record<string, string>) => {
+      // Optimistic update — apply immediately so the avatar changes at once
+      setPersona((prev) => prev ? { ...prev, ...fields } : prev);
+      const res = await fetch(`/api/agents/personas/${slug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      // Only re-fetch on failure to revert — success means server already matches
+      if (!res.ok) refresh();
     },
     [slug, refresh]
   );
@@ -1981,7 +2269,7 @@ export function AgentDetailV2({
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="mx-auto max-w-[840px] w-full flex flex-col">
-              <Hero persona={persona} status={status} />
+              <Hero persona={persona} status={status} onSaveFields={saveFields} onApplyOptimistic={applyOptimistic} />
               <div className="sticky top-0 z-10 bg-background/95 backdrop-blur">
                 <Composer
                   persona={persona}

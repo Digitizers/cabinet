@@ -233,13 +233,30 @@ export function useComposer({
         }
       }
 
-      // Shift+Enter: newline
+      // Shift+Enter: newline (browser default)
       if (e.key === "Enter" && e.shiftKey) {
-        return; // default behavior: insert newline
+        return;
+      }
+
+      // Cmd+Enter: insert newline manually (metaKey does not naturally newline)
+      if (e.key === "Enter" && e.metaKey) {
+        e.preventDefault();
+        const textarea = e.currentTarget;
+        const start = textarea.selectionStart ?? 0;
+        const end = textarea.selectionEnd ?? 0;
+        const newValue = input.slice(0, start) + "\n" + input.slice(end);
+        setInput(newValue);
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = start + 1;
+            textareaRef.current.selectionEnd = start + 1;
+          }
+        }, 0);
+        return;
       }
 
       // Enter (no modifier): submit
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter") {
         e.preventDefault();
         void submit();
         return;

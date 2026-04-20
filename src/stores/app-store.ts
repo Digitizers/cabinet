@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { ConversationMeta } from "@/types/conversations";
+import type { ProviderInfo } from "@/types/agents";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 
 export type SectionType =
@@ -42,6 +43,13 @@ interface AppState {
   aiPanelCollapsed: boolean;
   cabinetVisibilityModes: Record<string, CabinetVisibilityMode>;
   taskPanelConversation: ConversationMeta | null;
+  providers: ProviderInfo[];
+  defaultProviderId: string | null;
+  defaultModel: string | null;
+  defaultEffort: string | null;
+  providersLoading: boolean;
+  providersLoaded: boolean;
+  loadProviders: () => Promise<void>;
   setSection: (section: SelectedSection) => void;
   pushSection: (next: SelectedSection, from: SelectedSection) => void;
   popReturnTo: () => void;
@@ -106,6 +114,39 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiPanelCollapsed: false,
   cabinetVisibilityModes: loadCabinetVisibilityModes(),
   taskPanelConversation: null,
+  providers: [],
+  defaultProviderId: null,
+  defaultModel: null,
+  defaultEffort: null,
+  providersLoading: false,
+  providersLoaded: false,
+
+  loadProviders: async () => {
+    const { providersLoading, providersLoaded } = get();
+    if (providersLoading || providersLoaded) return;
+    set({ providersLoading: true });
+    try {
+      const response = await fetch("/api/agents/providers");
+      if (!response.ok) return;
+      const data = await response.json() as {
+        providers?: ProviderInfo[];
+        defaultProvider?: string;
+        defaultModel?: string;
+        defaultEffort?: string;
+      };
+      set({
+        providers: data.providers ?? [],
+        defaultProviderId: data.defaultProvider ?? null,
+        defaultModel: data.defaultModel ?? null,
+        defaultEffort: data.defaultEffort ?? null,
+        providersLoaded: true,
+      });
+    } catch {
+      // ignore — will retry next mount
+    } finally {
+      set({ providersLoading: false });
+    }
+  },
 
   setSection: (section) =>
     set({ section, taskPanelConversation: null, returnTo: null }),

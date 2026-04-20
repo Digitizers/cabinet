@@ -12,11 +12,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
 import { useTreeStore } from "@/stores/tree-store";
 import { flattenTree } from "@/lib/tree-utils";
 import { createConversation } from "@/lib/agents/conversation-client";
 import type { CabinetAgentSummary } from "@/types/cabinets";
+import { ChevronDown } from "lucide-react";
 
 const PLACEHOLDERS = [
   "Write a blog post about our Q2 results...",
@@ -29,12 +36,6 @@ const PLACEHOLDERS = [
   "Audit our pricing page and suggest A/B test ideas...",
 ];
 
-/**
- * Inline "+ New Task" dialog for the v2 board. Replaces the legacy
- * CreateDraftDialog. Ships without the HumanInboxDraft save-for-later path —
- * one button: Start now. The first @-mentioned agent becomes the owner (or
- * the first active agent if none mentioned).
- */
 export function NewTaskDialog({
   open,
   onOpenChange,
@@ -64,6 +65,15 @@ export function NewTaskDialog({
     return active ?? null;
   }, [agents]);
 
+  const [selectedAgentSlug, setSelectedAgentSlug] = useState<string>(
+    () => defaultAgent?.slug ?? ""
+  );
+
+  const selectedAgent = useMemo(
+    () => agents.find((a) => a.slug === selectedAgentSlug) ?? defaultAgent,
+    [agents, selectedAgentSlug, defaultAgent]
+  );
+
   const mentionItems: MentionableItem[] = useMemo(
     () => [
       ...agents.map((a) => ({
@@ -85,12 +95,8 @@ export function NewTaskDialog({
 
   const composer = useComposer({
     items: mentionItems,
-    initialMentionedAgents: defaultAgent ? [defaultAgent.slug] : [],
-    onSubmit: async ({ message, mentionedPaths, mentionedAgents }) => {
-      const firstMentionedSlug = mentionedAgents[0];
-      const resolvedAgent = firstMentionedSlug
-        ? agents.find((a) => a.slug === firstMentionedSlug) ?? defaultAgent
-        : defaultAgent;
+    onSubmit: async ({ message, mentionedPaths }) => {
+      const resolvedAgent = selectedAgent;
       if (!resolvedAgent) {
         setError("No agent available to run this task.");
         return;
@@ -124,36 +130,59 @@ export function NewTaskDialog({
         <ComposerInput
           composer={composer}
           placeholder={placeholder}
-          submitLabel="Start now"
+          submitLabel="Start"
           variant="inline"
           items={mentionItems}
           autoFocus
           minHeight="100px"
           maxHeight="260px"
-          showKeyHint={false}
+          mentionDropdownPlacement="below"
           actionsStart={
-            <TaskRuntimePicker value={taskRuntime} onChange={setTaskRuntime} />
+            <>
+              <TaskRuntimePicker value={taskRuntime} onChange={setTaskRuntime} />
+              {agents.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2 text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                    title="Select agent"
+                  >
+                    {selectedAgent?.emoji && (
+                      <span className="text-[13px] leading-none">{selectedAgent.emoji}</span>
+                    )}
+                    <span className="max-w-[7rem] truncate font-medium">
+                      {selectedAgent?.displayName ?? selectedAgent?.name ?? "Agent"}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-[160px]">
+                    {agents.map((agent) => (
+                      <DropdownMenuItem
+                        key={agent.slug}
+                        onSelect={() => setSelectedAgentSlug(agent.slug)}
+                        className="gap-2"
+                      >
+                        {agent.emoji && <span className="text-[13px]">{agent.emoji}</span>}
+                        <span className="truncate">{agent.displayName ?? agent.name}</span>
+                        {agent.slug === selectedAgent?.slug && (
+                          <span className="ml-auto text-[10px] text-muted-foreground">active</span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </>
           }
           footer={
-            <div className="flex items-center justify-between px-4 py-2.5 text-[11px] text-muted-foreground/60">
-              <span className="truncate">
+            error || submitting ? (
+              <div className="px-4 pb-2.5 text-[11px]">
                 {error ? (
                   <span className="text-destructive">{error}</span>
-                ) : submitting ? (
-                  "Starting…"
-                ) : defaultAgent ? (
-                  `Default agent: ${defaultAgent.displayName ?? defaultAgent.name}. @-mention another to reassign.`
                 ) : (
-                  "No agents available in this cabinet."
+                  <span className="text-muted-foreground/60">Starting…</span>
                 )}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">
-                  ↵
-                </kbd>
-                Start
-              </span>
-            </div>
+              </div>
+            ) : null
           }
         />
       </DialogContent>

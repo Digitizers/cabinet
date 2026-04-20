@@ -28,6 +28,7 @@ import { publishConversationEvent } from "./conversation-events";
 import { discoverCabinetPaths } from "../cabinets/discovery";
 import { buildConversationInstanceKey } from "./conversation-identity";
 import {
+  buildConversationNotificationIdentity,
   dedupeConversationNotifications,
   shouldEnqueueConversationNotification,
 } from "./conversation-notification-utils";
@@ -65,6 +66,25 @@ export function drainConversationNotifications(): ConversationNotification[] {
   return dedupeConversationNotifications(
     notificationQueue.splice(0, notificationQueue.length)
   );
+}
+
+/**
+ * Enqueue a conversation notification, deduping by identity
+ * (`cabinetPath::id::status`). Safe to call from multiple paths — the daemon
+ * process writes into its own queue, and Next.js-side callers (e.g.
+ * `waitForConversationCompletion`) write into theirs. Only the Next.js queue
+ * is drained by the SSE tick, so the Next.js-side call is the one that
+ * actually lands as a toast.
+ */
+export function enqueueConversationNotification(
+  notification: ConversationNotification
+): void {
+  const key = buildConversationNotificationIdentity(notification);
+  const alreadyQueued = notificationQueue.some(
+    (existing) => buildConversationNotificationIdentity(existing) === key
+  );
+  if (alreadyQueued) return;
+  notificationQueue.push(notification);
 }
 
 interface CreateConversationInput {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAppStore } from "@/stores/app-store";
 import { BrainCircuit, Check, Sparkles, Terminal } from "lucide-react";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { cn } from "@/lib/utils";
@@ -35,12 +36,6 @@ import type {
 
 export type TaskRuntimeSelection = ConversationRuntimeOverride;
 
-interface ProvidersResponse {
-  providers?: ProviderInfo[];
-  defaultProvider?: string | null;
-  defaultModel?: string | null;
-  defaultEffort?: string | null;
-}
 
 const AUTO_EFFORT_ID = "__auto__";
 
@@ -1061,50 +1056,13 @@ export function TaskRuntimePicker({
   align?: "start" | "center" | "end";
   className?: string;
 }) {
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [defaultProviderId, setDefaultProviderId] = useState<string | null>(null);
-  const [defaultModel, setDefaultModel] = useState<string | null>(null);
-  const [defaultEffort, setDefaultEffort] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const providers = useAppStore((s) => s.providers);
+  const defaultProviderId = useAppStore((s) => s.defaultProviderId);
+  const defaultModel = useAppStore((s) => s.defaultModel);
+  const defaultEffort = useAppStore((s) => s.defaultEffort);
+  const loading = useAppStore((s) => s.providersLoading);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const response = await fetch("/api/agents/providers");
-        if (!response.ok) return;
-        const data = (await response.json()) as ProvidersResponse;
-        if (cancelled) return;
-        setProviders((data.providers || []) as ProviderInfo[]);
-        setDefaultProviderId(
-          typeof data.defaultProvider === "string" ? data.defaultProvider : null
-        );
-        setDefaultModel(
-          typeof data.defaultModel === "string" ? data.defaultModel : null
-        );
-        setDefaultEffort(
-          typeof data.defaultEffort === "string" ? data.defaultEffort : null
-        );
-      } catch {
-        if (!cancelled) {
-          setProviders([]);
-          setDefaultProviderId(null);
-          setDefaultModel(null);
-          setDefaultEffort(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const normalizedValue = useMemo(
     () =>

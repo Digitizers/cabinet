@@ -48,11 +48,14 @@ import {
   appendConversationTranscript,
   finalizeConversation,
   listConversationMetas,
+  parseCabinetBlock,
   readConversationMeta,
   readConversationTranscript,
   transcriptShowsCompletedRun,
+  writeConversationMeta,
   writeSession,
 } from "../src/lib/agents/conversation-store";
+import { publishConversationEvent } from "../src/lib/agents/conversation-events";
 import {
   getTokenFromAuthorizationHeader,
   isDaemonTokenValid,
@@ -157,6 +160,10 @@ interface PtySession extends BaseSession {
   readyStrategy?: "claude";
   outputMode?: "plain" | "claude-stream-json";
   structuredOutput?: ClaudeStreamAccumulator;
+  /** Cabinet-block stream-extraction debounce timer. */
+  streamExtractionTimer?: NodeJS.Timeout;
+  /** Fingerprint of the last stream-extracted cabinet block, to avoid re-applying. */
+  streamExtractionFingerprint?: string;
 }
 
 interface StructuredSession extends BaseSession {
@@ -357,6 +364,103 @@ function emitSessionOutput(
     session.ws.send(chunk);
   }
   onData?.(chunk);
+
+  if (session.kind === "pty") {
+    scheduleStreamCabinetExtraction(session);
+  }
+}
+
+/**
+ * Interactive CLIs (Claude session mode, Codex, etc.) print the cabinet
+ * epilogue block ( ```cabinet / SUMMARY: / ARTIFACT: / ``` ) and then sit at
+ * an idle prompt waiting for more input. We debounce-poll the accumulated
+ * stdout for ~1s after each chunk; when a cabinet block with a SUMMARY is
+ * detected, we:
+ *   1. Write meta.summary / meta.contextSummary / meta.artifactPaths
+ *   2. Publish task.updated so the Details tab refetches
+ *
+ * We do NOT exit the CLI — keeping the terminal open preserves the full
+ * interactive experience. The user continues typing or manually exits (Ctrl-D
+ * / /exit) when they're done; PTY exit then runs finalizeSessionConversation
+ * which is idempotent with the values already written here.
+ *
+ * The fingerprint guard lets us re-apply when a later turn emits a new
+ * cabinet block (e.g. user follows up and the agent produces a fresh
+ * SUMMARY + ARTIFACT set).
+ */
+const STREAM_EXTRACTION_DEBOUNCE_MS = 1000;
+
+function scheduleStreamCabinetExtraction(session: PtySession): void {
+  if (session.exited || session.resolvedStatus) return;
+
+  if (session.streamExtractionTimer) {
+    clearTimeout(session.streamExtractionTimer);
+  }
+  session.streamExtractionTimer = setTimeout(() => {
+    delete session.streamExtractionTimer;
+    void runStreamCabinetExtraction(session).catch(() => {});
+  }, STREAM_EXTRACTION_DEBOUNCE_MS);
+}
+
+function buildStreamExtractionFingerprint(parsed: {
+  summary?: string;
+  contextSummary?: string;
+  artifactPaths: string[];
+}): string {
+  return [
+    parsed.summary ?? "",
+    parsed.contextSummary ?? "",
+    parsed.artifactPaths.join("|"),
+  ].join("§");
+}
+
+async function runStreamCabinetExtraction(session: PtySession): Promise<void> {
+  if (session.exited || session.resolvedStatus) return;
+
+  const plain = stripAnsi(session.output.join(""));
+  if (!/```cabinet[\s\S]*?```/i.test(plain)) return;
+
+  const meta = await readConversationMeta(session.id).catch(() => null);
+  if (!meta || meta.status !== "running") return;
+
+  let prompt = "";
+  try {
+    if (meta.promptPath) {
+      const fsPath = path.resolve(DATA_DIR, meta.promptPath);
+      if (fsPath.startsWith(DATA_DIR)) {
+        prompt = await fs.promises.readFile(fsPath, "utf8");
+      }
+    }
+  } catch {
+    prompt = "";
+  }
+
+  const parsed = parseCabinetBlock(plain, prompt);
+  if (!parsed.summary) return;
+
+  const fingerprint = buildStreamExtractionFingerprint(parsed);
+  if (session.streamExtractionFingerprint === fingerprint) return;
+  session.streamExtractionFingerprint = fingerprint;
+
+  meta.summary = parsed.summary;
+  meta.contextSummary = parsed.contextSummary;
+  meta.artifactPaths = parsed.artifactPaths;
+
+  try {
+    await writeConversationMeta(meta);
+  } catch {
+    // If the write fails, clear the fingerprint so the next debounce tick
+    // retries, and let the normal PTY-exit finalize path catch it.
+    session.streamExtractionFingerprint = undefined;
+    return;
+  }
+
+  publishConversationEvent({
+    type: "task.updated",
+    taskId: session.id,
+    cabinetPath: meta.cabinetPath,
+    payload: { streaming: true, streamExtracted: true },
+  });
 }
 
 function maybeAutoExitClaudeSession(session: PtySession): void {
@@ -886,6 +990,10 @@ function createDetachedSession(input: {
     if (session.autoExitFallbackTimer) {
       clearTimeout(session.autoExitFallbackTimer);
       delete session.autoExitFallbackTimer;
+    }
+    if (session.streamExtractionTimer) {
+      clearTimeout(session.streamExtractionTimer);
+      delete session.streamExtractionTimer;
     }
     clearClaudeCompletionTimer(session);
 

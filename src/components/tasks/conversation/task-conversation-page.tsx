@@ -10,24 +10,38 @@ import {
   Circle,
   CircleAlert,
   Copy,
+  ExternalLink,
   GitBranch,
+  Link2,
   Loader2,
   MoreHorizontal,
   Pause,
   Pencil,
   Play,
   RefreshCw,
+  RotateCcw,
+  ScrollText,
   Sparkles,
   Square,
   Terminal,
+  Trash2,
 } from "lucide-react";
-import {
-  isLegacyAdapterType,
-  supportsTerminalResume,
-} from "@/lib/agents/adapters/legacy-ids";
+import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
 import { WebTerminal } from "@/components/terminal/web-terminal";
+import { ClaudeTranscriptView } from "@/components/tasks/conversation/claude-transcript-view";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
-import { stopConversation } from "@/components/tasks/board-v2/board-actions";
+import {
+  deleteConversation,
+  restartConversation,
+  stopConversation,
+} from "@/components/tasks/board-v2/board-actions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -82,6 +96,93 @@ function StatusBadge({ status }: { status: TaskStatus }) {
       <Icon className="size-3" />
       {meta.label}
     </span>
+  );
+}
+
+/**
+ * Primary status-driven action pill rendered in the task header. The user
+ * wanted the small ghost "Mark done" control to be bigger and colored — this
+ * component maps status → tone (emerald for done, rose for failed, sky for
+ * running, amber for awaiting-input, default otherwise) and swaps the label
+ * between "Mark done", "Done", "Retry", "Running…", and "Waiting".
+ *
+ * Failed → "Retry" calls onRetry (restart), so the user has a visible recovery
+ * path. Running/awaiting-input are disabled since "Stop" lives next to this
+ * button and takes precedence.
+ */
+function StatusActionButton({
+  status,
+  busy,
+  onMarkDone,
+  onRetry,
+}: {
+  status: TaskStatus;
+  busy: boolean;
+  onMarkDone: () => void;
+  onRetry: () => void;
+}) {
+  if (status === "done") {
+    return (
+      <span className="inline-flex h-9 items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/15 px-3 text-[12px] font-semibold text-emerald-300">
+        <CheckCircle2 className="size-4" />
+        Done
+      </span>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onRetry}
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/15 px-3 text-[12px] font-semibold text-rose-300 transition-colors hover:bg-rose-500/25 hover:text-rose-200 disabled:opacity-50"
+        title="Restart this task from the original prompt"
+      >
+        <RotateCcw className="size-4" />
+        Retry
+      </button>
+    );
+  }
+
+  if (status === "running") {
+    return (
+      <span className="inline-flex h-9 items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/15 px-3 text-[12px] font-semibold text-sky-300">
+        <Loader2 className="size-4 animate-spin" />
+        Running
+      </span>
+    );
+  }
+
+  if (status === "awaiting-input") {
+    return (
+      <span className="inline-flex h-9 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/15 px-3 text-[12px] font-semibold text-amber-300">
+        <Pause className="size-4" />
+        Waiting
+      </span>
+    );
+  }
+
+  if (status === "archived") {
+    return (
+      <span className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-800 px-3 text-[12px] font-semibold text-zinc-400">
+        <Archive className="size-4" />
+        Archived
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={onMarkDone}
+      className="inline-flex h-9 items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 text-[12px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 hover:text-emerald-200 disabled:opacity-50"
+      title="Mark this task as done"
+    >
+      <Check className="size-4" />
+      Mark done
+    </button>
   );
 }
 
@@ -239,7 +340,9 @@ export function TaskConversationPage({
   // (structured prompt/result/artifacts cards via ConversationResultView).
   // Detail is lazy-fetched on first Details click and cached so toggling
   // doesn't re-request.
-  const [terminalTab, setTerminalTab] = useState<"terminal" | "details">("terminal");
+  const [terminalTab, setTerminalTab] = useState<
+    "terminal" | "transcript" | "details"
+  >("terminal");
   const [detail, setDetail] = useState<import("@/types/conversations").ConversationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -508,6 +611,63 @@ export function TaskConversationPage({
     setEditingSummary(true);
   };
 
+  const handleCopyLink = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const base = `${window.location.origin}${window.location.pathname}`;
+    const cp = task?.meta.cabinetPath;
+    const hash =
+      cp && cp !== "."
+        ? `#/cabinet/${encodeURIComponent(cp)}/tasks/${encodeURIComponent(taskId)}`
+        : `#/ops/tasks/${encodeURIComponent(taskId)}`;
+    try {
+      await navigator.clipboard.writeText(`${base}${hash}`);
+    } catch {
+      // clipboard blocked; silently ignore.
+    }
+  }, [task?.meta.cabinetPath, taskId]);
+
+  const handleOpenTranscriptExternal = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const cp = task?.meta.cabinetPath;
+    const qs = cp ? `?cabinetPath=${encodeURIComponent(cp)}` : "";
+    window.open(
+      `/agents/conversations/${encodeURIComponent(taskId)}${qs}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }, [task?.meta.cabinetPath, taskId]);
+
+  const handleRestart = useCallback(async () => {
+    if (!task || isDemo) return;
+    setBusy(true);
+    try {
+      await restartConversation(taskId, task.meta.cabinetPath);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Failed to restart");
+    } finally {
+      setBusy(false);
+    }
+  }, [task, isDemo, taskId]);
+
+  const handleDelete = useCallback(async () => {
+    if (!task || isDemo) return;
+    if (typeof window !== "undefined") {
+      const ok = window.confirm("Delete this task? This cannot be undone.");
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      await deleteConversation(taskId, task.meta.cabinetPath);
+      if (typeof window !== "undefined") {
+        window.location.hash = "#/";
+      }
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setBusy(false);
+    }
+  }, [task, isDemo, taskId]);
+
   if (loadError && !task) {
     return (
       <div className="flex h-full items-center justify-center bg-background text-foreground">
@@ -565,26 +725,31 @@ export function TaskConversationPage({
     };
 
     const showDetails = terminalTab === "details";
+    const showTranscript = terminalTab === "transcript";
+    const isClaudeProvider = task.meta.providerId === "claude-code";
 
     return (
       <div className="flex h-full flex-col bg-zinc-950 text-zinc-100">
-        {/* Terminal | Details tab row. Same rounded-t merge pattern as the
-            runtime picker — active tab bg matches the panel below so the
-            seam disappears. */}
+        {/* Terminal | Transcript (claude only) | Details tab row. Same
+            rounded-t merge pattern as the runtime picker — active tab bg
+            matches the panel below so the seam disappears. */}
         <div className="shrink-0 bg-zinc-950 px-2 pt-2">
           <div
             role="tablist"
             aria-label="Task view"
-            className="relative z-10 grid grid-cols-2 gap-1 -mb-px text-[12px] font-medium"
+            className={cn(
+              "relative z-10 grid gap-1 -mb-px text-[12px] font-medium",
+              isClaudeProvider ? "grid-cols-3" : "grid-cols-2"
+            )}
           >
             <button
               type="button"
               role="tab"
-              aria-selected={!showDetails}
+              aria-selected={terminalTab === "terminal"}
               onClick={() => setTerminalTab("terminal")}
               className={cn(
                 "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
-                !showDetails
+                terminalTab === "terminal"
                   ? "border-zinc-800 bg-zinc-900 text-zinc-100"
                   : "border-transparent bg-zinc-900/40 text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200"
               )}
@@ -592,6 +757,24 @@ export function TaskConversationPage({
               <Terminal className="size-3.5" />
               <span>Terminal</span>
             </button>
+            {isClaudeProvider ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={showTranscript}
+                onClick={() => setTerminalTab("transcript")}
+                className={cn(
+                  "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
+                  showTranscript
+                    ? "border-zinc-800 bg-background text-foreground"
+                    : "border-transparent bg-zinc-900/40 text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200"
+                )}
+                title="Claude Code native session JSONL"
+              >
+                <ScrollText className="size-3.5" />
+                <span>Transcript</span>
+              </button>
+            ) : null}
             <button
               type="button"
               role="tab"
@@ -615,7 +798,35 @@ export function TaskConversationPage({
           </div>
         </div>
 
-        {showDetails ? (
+        {showTranscript ? (
+          <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
+            <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/70 bg-muted/30 px-3">
+              <Link
+                href="/"
+                className="inline-flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Back"
+              >
+                <ArrowLeft className="size-3.5" />
+              </Link>
+              <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                {task.meta.title}
+              </h1>
+              <span
+                className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                title="Reads ~/.claude/projects/<slug>/<session>.jsonl"
+              >
+                claude-code
+              </span>
+            </header>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ClaudeTranscriptView
+                taskId={taskId}
+                cabinetPath={task.meta.cabinetPath}
+                statusKey={`${task.meta.status}:${task.meta.lastActivityAt ?? ""}`}
+              />
+            </div>
+          </div>
+        ) : showDetails ? (
           <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
             <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/70 bg-muted/30 px-3">
               <Link
@@ -636,20 +847,12 @@ export function TaskConversationPage({
                   {task.meta.providerId}
                 </span>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1 px-2 text-[11px]"
-                disabled={
-                  busy ||
-                  task.meta.status === "done" ||
-                  task.meta.status === "archived"
-                }
-                onClick={handleMarkDone}
-              >
-                <Check className="size-3" />
-                {task.meta.status === "done" ? "Done" : "Mark done"}
-              </Button>
+              <StatusActionButton
+                status={task.meta.status}
+                busy={busy}
+                onMarkDone={handleMarkDone}
+                onRetry={handleRestart}
+              />
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {detailLoading && !detail ? (
@@ -770,31 +973,52 @@ export function TaskConversationPage({
               Stop
             </Button>
           ) : null}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 gap-1 px-2 text-[11px] text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-            disabled={
-              busy ||
-              task.meta.status === "done" ||
-              task.meta.status === "archived"
-            }
-            onClick={handleMarkDone}
-          >
-            <Check className="size-3" />
-            {task.meta.status === "done" ? "Done" : "Mark done"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="size-7 p-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-            title="More"
-          >
-            <MoreHorizontal className="size-4" />
-          </Button>
+          <StatusActionButton
+            status={task.meta.status}
+            busy={busy}
+            onMarkDone={handleMarkDone}
+            onRetry={handleRestart}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="inline-flex size-9 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+              title="More actions"
+              aria-label="More actions"
+            >
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[200px]">
+              <DropdownMenuItem onClick={() => void handleCopyLink()}>
+                <Link2 className="mr-2 size-3.5" />
+                Copy link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleOpenTranscriptExternal}>
+                <ExternalLink className="mr-2 size-3.5" />
+                Open transcript
+              </DropdownMenuItem>
+              {task.meta.status !== "running" && !isDemo ? (
+                <DropdownMenuItem onClick={() => void handleRestart()}>
+                  <RotateCcw className="mr-2 size-3.5" />
+                  Restart
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => void handleDelete()}
+                disabled={isDemo || busy}
+                className="text-rose-400 focus:bg-rose-500/10 focus:text-rose-300"
+              >
+                <Trash2 className="mr-2 size-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
-        {/* Terminal fills the rest of the viewport */}
+        {/* Terminal fills the rest of the viewport. The terminal IS the
+            composer — the CLI handles input/output directly, so we don't
+            render a second composer card beneath it. Task only finalizes
+            when the user exits the CLI themselves (Ctrl-D / /exit). */}
         <div className="min-h-0 flex-1 bg-zinc-950">
           <WebTerminal
             sessionId={task.meta.id}
@@ -805,48 +1029,6 @@ export function TaskConversationPage({
             }}
           />
         </div>
-
-        {/* Composer: only shows when the PTY has exited. */}
-        {!readOnly && task.meta.status === "idle" ? (() => {
-          const canResume = supportsTerminalResume(task.meta.providerId);
-          return (
-            <div className="shrink-0 border-t border-zinc-800 bg-zinc-950">
-              <div className="mx-auto w-full max-w-4xl px-3 py-2">
-                {canResume ? (
-                  <div className="mb-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500">
-                    <CheckCircle2 className="size-3 text-emerald-500" />
-                    <span>
-                      Session exited — your next turn resumes in the same{" "}
-                      {task.meta.providerId} session.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mb-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500">
-                    <CheckCircle2 className="size-3 text-emerald-500" />
-                    <span>
-                      Session exited. {task.meta.providerId ?? "This CLI"} has no native
-                      resume — Cabinet will prepend the prior transcript so the new run
-                      still has context.
-                    </span>
-                  </div>
-                )}
-                <div className="[&_textarea]:bg-zinc-900 [&_textarea]:text-zinc-100 [&_textarea]:placeholder:text-zinc-500 [&_textarea]:border-zinc-800">
-                  <TaskComposerPanel
-                    awaitingInput={false}
-                    onSend={handleSend}
-                    initialRuntime={{
-                      providerId: task.meta.providerId,
-                      adapterType: task.meta.adapterType,
-                      model: readRuntimeModel(task.meta.adapterConfig),
-                      effort: readRuntimeEffort(task.meta.adapterConfig),
-                      runtimeMode: "terminal",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          );
-        })() : null}
         </>
         )}
       </div>
@@ -931,23 +1113,46 @@ export function TaskConversationPage({
             <RefreshCw className="size-3.5" />
             Compact
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-[11px]"
-            disabled={
-              busy ||
-              task.meta.status === "done" ||
-              task.meta.status === "archived"
-            }
-            onClick={handleMarkDone}
-          >
-            <Check className="size-3.5" />
-            {task.meta.status === "done" ? "Done" : "Mark done"}
-          </Button>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <MoreHorizontal className="size-4" />
-          </Button>
+          <StatusActionButton
+            status={task.meta.status}
+            busy={busy}
+            onMarkDone={handleMarkDone}
+            onRetry={handleRestart}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="More actions"
+              aria-label="More actions"
+            >
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[200px]">
+              <DropdownMenuItem onClick={() => void handleCopyLink()}>
+                <Link2 className="mr-2 size-3.5" />
+                Copy link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleOpenTranscriptExternal}>
+                <ExternalLink className="mr-2 size-3.5" />
+                Open transcript
+              </DropdownMenuItem>
+              {task.meta.status !== "running" && !isDemo ? (
+                <DropdownMenuItem onClick={() => void handleRestart()}>
+                  <RotateCcw className="mr-2 size-3.5" />
+                  Restart
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => void handleDelete()}
+                disabled={isDemo || busy}
+                className="text-rose-500 focus:bg-rose-500/10 focus:text-rose-500"
+              >
+                <Trash2 className="mr-2 size-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       ) : null}

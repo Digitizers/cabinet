@@ -114,9 +114,15 @@ export function AppShell() {
     }
   });
 
+  const loadProviders = useAppStore((s) => s.loadProviders);
+
   useEffect(() => {
     loadTree();
   }, [loadTree]);
+
+  useEffect(() => {
+    void loadProviders();
+  }, [loadProviders]);
 
   // Auto-refresh sidebar when /data changes (detected via SSE)
   useEffect(() => {
@@ -285,6 +291,7 @@ export function AppShell() {
         return (
           <AgentDetailV2
             slug={section.slug}
+            cabinetPath={agentCabinetPath}
             onBack={() =>
               setSection({
                 type: "agents",

@@ -120,6 +120,10 @@ export function ConversationResultView({
             <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-foreground [overflow-wrap:anywhere]">
               {detail.meta.summary}
             </p>
+          ) : detail.meta.status === "running" ? (
+            <p className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-[12px] leading-relaxed text-emerald-300">
+              Waiting for the CLI to emit a cabinet-block summary. Check the Terminal tab for live output.
+            </p>
           ) : (
             <p className="text-[13px] text-muted-foreground">No summary captured.</p>
           )}
@@ -179,6 +183,10 @@ export function ConversationResultView({
                   </div>
                 </button>
               ))}
+            </div>
+          ) : detail.meta.status === "running" ? (
+            <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-[12px] leading-relaxed text-emerald-300">
+              Waiting for the CLI to emit a cabinet-block summary. Check the Terminal tab for live output.
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-border px-4 py-5 text-center text-[12px] text-muted-foreground">

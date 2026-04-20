@@ -17,6 +17,7 @@ import {
   appendConversationTranscript,
   appendUserTurn,
   createConversation,
+  enqueueConversationNotification,
   extractAgentTurnContent,
   finalizeConversation,
   readConversationMeta,
@@ -26,6 +27,7 @@ import {
   writeConversationMeta,
   writeSession,
 } from "./conversation-store";
+import { isTerminalConversationStatus } from "./conversation-notification-utils";
 import { publishConversationEvent } from "./conversation-events";
 import {
   createDaemonSession,
@@ -426,6 +428,24 @@ export async function waitForConversationCompletion(
           artifactPaths: finalMeta.artifactPaths,
         },
       });
+
+      // Same cross-process problem for completion toasts: if the daemon won
+      // the finalize race, its `notificationQueue.push` landed in the daemon
+      // process's queue and the Next.js SSE tick will never see it. Always
+      // enqueue here (identity-deduped) so the user gets exactly one toast +
+      // chime regardless of who finalized first.
+      if (isTerminalConversationStatus(finalMeta.status)) {
+        enqueueConversationNotification({
+          id: finalMeta.id,
+          agentSlug: finalMeta.agentSlug,
+          cabinetPath: finalMeta.cabinetPath,
+          title: finalMeta.title,
+          status: finalMeta.status,
+          summary: finalMeta.summary,
+          completedAt:
+            finalMeta.completedAt || new Date().toISOString(),
+        });
+      }
 
       const completion = {
         meta: finalMeta,

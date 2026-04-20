@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildConversationInstanceKey } from "@/lib/agents/conversation-identity";
 import { deriveStatus } from "@/lib/agents/conversation-to-task-view";
@@ -20,6 +20,15 @@ interface ActivityFeedProps {
   agents: CabinetAgentSummary[];
   onOpen: (conv: ConversationMeta) => void;
   onOpenWorkspace: () => void;
+  /** When set, narrow the feed to this agent's conversations. */
+  agentSlug?: string;
+  /** Optional handler — when set, the agent pill on each row becomes
+   *  clickable and calls back with the row's agent slug. Used to drive
+   *  the parent's filter state. */
+  onAgentPillClick?: (slug: string) => void;
+  /** Called when the user clicks the "Clear filter" chip. Only visible
+   *  when `agentSlug` is set. */
+  onClearAgentFilter?: () => void;
 }
 
 const TASK_STATUS_TO_CARD_STATE: Record<TaskStatus, CardState> = {
@@ -37,6 +46,9 @@ export function ActivityFeed({
   agents,
   onOpen,
   onOpenWorkspace,
+  agentSlug,
+  onAgentPillClick,
+  onClearAgentFilter,
 }: ActivityFeedProps) {
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,10 +60,13 @@ export function ActivityFeed({
     return m;
   }, [agents]);
 
+  const filterAgent = agentSlug ? agentsBySlug.get(agentSlug) : undefined;
+
   const refresh = useCallback(async () => {
     try {
       const params = new URLSearchParams({ cabinetPath, limit: "20" });
       if (visibilityMode !== "own") params.set("visibilityMode", visibilityMode);
+      if (agentSlug) params.set("agent", agentSlug);
       const res = await fetch(`/api/agents/conversations?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -62,7 +77,7 @@ export function ActivityFeed({
     } finally {
       setLoading(false);
     }
-  }, [cabinetPath, visibilityMode]);
+  }, [cabinetPath, visibilityMode, agentSlug]);
 
   useEffect(() => {
     void refresh();
@@ -83,19 +98,32 @@ export function ActivityFeed({
     <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-[1.65rem] font-semibold tracking-tight text-foreground">
             Activity
           </h2>
-          <p className="text-[12px] text-muted-foreground">
-            {loading ? "Loading..." : `${conversations.length} recent`}
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+            <span>
+              {loading ? "Loading..." : `${conversations.length} recent`}
+            </span>
             {runningCount > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 text-emerald-500">
+              <span className="inline-flex items-center gap-1 text-emerald-500">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 {runningCount} running
               </span>
             )}
-          </p>
+            {agentSlug && onClearAgentFilter && (
+              <button
+                type="button"
+                onClick={onClearAgentFilter}
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10.5px] font-medium text-foreground transition-colors hover:bg-muted/70"
+                title="Show all agents"
+              >
+                <X className="size-2.5" />
+                {filterAgent?.displayName ?? filterAgent?.name ?? agentSlug}
+              </button>
+            )}
+          </div>
         </div>
         <Button
           variant="ghost"
@@ -189,9 +217,33 @@ export function ActivityFeed({
                     </div>
                   </div>
 
-                  {/* Row 2: agent pill on its own line */}
+                  {/* Row 2: agent pill on its own line. When the parent
+                      provides `onAgentPillClick`, the pill becomes its own
+                      button — wrapped in a span (not a nested <button>) so
+                      the row's outer <button> stays valid HTML. */}
                   <div>
-                    <AgentPill agent={agent} slug={conv.agentSlug} size="sm" />
+                    {onAgentPillClick ? (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onAgentPillClick(conv.agentSlug);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onAgentPillClick(conv.agentSlug);
+                        }}
+                        className="inline-block cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        title={`Filter by ${agent?.displayName ?? agent?.name ?? conv.agentSlug}`}
+                      >
+                        <AgentPill agent={agent} slug={conv.agentSlug} size="sm" />
+                      </span>
+                    ) : (
+                      <AgentPill agent={agent} slug={conv.agentSlug} size="sm" />
+                    )}
                   </div>
                 </button>
               </li>
