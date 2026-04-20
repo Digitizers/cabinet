@@ -345,6 +345,7 @@ Separate track covering the "user runs task in Terminal mode" experience. Audit 
 | T22 | Token bar / context window hidden in terminal fullscreen layout | ✅ Done — fullscreen top strip already omits `TokenBar` (PTY output doesn't self-report usage uniformly) | `4313979` |
 | T23 | Stop-PTY button in the top strip — calls `stopConversation()` → PATCH `{ action: "stop" }` → daemon SIGTERMs the PTY | ✅ Done | `a012478` |
 | T24 | Terminal-mode "experimental" advisory vs. first-class messaging | ✅ First-class — Native/Terminal is a positive product choice, not a warning |
+| T26 | Terminal / Details tab toggle in the fullscreen task viewer — two tabs at the very top: Terminal (xterm stream, default) and Details (renders `ConversationResultView` cards: PROMPT + RESULT + ARTIFACTS). Details body lives on a light theme-matched panel with a compact back-row header. Detail lazy-fetched on first click via `/api/agents/conversations/:id`, cached, refetched on task status/lastActivity change. Artifacts click through to the editor via `openArtifactPath()`. Tab row uses the same `rounded-t-md` + `-mb-px` seam pattern as the runtime picker. Details tab shows artifact count as an emerald chip when present. | ✅ Done | `fa1e5e4` |
 
 ### 12.3 Skills UI — status matrix
 
