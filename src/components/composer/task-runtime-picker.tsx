@@ -789,7 +789,7 @@ export function RuntimeMatrixPicker({
         <div
           role="tablist"
           aria-label="Runtime mode"
-          className="inline-flex self-start rounded-full border border-border/70 bg-muted/40 p-0.5 text-[10px] font-medium"
+          className="grid grid-cols-2 gap-1.5 rounded-lg border border-border/70 bg-muted/40 p-1 text-[12px] font-medium"
         >
           <button
             type="button"
@@ -797,14 +797,15 @@ export function RuntimeMatrixPicker({
             aria-selected={!isTerminal}
             onClick={() => setRuntimeMode("native")}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+              "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 transition-all",
               !isTerminal
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border/70"
+                : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
             )}
+            title="Cabinet's native transcript — structured JSON stream, artifacts, summary, the full UX"
           >
-            <Sparkles className="h-3 w-3" />
-            Native
+            <Sparkles className="h-4 w-4" />
+            <span>Native</span>
           </button>
           <button
             type="button"
@@ -812,15 +813,25 @@ export function RuntimeMatrixPicker({
             aria-selected={isTerminal}
             onClick={() => setRuntimeMode("terminal")}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+              "relative inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 transition-all",
               isTerminal
-                ? "bg-zinc-900 text-zinc-100 shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-zinc-900 text-zinc-100 shadow-sm ring-1 ring-emerald-500/40 dark:ring-emerald-400/40"
+                : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
             )}
-            title="Run the CLI in a live PTY terminal session"
+            title="Run the CLI in a live PTY terminal session (experimental)"
           >
-            <Terminal className="h-3 w-3" />
-            Terminal
+            <Terminal className="h-4 w-4" />
+            <span>Terminal</span>
+            <span
+              className={cn(
+                "rounded-sm px-1 py-px text-[8.5px] font-bold uppercase tracking-wider",
+                isTerminal
+                  ? "bg-red-500 text-white"
+                  : "bg-red-500/15 text-red-600 dark:bg-red-500/20 dark:text-red-400"
+              )}
+            >
+              Experimental
+            </span>
           </button>
         </div>
       )}
@@ -1010,10 +1021,34 @@ function TerminalProviderPanel({
           );
         })}
       </div>
-      <div className="border-t border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-[9px] text-zinc-500">
-        Model &amp; effort use each CLI&apos;s own defaults. Resume {""}
-        <span className="text-zinc-400">--resume</span>/<span className="text-zinc-400">--session</span>{" "}
-        is wired for Claude, Cursor, and OpenCode.
+      <div className="space-y-1.5 border-t border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[9.5px] leading-relaxed text-zinc-500">
+        <p className="flex flex-wrap items-center gap-1.5">
+          <span className="rounded-sm bg-red-500 px-1 py-px text-[8.5px] font-bold uppercase tracking-wider text-white">
+            Experimental
+          </span>
+          <span className="text-zinc-300">
+            Streaming a CLI through Cabinet&apos;s UI isn&apos;t as rich as the
+            native transcript view — you lose artifact extraction, live
+            summaries, and the structured task board &quot;what happened&quot; panels.
+          </span>
+        </p>
+        <p>
+          Model &amp; effort use each CLI&apos;s own defaults. Resume{" "}
+          <span className="text-zinc-400">--resume</span>/<span className="text-zinc-400">--session</span>{" "}
+          is wired for Claude, Cursor, and OpenCode.
+        </p>
+        <p className="text-zinc-400">
+          Want tighter Cabinet integration for your CLI?{" "}
+          <a
+            href="https://discord.gg/hJa5TRTbTH"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-emerald-400 underline-offset-2 hover:underline"
+          >
+            Join our Discord
+          </a>{" "}
+          — happy to help wire up stream-parsing + session resume for it.
+        </p>
       </div>
     </div>
   );
