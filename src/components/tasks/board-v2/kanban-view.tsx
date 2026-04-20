@@ -3,8 +3,7 @@
 import { useState } from "react";
 import {
   Archive,
-  ChevronDown,
-  ChevronRight,
+  ChevronLeft,
   CheckCircle2,
   Inbox,
   Loader2,
@@ -28,6 +27,7 @@ import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { LaneKey } from "./lane-rules";
 import { TaskCard } from "./task-card";
 import { CARD_DROP_PREFIX, laneDropId } from "./dnd-keys";
+import { usePersistentState } from "./use-persistent-state";
 
 interface LaneDef {
   key: LaneKey;
@@ -48,34 +48,23 @@ const LANES: LaneDef[] = [
 function LaneHeader({
   lane,
   count,
-  collapsed,
-  onToggle,
+  onCollapse,
   onAddTask,
   onKillAll,
   onRestartAll,
 }: {
   lane: LaneDef;
   count: number;
-  collapsed: boolean;
-  onToggle?: () => void;
+  /** Collapse the column into the narrow 48px variant. */
+  onCollapse?: () => void;
   onAddTask?: () => void;
   onKillAll?: () => void;
   onRestartAll?: () => void;
 }) {
   const LaneIcon = lane.icon;
   return (
-    <div
-      className={cn(
-        "flex w-full items-center gap-2 px-3 py-2 text-left",
-        onToggle && "hover:bg-muted/40"
-      )}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={!onToggle}
-        className="flex flex-1 items-center gap-2 text-left"
-      >
+    <div className="flex w-full items-center gap-2 px-3 py-2 text-left">
+      <div className="flex flex-1 items-center gap-2">
         <LaneIcon
           className={cn("size-3.5 text-muted-foreground", lane.spin && "animate-spin [animation-duration:3s]")}
         />
@@ -85,13 +74,7 @@ function LaneHeader({
         <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
           {count}
         </span>
-        {onToggle &&
-          (collapsed ? (
-            <ChevronRight className="size-3.5 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="size-3.5 text-muted-foreground" />
-          ))}
-      </button>
+      </div>
       {onKillAll ? (
         <button
           type="button"
@@ -122,6 +105,16 @@ function LaneHeader({
           title="New task"
         >
           <Plus className="size-3.5" />
+        </button>
+      ) : null}
+      {onCollapse ? (
+        <button
+          type="button"
+          onClick={onCollapse}
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Collapse column"
+        >
+          <ChevronLeft className="size-3.5" />
         </button>
       ) : null}
     </div>
@@ -245,7 +238,25 @@ export function KanbanView({
   onRefresh?: () => Promise<void> | void;
   density?: "compact" | "comfortable";
 }) {
-  const [archiveOpen, setArchiveOpen] = useState(false);
+  // Persisted set of collapsed lane keys. Default: Archive collapsed, rest
+  // open — matches the original "Archive takes a narrow column" behavior.
+  const [collapsedCsv, setCollapsedCsv] = usePersistentState<string>(
+    "cabinet.tasks.v2.collapsedLanes",
+    "archive",
+    (raw) => raw
+  );
+  const collapsedLanes: Set<LaneKey> = new Set(
+    collapsedCsv
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) as LaneKey[]
+  );
+  const toggleLane = (key: LaneKey) => {
+    const next = new Set(collapsedLanes);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setCollapsedCsv([...next].join(","));
+  };
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
 
   async function killLane(laneKey: LaneKey, laneItems: TaskMeta[]) {
@@ -300,12 +311,12 @@ export function KanbanView({
     <div className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-4">
       {LANES.map((lane) => {
         const items = byLane[lane.key];
-        const isArchive = lane.key === "archive";
         const isInbox = lane.key === "inbox";
         const isRunning = lane.key === "running";
         const isNeeds = lane.key === "needs";
         const failedCount = items.filter((t) => t.status === "failed").length;
-        const collapsed = isArchive && !archiveOpen;
+        const collapsed = collapsedLanes.has(lane.key);
+        const LaneIcon = lane.icon;
         return (
           <DroppableLane
             key={lane.key}
@@ -318,13 +329,18 @@ export function KanbanView({
             {collapsed ? (
               <button
                 type="button"
-                onClick={() => setArchiveOpen(true)}
+                onClick={() => toggleLane(lane.key)}
                 className="flex h-full w-full flex-col items-center gap-2 py-3 text-muted-foreground hover:bg-muted/40"
-                title="Expand archive"
+                title={`Expand ${lane.label}`}
               >
-                <Archive className="size-4" />
-                <span className="rotate-180 text-[10.5px] font-semibold uppercase tracking-wider [writing-mode:vertical-rl]">
-                  Archive · {items.length}
+                <LaneIcon
+                  className={cn(
+                    "size-4",
+                    lane.spin && "animate-spin [animation-duration:3s]"
+                  )}
+                />
+                <span className="rotate-180 whitespace-nowrap text-[10.5px] font-semibold uppercase tracking-wider [writing-mode:vertical-rl]">
+                  {lane.label} · {items.length}
                 </span>
               </button>
             ) : (
@@ -332,8 +348,7 @@ export function KanbanView({
                 <LaneHeader
                   lane={lane}
                   count={items.length}
-                  collapsed={false}
-                  onToggle={isArchive ? () => setArchiveOpen(false) : undefined}
+                  onCollapse={() => toggleLane(lane.key)}
                   onAddTask={isInbox && onAddTask ? onAddTask : undefined}
                   onKillAll={
                     isRunning && items.length > 0 && onRefresh
