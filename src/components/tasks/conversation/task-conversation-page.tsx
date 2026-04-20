@@ -26,7 +26,9 @@ import {
   supportsTerminalResume,
 } from "@/lib/agents/adapters/legacy-ids";
 import { WebTerminal } from "@/components/terminal/web-terminal";
+import { ConversationResultView } from "@/components/agents/conversation-result-view";
 import { stopConversation } from "@/components/tasks/board-v2/board-actions";
+import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -231,6 +233,57 @@ export function TaskConversationPage({
   const [wrapUpDismissed, setWrapUpDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Terminal-mode viewer tabs: Terminal (xterm stream) vs Details
+  // (structured prompt/result/artifacts cards via ConversationResultView).
+  // Detail is lazy-fetched on first Details click and cached so toggling
+  // doesn't re-request.
+  const [terminalTab, setTerminalTab] = useState<"terminal" | "details">("terminal");
+  const [detail, setDetail] = useState<import("@/types/conversations").ConversationDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  const loadDetail = useCallback(async () => {
+    if (!taskId || isDemo) return;
+    setDetailLoading(true);
+    setDetailError(null);
+    try {
+      const params = new URLSearchParams();
+      const cp = task?.meta.cabinetPath;
+      if (cp) params.set("cabinetPath", cp);
+      const qs = params.toString();
+      const res = await fetch(
+        `/api/agents/conversations/${encodeURIComponent(taskId)}${qs ? `?${qs}` : ""}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = (await res.json()) as
+        | import("@/types/conversations").ConversationDetail
+        | { detail?: import("@/types/conversations").ConversationDetail };
+      // The endpoint returns ConversationDetail directly; some wrappers also
+      // nest it under `detail`. Accept either.
+      const next =
+        body && typeof body === "object" && "meta" in body
+          ? (body as import("@/types/conversations").ConversationDetail)
+          : ((body as { detail?: import("@/types/conversations").ConversationDetail }).detail ?? null);
+      setDetail(next);
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [taskId, isDemo, task?.meta.cabinetPath]);
+
+  // Fetch the detail on first switch to Details tab, cache on subsequent
+  // toggles. Refetch when the underlying task updates (e.g. status flip to
+  // idle after PTY exit) so the Details tab reflects fresh artifacts.
+  useEffect(() => {
+    if (terminalTab !== "details") return;
+    if (detailLoading) return;
+    // Refetch if we haven't loaded yet, or the task has changed status since.
+    void loadDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terminalTab, task?.meta.status, task?.meta.lastActivityAt]);
 
   // Initial fetch (skip for demo)
   useEffect(() => {
@@ -503,10 +556,133 @@ export function TaskConversationPage({
       navigator.clipboard.writeText(terminalPrompt).catch(() => {});
     };
 
+    const showDetails = terminalTab === "details";
+
     return (
       <div className="flex h-full flex-col bg-zinc-950 text-zinc-100">
+        {/* Terminal | Details tab row. Same rounded-t merge pattern as the
+            runtime picker — active tab bg matches the panel below so the
+            seam disappears. */}
+        <div className="shrink-0 bg-zinc-950 px-2 pt-2">
+          <div
+            role="tablist"
+            aria-label="Task view"
+            className="relative z-10 grid grid-cols-2 gap-1 -mb-px text-[12px] font-medium"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!showDetails}
+              onClick={() => setTerminalTab("terminal")}
+              className={cn(
+                "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
+                !showDetails
+                  ? "border-zinc-800 bg-zinc-900 text-zinc-100"
+                  : "border-transparent bg-zinc-900/40 text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200"
+              )}
+            >
+              <Terminal className="size-3.5" />
+              <span>Terminal</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={showDetails}
+              onClick={() => setTerminalTab("details")}
+              className={cn(
+                "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
+                showDetails
+                  ? "border-zinc-800 bg-background text-foreground"
+                  : "border-transparent bg-zinc-900/40 text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200"
+              )}
+            >
+              <Sparkles className="size-3.5" />
+              <span>Details</span>
+              {detail?.artifacts?.length ? (
+                <span className="rounded-full bg-emerald-500/20 px-1.5 py-px text-[9.5px] font-semibold text-emerald-300">
+                  {detail.artifacts.length}
+                </span>
+              ) : null}
+            </button>
+          </div>
+        </div>
+
+        {showDetails ? (
+          <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
+            <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/70 bg-muted/30 px-3">
+              <Link
+                href="/"
+                className="inline-flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Back"
+              >
+                <ArrowLeft className="size-3.5" />
+              </Link>
+              <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                {task.meta.title}
+              </h1>
+              {task.meta.providerId && (
+                <span
+                  className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                  title={`Provider: ${task.meta.providerId}`}
+                >
+                  {task.meta.providerId}
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-[11px]"
+                disabled={
+                  busy ||
+                  task.meta.status === "done" ||
+                  task.meta.status === "archived"
+                }
+                onClick={handleMarkDone}
+              >
+                <Check className="size-3" />
+                {task.meta.status === "done" ? "Done" : "Mark done"}
+              </Button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {detailLoading && !detail ? (
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Loading details…
+                </div>
+              ) : detailError && !detail ? (
+                <div className="mx-auto mt-10 max-w-md rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-[12.5px] text-destructive">
+                  Failed to load details: {detailError}.{" "}
+                  <button
+                    type="button"
+                    className="underline-offset-2 hover:underline"
+                    onClick={() => void loadDetail()}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : detail ? (
+                <ConversationResultView
+                  detail={detail}
+                  onOpenArtifact={(artifactPath) => {
+                    void openArtifactPath(
+                      artifactPath,
+                      task.meta.cabinetPath
+                        ? { type: "page", cabinetPath: task.meta.cabinetPath }
+                        : { type: "page" }
+                    );
+                  }}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  No details yet.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+        <>
         {/* Thin top strip */}
-        <header className="flex h-10 shrink-0 items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-3">
+        <header className="flex h-10 shrink-0 items-center gap-2 border-t border-zinc-800 border-b border-b-zinc-800 bg-zinc-900 px-3">
           <Link
             href="/"
             className="inline-flex size-7 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
@@ -663,6 +839,8 @@ export function TaskConversationPage({
             </div>
           );
         })() : null}
+        </>
+        )}
       </div>
     );
   }
