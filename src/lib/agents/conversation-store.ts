@@ -1260,8 +1260,26 @@ async function readTurnOne(
     mentionedPaths: meta.mentionedPaths,
   };
 
-  // Turn 1 agent only exists once the conversation has produced output.
+  // Turn 1 agent: while the conversation is still running and the daemon
+  // hasn't streamed any bytes yet, show a "Working on it…" placeholder so
+  // the UI isn't blank during the adapter cold-start + first-poll window.
+  // Continue turns already do this via `continueConversationRun` writing an
+  // explicit pending turn file; the first turn has no turn file, so we
+  // fabricate the placeholder here at read time. For any non-running status
+  // (failed/cancelled/completed-with-empty-output) keep returning null so
+  // error paths aren't masked behind a fake placeholder.
   if (!transcript.trim()) {
+    if (meta.status === "running") {
+      const placeholder: ConversationTurn = {
+        id: `${id}-t1a`,
+        turn: 1,
+        role: "agent",
+        ts: meta.startedAt,
+        content: "Working on it…",
+        pending: true,
+      };
+      return { user, agent: placeholder };
+    }
     return { user, agent: null };
   }
 
