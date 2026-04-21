@@ -15,6 +15,13 @@ import { cn } from "@/lib/utils";
 import type { Turn } from "@/types/tasks";
 import { Markdown } from "./markdown";
 import { ConversationContentViewer } from "@/components/agents/conversation-content-viewer";
+import {
+  AgentAvatar,
+  getAgentDisplayName,
+  type AgentAvatarInput,
+} from "@/components/agents/agent-avatar";
+
+export type TurnBlockAgent = AgentAvatarInput & { name?: string };
 
 function computeRelative(iso: string): string {
   const delta = Date.now() - new Date(iso).getTime();
@@ -176,9 +183,11 @@ function collectArtifactPaths(turn: Turn): string[] {
 
 export function TurnBlock({
   turn,
+  agent,
   returnContext,
 }: {
   turn: Turn;
+  agent?: TurnBlockAgent | null;
   returnContext?: SelectedSection;
 }) {
   const isUser = turn.role === "user";
@@ -186,23 +195,25 @@ export function TurnBlock({
     ? turn.tokens.input + turn.tokens.output + (turn.tokens.cache ?? 0)
     : null;
   const artifactPaths = collectArtifactPaths(turn);
+  const agentLabel = agent ? getAgentDisplayName(agent) || "Agent" : "Agent";
 
   return (
     <div className={cn("group/turn flex gap-3 px-6 py-5", !isUser && "bg-muted/20")}>
-      <div
-        className={cn(
-          "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border",
-          isUser
-            ? "border-border bg-background text-muted-foreground"
-            : "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400"
-        )}
-      >
-        {isUser ? <User className="size-3.5" /> : <Sparkles className="size-3.5" />}
-      </div>
+      {isUser ? (
+        <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground">
+          <User className="size-3.5" />
+        </div>
+      ) : agent ? (
+        <AgentAvatar agent={agent} size="md" shape="circle" className="mt-0.5" />
+      ) : (
+        <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400">
+          <Sparkles className="size-3.5" />
+        </div>
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span className="font-medium text-foreground/80">{isUser ? "You" : "Agent"}</span>
+          <span className="font-medium text-foreground/80">{isUser ? "You" : agentLabel}</span>
           <span>·</span>
           <RelativeTime iso={turn.ts} />
           {totalTokens ? (

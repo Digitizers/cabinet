@@ -46,7 +46,7 @@ import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TurnBlock } from "./turn-block";
+import { TurnBlock, type TurnBlockAgent } from "./turn-block";
 import { PendingActionsPanel } from "@/components/agents/pending-actions-panel";
 import { ArtifactsList } from "./artifacts-list";
 import { DiffPanel } from "./diff-panel";
@@ -329,6 +329,7 @@ export function TaskConversationPage({
   const isDemo = taskId === "demo";
   const isCompact = variant === "compact";
   const [task, setTask] = useState<Task | null>(isDemo ? MOCK_TASK : null);
+  const [turnAgent, setTurnAgent] = useState<TurnBlockAgent | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
@@ -406,6 +407,39 @@ export function TaskConversationPage({
       cancelled = true;
     };
   }, [isDemo, taskId]);
+
+  // Fetch the agent's identity (avatar/icon/color/displayName) so turn blocks
+  // can render the real avatar instead of a generic sparkles glyph.
+  useEffect(() => {
+    const slug = task?.meta.agentSlug;
+    if (!slug) {
+      setTurnAgent(null);
+      return;
+    }
+    const cabinetPath = task?.meta.cabinetPath;
+    const qs = cabinetPath ? `?cabinetPath=${encodeURIComponent(cabinetPath)}` : "";
+    let cancelled = false;
+    fetch(`/api/agents/personas/${encodeURIComponent(slug)}${qs}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { persona?: { slug: string; name?: string; displayName?: string; iconKey?: string; color?: string; avatar?: string; avatarExt?: string; cabinetPath?: string } } | null) => {
+        if (cancelled || !data?.persona) return;
+        const p = data.persona;
+        setTurnAgent({
+          slug: p.slug,
+          cabinetPath: p.cabinetPath ?? cabinetPath,
+          name: p.name,
+          displayName: p.displayName,
+          iconKey: p.iconKey,
+          color: p.color,
+          avatar: p.avatar,
+          avatarExt: p.avatarExt,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [task?.meta.agentSlug, task?.meta.cabinetPath]);
 
   // SSE subscription (skip for demo)
   useEffect(() => {
@@ -1323,7 +1357,12 @@ export function TaskConversationPage({
             ) : null}
             <div className="mx-auto max-w-3xl divide-y divide-border/40">
               {task.turns.map((turn) => (
-                <TurnBlock key={turn.id} turn={turn} returnContext={returnContext} />
+                <TurnBlock
+                  key={turn.id}
+                  turn={turn}
+                  agent={turnAgent}
+                  returnContext={returnContext}
+                />
               ))}
             </div>
             {(task.meta.pendingActions?.length || task.meta.dispatchedActions?.length) ? (
