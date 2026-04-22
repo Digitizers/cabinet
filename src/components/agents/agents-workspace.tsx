@@ -3151,7 +3151,7 @@ export function AgentsWorkspace({
                         const jobCount = agent.jobCount || 0;
                         return (
                           <button
-                            key={agent.slug}
+                            key={agent.scopedId ?? (agent.cabinetPath ? `${agent.cabinetPath}::${agent.slug}` : agent.slug)}
                             type="button"
                             onClick={() => openAgentSettings(agent.slug)}
                             className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 text-left transition-colors hover:bg-muted/30"
@@ -3250,7 +3250,7 @@ export function AgentsWorkspace({
                         </div>
                         {agents.map((agent) => (
                           <DropdownMenuItem
-                            key={agent.slug}
+                            key={agent.scopedId ?? (agent.cabinetPath ? `${agent.cabinetPath}::${agent.slug}` : agent.slug)}
                             onClick={() => openNewRoutineFor(agent)}
                             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px]"
                           >
@@ -3368,7 +3368,7 @@ export function AgentsWorkspace({
                           </div>
                           {agents.map((agent) => (
                             <DropdownMenuItem
-                              key={agent.slug}
+                              key={agent.scopedId ?? (agent.cabinetPath ? `${agent.cabinetPath}::${agent.slug}` : agent.slug)}
                               onClick={() => openNewRoutineFor(agent)}
                               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px]"
                             >
@@ -3445,7 +3445,7 @@ export function AgentsWorkspace({
                           </div>
                           {agents.map((agent) => (
                             <DropdownMenuItem
-                              key={agent.slug}
+                              key={agent.scopedId ?? (agent.cabinetPath ? `${agent.cabinetPath}::${agent.slug}` : agent.slug)}
                               onClick={() => openAgentSettings(agent.slug)}
                               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px]"
                             >
@@ -3478,7 +3478,7 @@ export function AgentsWorkspace({
                         {agents
                           .filter((a) => !!a.heartbeat)
                           .map((agent) => (
-                            <li key={agent.slug}>
+                            <li key={agent.scopedId ?? (agent.cabinetPath ? `${agent.cabinetPath}::${agent.slug}` : agent.slug)}>
                               <HeartbeatRow
                                 agent={agent}
                                 onEdit={() =>

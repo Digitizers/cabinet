@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-22] Fixed duplicate React key warning on `/cabinet/./agents`. `agents-workspace.tsx` had five places (`key={agent.slug}`) inside `agents.map(...)`, but when the +2 visibility mode surfaces both a cabinet-owned `editor` and an inherited `editor` from a sub-cabinet, two items share the slug and collide. Switched all five to `agent.scopedId ?? (agent.cabinetPath ? \`${agent.cabinetPath}::${agent.slug}\` : agent.slug)`, matching the existing pattern at line 2090. Verified via DevTools — the two "Encountered two children with the same key, `editor`" errors are gone.
+
 [2026-04-22] Fixed a runaway request storm on app load. `NewCabinetDialog` is rendered once per tree node inside `tree-node.tsx`, and its `NewCabinetOverlay` was mounted unconditionally — so `useAgentPicker()` fired `GET /api/agents/library` on every tree node (observed ~250+ in-flight requests per page load with 65 cabinets × StrictMode double-mount). Fix gates the overlay on `open` in both controlled and uncontrolled branches of `src/components/sidebar/new-cabinet-dialog.tsx`, so the fetch only runs when the user actually opens the dialog. Verified via Chrome DevTools: requests dropped from 283 (252 pending `/api/agents/library`) to 26 with zero library fetches on idle.
 
 [2026-04-22] Added have-fun/cv-hannah-abbott.md — satirical CV for Hannah Abbott (Hufflepuff; DA; landlady of the Leaky Cauldron; later Hannah Longbottom), matching the voice and structure of the existing Harry Potter CV series.
