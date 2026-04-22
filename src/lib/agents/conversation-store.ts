@@ -492,8 +492,15 @@ export async function readConversationMeta(
   try {
     const raw = await readFileContent(filePath);
     const parsed = JSON.parse(raw) as ConversationMeta;
-    if (!parsed.cabinetPath && typeof resolvedCabinetPath === "string") {
+    // Always trust the resolved on-disk path over whatever is stored in
+    // meta.json. Some older meta files carry a stale cabinetPath (left over
+    // from a cabinet rename/migration) that no longer matches the directory
+    // they actually live in. Returning the resolved path keeps downstream
+    // writes + API calls pointing at the real storage location.
+    if (typeof resolvedCabinetPath === "string") {
       parsed.cabinetPath = resolvedCabinetPath;
+    } else if (!resolvedCabinetPath) {
+      parsed.cabinetPath = undefined;
     }
     return parsed;
   } catch {
@@ -506,7 +513,10 @@ async function resolveConversationCabinetPath(
   cabinetPath?: string
 ): Promise<string | null> {
   if (typeof cabinetPath === "string") {
-    return (await fileExists(metaPath(id, cabinetPath))) ? cabinetPath : null;
+    if (await fileExists(metaPath(id, cabinetPath))) return cabinetPath;
+    // Fall through to discovery: callers sometimes pass a stale cabinetPath
+    // sourced from an old meta.json. Rather than 404, locate the conversation
+    // by scanning known cabinets.
   }
 
   for (const candidate of await discoverCabinetPaths()) {
