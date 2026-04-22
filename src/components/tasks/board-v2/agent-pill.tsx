@@ -29,15 +29,17 @@ export function AgentPill({
 }) {
   const label = agent?.displayName ?? agent?.name ?? slug;
   const hasImage = !!agent && hasAgentAvatarImage(agent);
+  const tint = resolveTint(agent, slug);
 
   if (hasImage && agent) {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1 rounded-full bg-muted font-medium text-foreground",
+          "inline-flex items-center gap-1 rounded-full font-medium",
           size === "md" ? "py-0.5 pl-0.5 pr-2 text-[11px]" : "py-0.5 pl-0.5 pr-1.5 text-[10px]",
           className
         )}
+        style={{ backgroundColor: tint.bg, color: tint.text }}
       >
         <AgentAvatar agent={agent} shape="circle" size="xs" />
         {label}
@@ -45,7 +47,6 @@ export function AgentPill({
     );
   }
 
-  const tint = resolveTint(agent, slug);
   const Icon = resolveAgentIcon(agent?.slug ?? slug, agent?.iconKey ?? null);
   return (
     <span

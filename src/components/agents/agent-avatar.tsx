@@ -46,16 +46,18 @@ export function AgentAvatar({
     avatar: agent.avatar ?? undefined,
     avatarExt: agent.avatarExt ?? undefined,
   });
+  const palette = agent.color ? tintFromHex(agent.color) : getAgentColor(agent.slug);
 
   if (avatarUrl) {
     return (
       <span
         className={cn(
-          "relative flex shrink-0 items-center justify-center overflow-hidden bg-muted",
+          "relative flex shrink-0 items-center justify-center overflow-hidden",
           radius,
           dims.box,
           className
         )}
+        style={{ backgroundColor: palette.bg }}
       >
         <Image
           src={avatarUrl}
@@ -70,7 +72,6 @@ export function AgentAvatar({
   }
 
   const iconComponent = resolveAgentIcon(agent.slug, agent.iconKey ?? null);
-  const palette = agent.color ? tintFromHex(agent.color) : getAgentColor(agent.slug);
 
   return (
     <span
