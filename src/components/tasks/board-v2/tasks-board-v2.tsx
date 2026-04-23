@@ -582,20 +582,20 @@ function NewWorkButton({
   onCreate: (mode: StartWorkMode) => void;
 }) {
   return (
-    <div className="inline-flex items-stretch overflow-hidden rounded-md shadow-sm">
+    <div className="inline-flex items-stretch overflow-hidden rounded-md shadow-sm ring-1 ring-primary/20">
       <button
         type="button"
         onClick={() => onCreate("now")}
-        className="inline-flex items-center gap-1.5 bg-foreground px-3 py-1.5 text-[12px] font-semibold text-background transition-colors hover:bg-foreground/90"
+        className="inline-flex items-center gap-1.5 bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         title="Create a new task"
       >
         <Plus className="size-3.5" />
         New Task
       </button>
-      <div className="w-px bg-background/20" aria-hidden />
+      <div className="w-px bg-primary-foreground/20" aria-hidden />
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="inline-flex items-center bg-foreground px-1.5 text-background transition-colors hover:bg-foreground/90"
+          className="inline-flex items-center bg-primary px-1.5 text-primary-foreground transition-colors hover:bg-primary/90"
           title="More new item types"
           aria-label="More new item types"
         >
