@@ -6,16 +6,17 @@ import {
   ArrowLeft,
   ArrowRightLeft,
   Bot,
+  Check,
   ChevronDown,
   Clock3,
   HeartPulse,
+  Layers,
   Loader2,
   Plus,
   Repeat,
   Trash2,
   Zap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -260,39 +261,30 @@ export function TasksBoardV2({
           <DensityToggle value={density} onChange={setDensity} />
         </div>
 
-        {/* right-side: depth, trigger, selection, count */}
+        {/* right-side: depth, trigger, selection */}
         <div className="ml-auto flex items-center gap-2">
-          {/* visibility depth segmented */}
-          <div className="inline-flex overflow-hidden rounded-md border border-border/60 bg-card">
-            {CABINET_VISIBILITY_OPTIONS.map((opt) => {
-              const active = visibilityMode === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    setVisibilityMode(opt.value);
-                    setCabinetVisibilityMode(cabinetPath, opt.value);
-                  }}
-                  title={opt.label}
-                  className={cn(
-                    "px-2 py-0.5 text-[10.5px] font-medium transition-colors",
-                    active
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  )}
-                >
-                  {opt.shortLabel}
-                </button>
-              );
-            })}
-          </div>
+          {/* visibility depth dropdown */}
+          <DepthDropdown
+            mode={visibilityMode}
+            onChange={(mode) => {
+              setVisibilityMode(mode);
+              setCabinetVisibilityMode(cabinetPath, mode);
+            }}
+          />
 
           <div className="h-3.5 w-px bg-border/60" />
 
-          {/* trigger filter chips */}
+          {/* trigger filter chips — "All" carries the task count */}
           <div className="flex items-center gap-1">
-            <TriggerChip active={triggerFilter === "all"} onClick={() => setTriggerFilter("all")}>
+            <TriggerChip
+              active={triggerFilter === "all"}
+              onClick={() => setTriggerFilter("all")}
+              count={
+                agentFilter
+                  ? `${filteredTasks.length}/${tasks.length}`
+                  : tasks.length
+              }
+            >
               All
             </TriggerChip>
             <TriggerChip
@@ -365,13 +357,6 @@ export function TasksBoardV2({
               </div>
             </>
           )}
-
-          <span className="text-[11px] text-muted-foreground">
-            {agentFilter || triggerFilter !== "all"
-              ? `${filteredTasks.length} of ${tasks.length}`
-              : `${tasks.length}`}
-            {" "}task{tasks.length === 1 ? "" : "s"}
-          </span>
 
           {filteredTasks.length > 0 && (
             <button
@@ -595,6 +580,50 @@ export function TasksBoardV2({
   );
 }
 // touch 1776619357
+
+function DepthDropdown({
+  mode,
+  onChange,
+}: {
+  mode: CabinetVisibilityMode;
+  onChange: (mode: CabinetVisibilityMode) => void;
+}) {
+  const current =
+    CABINET_VISIBILITY_OPTIONS.find((o) => o.value === mode) ??
+    CABINET_VISIBILITY_OPTIONS[0];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+        title={current.label}
+      >
+        <Layers className="size-3.5" />
+        <span className="tabular-nums">{current.shortLabel}</span>
+        <ChevronDown className="size-3 opacity-60" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[220px]">
+        {CABINET_VISIBILITY_OPTIONS.map((opt) => {
+          const active = opt.value === mode;
+          return (
+            <DropdownMenuItem
+              key={opt.value}
+              onClick={() => onChange(opt.value)}
+              className="flex items-center justify-between gap-3 py-1.5"
+            >
+              <span className="flex items-center gap-2">
+                <span className="inline-flex w-6 shrink-0 justify-center text-[11px] font-semibold tabular-nums text-muted-foreground">
+                  {opt.shortLabel}
+                </span>
+                <span className="text-[12.5px]">{opt.label}</span>
+              </span>
+              {active && <Check className="size-3.5 text-primary" />}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function NewWorkButton({
   onCreate,

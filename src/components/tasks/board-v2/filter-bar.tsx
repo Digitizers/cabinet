@@ -22,12 +22,14 @@ export function TriggerChip({
   children,
   icon,
   tone,
+  count,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
   icon?: React.ReactNode;
   tone?: "sky" | "emerald" | "pink";
+  count?: React.ReactNode;
 }) {
   return (
     <button
@@ -38,12 +40,22 @@ export function TriggerChip({
         active
           ? tone
             ? cn("ring-1", TRIGGER_TONES[tone])
-            : "bg-foreground text-background"
+            : "bg-primary text-primary-foreground"
           : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
       {icon}
       {children}
+      {count != null && (
+        <span
+          className={cn(
+            "ml-0.5 tabular-nums",
+            active ? "opacity-75" : "opacity-60"
+          )}
+        >
+          {count}
+        </span>
+      )}
     </button>
   );
 }
@@ -75,7 +87,7 @@ export function FilterBar({
           className={cn(
             "shrink-0 rounded-full border px-2.5 py-0.5 font-medium transition-colors",
             agentFilter === null
-              ? "border-foreground bg-foreground text-background"
+              ? "border-primary bg-primary text-primary-foreground"
               : "border-border/60 text-muted-foreground hover:text-foreground"
           )}
         >
@@ -94,7 +106,7 @@ export function FilterBar({
               className={cn(
                 "inline-flex shrink-0 items-center gap-1 rounded-full border py-0.5 font-medium transition-colors",
                 hasImage ? "pl-0.5 pr-2" : "px-2",
-                active ? "border-foreground" : "border-transparent hover:border-border/60",
+                active ? "border-primary" : "border-transparent hover:border-border/60",
                 hasImage && (active
                   ? "bg-muted text-foreground"
                   : "bg-muted/60 text-muted-foreground hover:text-foreground")
