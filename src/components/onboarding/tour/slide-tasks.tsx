@@ -21,7 +21,7 @@ const TYPED_COMMAND = "Run 10 tasks, each writing a song, save to @Songs/";
 
 export function SlideTasks() {
   return (
-    <div className="grid h-full grid-cols-[minmax(260px,320px)_1fr] gap-10 lg:gap-14 items-center">
+    <div className="grid h-full grid-cols-[minmax(360px,420px)_1fr] gap-10 lg:gap-14 items-center">
       <div className="h-[440px] w-full">
         <MockupSidebar activeTab="tasks" viewTransitionName="cabinet-card">
           <div className="flex h-full flex-col gap-2 px-2 py-2">
@@ -39,7 +39,7 @@ export function SlideTasks() {
               <div className="flex items-center gap-1.5">
                 <div className="flex-1 overflow-hidden">
                   <div
-                    className="relative whitespace-nowrap text-[11px] overflow-hidden"
+                    className="relative whitespace-nowrap text-[13px] overflow-hidden"
                     style={{
                       color: P.text,
                       animation: "cabinet-tour-typing 1.6s steps(40, end) forwards",

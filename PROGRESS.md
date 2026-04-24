@@ -1,5 +1,9 @@
 # Progress
 
+[2026-04-24] DATA slide (scene 0): viewer now only appears when user clicks Next, not auto-animated. TourBody tracks viewerRevealed state; first Next click on data-0 reveals the viewer, second click advances to data-1. Also widened SlideTasks sidebar (260-320px → 360-420px) and increased command text from 11px to 13px for legibility.
+
+[2026-04-24] DATA slide: cabinet shell now animates in first (0ms), then text (350-800ms), then file rows (1000-1290ms), then viewer (1650ms). Updated thailand-video caption to "View all your files in one place." Removed the "Work / Board deck.pptx" scene from the DATA slide; deleted PresentationViewer component and Presentation icon import.
+
 [2026-04-24] Halved DATA slide animation duration. Text column now completes by ~750ms (was ~1450ms), sidebar rows by ~1140ms (was ~2270ms), viewer at 1200ms (was 2700ms). Reduced individual fade durations from 0.4–0.5s to 0.25–0.35s and tightened all delay offsets proportionally.
 
 [2026-04-24] DATA slide cleanup: removed mouse cursor travel animation (only the click ripple remains, delay reduced to 1400ms); reverted copy column to original fade-up animations (no typewriter, no grid-collapse state); moved Night market.mp4 scene to position 0 (removed the Phuket sunset.jpg scene); removed PhotoViewer and unused typewriter code. Also fixed blank DATA slide caused by React StrictMode double-invocation: `introRan.current` guard was set to true on the first effect run, the cleanup cleared the interval, and the second run bailed out — so typing never started. Removed the guard; the effect now resets all three state vars at the top of each run so StrictMode's second invocation starts cleanly from zero. Also moved the setTimeout handles (t1, t2) to outer-scope `let` variables so the cleanup function can clear them correctly.

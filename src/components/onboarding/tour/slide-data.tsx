@@ -9,7 +9,6 @@ import {
   Music,
   FileSpreadsheet,
   Table,
-  Presentation,
   AppWindow,
   Code,
   GitBranch,
@@ -262,47 +261,6 @@ function CsvTableViewer() {
   );
 }
 
-function PresentationViewer() {
-  return (
-    <ViewerFrame title="Board deck.pptx" icon={Presentation} iconColor={ICON.orange} badge="Slide 3 / 12">
-      <div className="flex h-full flex-col p-3">
-        <div
-          className="relative flex flex-1 flex-col gap-2 rounded-md p-3.5"
-          style={{ background: P.bgCard, boxShadow: `inset 0 0 0 1px ${P.borderLight}` }}
-        >
-          <span className="text-[8px] font-semibold uppercase tracking-[0.12em]" style={{ color: ICON.orange }}>
-            Q2 2026
-          </span>
-          <h3 className="font-logo text-xl italic tracking-tight" style={{ color: P.text, lineHeight: 1.15 }}>
-            Results &amp; outlook
-          </h3>
-          <ul className="mt-1 flex flex-col gap-1.5 text-[11px]">
-            {[
-              { label: "Revenue", value: "+34%", color: ICON.green },
-              { label: "ARR", value: "$2.4 M", color: ICON.blue },
-              { label: "NRR", value: "124%", color: ICON.green },
-              { label: "Burn", value: "-18%", color: ICON.red },
-            ].map((m) => (
-              <li key={m.label} className="flex items-center justify-between rounded px-2 py-1" style={{ background: P.paperWarm }}>
-                <span style={{ color: P.textSecondary }}>{m.label}</span>
-                <span className="font-mono font-semibold" style={{ color: m.color }}>{m.value}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="flex items-center justify-center gap-1 pt-2">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <span
-              key={i}
-              className="h-1 rounded-full"
-              style={{ width: i === 2 ? 14 : 4, background: i === 2 ? ICON.orange : P.borderDark }}
-            />
-          ))}
-        </div>
-      </div>
-    </ViewerFrame>
-  );
-}
 
 function CodeViewer() {
   const lines = [
@@ -355,7 +313,7 @@ const SCENES: Scene[] = [
       { label: "Flights.pdf", icon: FileType, color: ICON.red, indent: 1 },
     ],
     featuredIdx: 3,
-    caption: "Videos too — shot in the market, stored right next to the plans.",
+    caption: "View all your files in one place.",
     viewer: <VideoViewer />,
   },
   {
@@ -392,23 +350,6 @@ const SCENES: Scene[] = [
     viewer: <CsvTableViewer />,
   },
   {
-    id: "work",
-    rootIcon: ChevronDown as IconComponent,
-    rootColor: P.textTertiary,
-    rootLabel: "Work",
-    rows: [
-      { label: "Q2 report.pdf", icon: FileType, color: ICON.red, indent: 1 },
-      { label: "Client contract.pdf", icon: FileType, color: ICON.red, indent: 1 },
-      { label: "Board deck.pptx", icon: Presentation, color: ICON.orange, indent: 1 },
-      { label: "Revenue 2026.xlsx", icon: FileSpreadsheet, color: ICON.green, indent: 1 },
-      { label: "Policy.docx", icon: FileText, color: ICON.blue, indent: 1 },
-      { label: "All-hands notes.md", icon: FileText, color: ICON.gray, indent: 1 },
-    ],
-    featuredIdx: 2,
-    caption: "Work docs — PDFs, slides, sheets, all rendered inline.",
-    viewer: <PresentationViewer />,
-  },
-  {
     id: "repo",
     rootIcon: GitBranch as IconComponent,
     rootColor: ICON.orange,
@@ -434,9 +375,10 @@ const CURSOR_TARGET_X = 48;
 
 interface SlideDataProps {
   sceneIdx: number;
+  viewerRevealed?: boolean;
 }
 
-export function SlideData({ sceneIdx }: SlideDataProps) {
+export function SlideData({ sceneIdx, viewerRevealed }: SlideDataProps) {
   const clampedIdx = Math.min(Math.max(sceneIdx, 0), SCENES.length - 1);
   const scene = SCENES[clampedIdx];
 
@@ -449,9 +391,11 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
       style={{ gridTemplateColumns: "280px 340px 1fr" }}
     >
       {/* ── Column 1: Sidebar + caption ─── */}
-      {/* Rows start after the copy text has fully appeared (~1500ms) */}
       <div className="flex h-[500px] w-full flex-col gap-3">
-        <div className="h-[440px] w-full">
+        <div
+          className="h-[440px] w-full opacity-0"
+          style={{ animation: "cabinet-tour-fade-up 0.4s ease-out forwards", animationDelay: "0ms" }}
+        >
           <MockupSidebar activeTab="data" viewTransitionName="cabinet-card">
             <div
               key={scene.id}
@@ -470,7 +414,7 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
                 style={{
                   color: P.text,
                   animation: "cabinet-tour-fade-up 0.25s ease-out forwards",
-                  animationDelay: "600ms",
+                  animationDelay: "1000ms",
                 }}
               >
                 {(() => {
@@ -502,7 +446,7 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
                         ? `inset 0 0 0 1px ${P.borderDark}`
                         : "none",
                       animation: "cabinet-tour-fade-up 0.25s ease-out forwards",
-                      animationDelay: `${650 + i * 40}ms`,
+                      animationDelay: `${1050 + i * 40}ms`,
                     }}
                   >
                     <Icon
@@ -536,7 +480,7 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
                   height: "44px",
                   background: P.accent,
                   animation: "cabinet-tour-click-ripple 0.6s ease-out forwards",
-                  animationDelay: "1100ms",
+                  animationDelay: "1500ms",
                 }}
               />
             </div>
@@ -551,7 +495,7 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
             style={{
               color: P.textSecondary,
               animation: "cabinet-tour-fade-up 0.25s ease-out forwards",
-              animationDelay: "620ms",
+              animationDelay: "1020ms",
               minHeight: "2.4em",
             }}
           >
@@ -565,10 +509,17 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
         <div
           key={scene.id + "-viewer"}
           className="h-full w-full opacity-0"
-          style={{
-            animation: "cabinet-tour-fade-up 0.35s ease-out forwards",
-            animationDelay: "1200ms",
-          }}
+          style={
+            sceneIdx === 0
+              ? {
+                  animation: "cabinet-tour-fade-up 0.35s ease-out forwards",
+                  animationPlayState: viewerRevealed ? "running" : "paused",
+                }
+              : {
+                  animation: "cabinet-tour-fade-up 0.35s ease-out forwards",
+                  animationDelay: "1650ms",
+                }
+          }
         >
           {scene.viewer}
         </div>
@@ -583,7 +534,7 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
             background: P.accentBg,
             border: `1px solid ${P.borderDark}`,
             animation: "cabinet-tour-fade-up 0.3s ease-out forwards",
-            animationDelay: "0ms",
+            animationDelay: "350ms",
           }}
         >
           01 &middot; DATA
@@ -593,7 +544,7 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
           style={{
             color: P.text,
             animation: "cabinet-tour-fade-up 0.35s ease-out forwards",
-            animationDelay: "100ms",
+            animationDelay: "500ms",
           }}
         >
           Your <span style={{ color: P.accent }}>single source</span> of truth.
@@ -603,7 +554,7 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
           style={{
             color: P.textSecondary,
             animation: "cabinet-tour-fade-up 0.35s ease-out forwards",
-            animationDelay: "250ms",
+            animationDelay: "650ms",
           }}
         >
           Markdown, PDFs, spreadsheets, slides, images, video, audio, linked
@@ -615,7 +566,7 @@ export function SlideData({ sceneIdx }: SlideDataProps) {
           style={{
             color: P.textSecondary,
             animation: "cabinet-tour-fade-up 0.35s ease-out forwards",
-            animationDelay: "400ms",
+            animationDelay: "800ms",
           }}
         >
           One place for everything — so you and your AI team read, edit, and

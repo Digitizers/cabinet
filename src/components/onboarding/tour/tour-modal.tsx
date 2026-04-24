@@ -70,16 +70,25 @@ function TourBody({
   onLaunchTask: (starterPrompt: string) => void;
 }) {
   const [index, setIndex] = useState(0);
+  const [viewerRevealed, setViewerRevealed] = useState(false);
 
-  const goTo = useCallback((next: number) => {
-    const clamped = Math.max(0, Math.min(next, SLIDES.length - 1));
+  const goTo = useCallback((n: number) => {
+    setViewerRevealed(false);
+    const clamped = Math.max(0, Math.min(n, SLIDES.length - 1));
     transition(() => setIndex(clamped));
   }, []);
 
   const next = useCallback(() => {
+    if (SLIDES[index].id === "data-0" && !viewerRevealed) {
+      setViewerRevealed(true);
+      return;
+    }
+    setViewerRevealed(false);
     transition(() => setIndex((i) => Math.min(i + 1, SLIDES.length - 1)));
-  }, []);
+  }, [index, viewerRevealed]);
+
   const back = useCallback(() => {
+    setViewerRevealed(false);
     transition(() => setIndex((i) => Math.max(i - 1, 0)));
   }, []);
   const finish = useCallback(() => {
@@ -153,7 +162,9 @@ function TourBody({
           key={current.stageKey}
           className="cabinet-tour-animated flex-1"
         >
-          {current.render()}
+          {current.id === "data-0"
+            ? <SlideData sceneIdx={0} viewerRevealed={viewerRevealed} />
+            : current.render()}
         </div>
 
         {/* Footer nav */}
