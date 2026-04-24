@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight } from "lucide-react";
+import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight, Sparkles } from "lucide-react";
+import { requestShowTour } from "@/components/onboarding/tour/use-tour";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -624,6 +625,18 @@ export function StatusBar() {
         </button>
       </div>
       <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => requestShowTour()}
+          aria-label="Replay the Meet your Cabinet tour"
+          title="Replay the Cabinet tour"
+          className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/25 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-400/40 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
+            Tour
+          </span>
+        </button>
         <a
           href={DISCORD_SUPPORT_URL}
           target="_blank"

@@ -678,6 +678,65 @@ em-emoji-picker {
   100% { transform: translate(-50%, -50%) translate(var(--sb-x, 20px), var(--sb-y, 0px)) scale(0); opacity: 0; }
 }
 
+/* ── Onboarding tour animations ── */
+@keyframes cabinet-tour-fade-up {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes cabinet-tour-fade-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes cabinet-tour-pop-in {
+  0%   { opacity: 0; transform: scale(0.85); }
+  60%  { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes cabinet-tour-icon-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50%      { transform: scale(1.25); filter: brightness(1.3); }
+}
+@keyframes cabinet-tour-mention-float {
+  0%   { opacity: 0; transform: translate(-50%, 12px) scale(0.9); }
+  30%  { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  80%  { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -6px) scale(0.95); }
+}
+@keyframes cabinet-tour-agent-lift {
+  0%   { transform: translateY(0) scale(1); box-shadow: 0 0 0 rgba(0,0,0,0); }
+  100% { transform: translateY(-4px) scale(1.03); box-shadow: 0 18px 40px -12px rgba(0,0,0,0.35); }
+}
+@keyframes cabinet-tour-callout-in {
+  0%   { opacity: 0; transform: translateX(10px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes cabinet-tour-typing {
+  0%   { width: 0; }
+  100% { width: 100%; }
+}
+@keyframes cabinet-tour-caret-blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+@keyframes cabinet-tour-heartbeat-dot {
+  0%, 100% { transform: scale(1);   opacity: 0.9; }
+  50%      { transform: scale(1.6); opacity: 0.4; }
+}
+@keyframes cabinet-tour-stream-bar {
+  0%   { width: 10%; opacity: 0.4; }
+  100% { width: 100%; opacity: 0.9; }
+}
+.cabinet-tour-no-scrollbar::-webkit-scrollbar { display: none; }
+.cabinet-tour-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cabinet-tour-animated,
+  .cabinet-tour-animated * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 /* ── Registry prose (markdown viewer in registry detail About section) ── */
 .registry-prose {
   font-size: 0.875rem;

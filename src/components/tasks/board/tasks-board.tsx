@@ -142,14 +142,21 @@ export function TasksBoard({
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [newTaskMode, setNewTaskMode] = useState<StartWorkMode>("now");
+  const [newTaskInitialPrompt, setNewTaskInitialPrompt] = useState<string | undefined>(undefined);
   const [jobDialog, setJobDialog] = useState<JobDialogState | null>(null);
   const [heartbeatDialog, setHeartbeatDialog] = useState<HeartbeatDialogState | null>(null);
 
   // Sidebar "+ Tasks" pill dispatches `cabinet:open-create-task` after routing
   // to section=tasks. Listen for it so the pill actually opens the composer.
+  // Event detail may include `initialPrompt` (onboarding tour uses this to
+  // hand off a starter task the user can edit or submit).
   useEffect(() => {
-    const handler = () => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as
+        | { initialPrompt?: string }
+        | undefined;
       setNewTaskMode("now");
+      setNewTaskInitialPrompt(detail?.initialPrompt);
       setNewTaskOpen(true);
     };
     window.addEventListener("cabinet:open-create-task", handler);
@@ -588,10 +595,14 @@ export function TasksBoard({
 
       <StartWorkDialog
         open={newTaskOpen}
-        onOpenChange={setNewTaskOpen}
+        onOpenChange={(open) => {
+          setNewTaskOpen(open);
+          if (!open) setNewTaskInitialPrompt(undefined);
+        }}
         cabinetPath={cabinetPath}
         agents={overview?.agents ?? []}
         initialMode={newTaskMode}
+        initialPrompt={newTaskInitialPrompt}
         onStarted={(id) => {
           void refresh();
           setSelectedId(id);

@@ -43,6 +43,8 @@ import { useGlobalHotkeys } from "@/hooks/use-global-hotkeys";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { StatusBar } from "@/components/layout/status-bar";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { TourModal } from "@/components/onboarding/tour/tour-modal";
+import { useTour } from "@/components/onboarding/tour/use-tour";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { BreakingChangesWarning } from "@/components/layout/breaking-changes-warning";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
@@ -184,6 +186,24 @@ export function AppShell() {
     const timer = window.setTimeout(run, 1000);
     return () => window.clearTimeout(timer);
   }, []);
+
+  // Onboarding tour. Auto-opens once per browser after the wizard; also
+  // listens for `cabinet:show-tour` events so the status-bar replay button
+  // can re-open it anytime.
+  const tour = useTour(showWizard === false);
+
+  const handleLaunchTourTask = useCallback((initialPrompt: string) => {
+    setSection({ type: "tasks" });
+    // Let section switch render before opening the composer so its listener
+    // is actually mounted (same pattern as the sidebar "+ New Task" pill).
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("cabinet:open-create-task", {
+          detail: { initialPrompt },
+        }),
+      );
+    }, 100);
+  }, [setSection]);
 
   const handleWizardComplete = useCallback(() => {
     setShowWizard(false);
@@ -517,6 +537,11 @@ export function AppShell() {
       <NotificationToasts />
       <SystemToasts />
       <BreakingChangesWarning />
+      <TourModal
+        open={tour.open}
+        onClose={tour.close}
+        onLaunchTask={handleLaunchTourTask}
+      />
     </div>
   );
 }
