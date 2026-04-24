@@ -150,7 +150,7 @@ export const ROOMS: Record<RoomType, RoomConfig> = {
     descriptionLabel: "What's it for?",
     descriptionPlaceholder: "Anything — leave blank if you're not sure yet",
     askTeamSize: false,
-    mandatoryAgents: [],
+    mandatoryAgents: ["editor"],
     suggestedAgents: [],
     exampleAgents: ["Your call"],
     departmentNoun: "Group",
