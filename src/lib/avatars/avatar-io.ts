@@ -34,7 +34,12 @@ export async function clearAvatarFiles(
   prefix: string
 ): Promise<void> {
   for (const e of ALLOWED_AVATAR_EXT) {
-    await fs.unlink(path.join(dir, `${prefix}.${e}`)).catch(() => {});
+    await fs.unlink(
+      path.join(
+        /*turbopackIgnore: true*/ dir,
+        /*turbopackIgnore: true*/ `${prefix}.${e}`
+      )
+    ).catch(() => {});
   }
 }
 
@@ -46,7 +51,12 @@ export async function readAvatarFile(
 ): Promise<Buffer | null> {
   if (!ALLOWED_AVATAR_EXT.has(ext)) return null;
   try {
-    return await fs.readFile(path.join(dir, `${prefix}.${ext}`));
+    return await fs.readFile(
+      path.join(
+        /*turbopackIgnore: true*/ dir,
+        /*turbopackIgnore: true*/ `${prefix}.${ext}`
+      )
+    );
   } catch {
     return null;
   }
@@ -68,6 +78,12 @@ export async function writeAvatarFile(
   await fs.mkdir(dir, { recursive: true });
   await clearAvatarFiles(dir, prefix);
   const buf = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(dir, `${prefix}.${ext}`), buf);
+  await fs.writeFile(
+    path.join(
+      /*turbopackIgnore: true*/ dir,
+      /*turbopackIgnore: true*/ `${prefix}.${ext}`
+    ),
+    buf
+  );
   return { ok: true, ext };
 }

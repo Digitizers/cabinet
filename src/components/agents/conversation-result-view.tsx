@@ -6,6 +6,7 @@ import type { ConversationDetail } from "@/types/conversations";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { appendConversationCabinetPath } from "@/lib/agents/conversation-identity";
+import { buildTaskHash } from "@/lib/navigation/task-route";
 import {
   artifactPathToTreePath,
   inferPageTypeFromPath,
@@ -89,11 +90,7 @@ export function ConversationResultView({
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
                 onClick={() => {
-                  const hash =
-                    detail.meta.cabinetPath && detail.meta.cabinetPath !== "."
-                      ? `#/cabinet/${encodeURIComponent(detail.meta.cabinetPath)}/tasks/${encodeURIComponent(detail.meta.id)}`
-                      : `#/ops/tasks/${encodeURIComponent(detail.meta.id)}`;
-                  window.location.hash = hash;
+                  window.location.hash = buildTaskHash(detail.meta.id, detail.meta.cabinetPath);
                 }}
               >
                 Open in task viewer

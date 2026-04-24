@@ -59,7 +59,7 @@ export function DetailPanel({
       await setConversationMuted(task.id, !muted, task.cabinetPath);
       if (onRefresh) await onRefresh();
     } catch (err) {
-      console.error("[board-v2] mute toggle failed", err);
+      console.error("[board] mute toggle failed", err);
     } finally {
       setMuting(false);
     }

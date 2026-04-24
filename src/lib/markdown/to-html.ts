@@ -78,16 +78,21 @@ function resolveRelativeUrls(html: string, pagePath: string): string {
   return html;
 }
 
+// Unified's plugin resolution + processor freeze runs on every `unified()`
+// call. Reuse a single frozen pipeline across every page render so
+// navigation doesn't pay that cost on the hot path.
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkRehype, { allowDangerousHtml: true })
+  .use(rehypeStringify, { allowDangerousHtml: true })
+  .freeze();
+
 export async function markdownToHtml(markdown: string, pagePath?: string): Promise<string> {
   // Pre-process wiki-links before remark (which would treat [[ as text)
   const preprocessed = convertWikiLinks(markdown);
 
-  const result = await unified()
-    .use(remarkParse)
-    .use(remarkGfm)
-    .use(remarkRehype, { allowDangerousHtml: true })
-    .use(rehypeStringify, { allowDangerousHtml: true })
-    .process(preprocessed);
+  const result = await processor.process(preprocessed);
 
   let html = String(result);
 

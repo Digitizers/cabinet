@@ -31,7 +31,7 @@ import { HomeScreen } from "@/components/home/home-screen";
 import { AgentsWorkspace } from "@/components/agents/agents-workspace";
 import { AgentDetailV2 } from "@/components/agents/agent-detail-v2";
 import type { ConversationMeta } from "@/types/conversations";
-import { TasksBoardV2 } from "@/components/tasks/board-v2";
+import { TasksBoard } from "@/components/tasks/board";
 import { TaskConversationPage } from "@/components/tasks/conversation/task-conversation-page";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
@@ -344,7 +344,7 @@ export function AppShell() {
           section.cabinetPath ?? ""
         ] ?? "own";
       return (
-        <TasksBoardV2
+        <TasksBoard
           cabinetPath={section.cabinetPath}
           visibilityMode={visibility}
         />

@@ -26,7 +26,7 @@ export interface HeartbeatDialogState {
 }
 
 /**
- * Thin wrapper around the shared `NewRoutineDialog` so the board-v2
+ * Thin wrapper around the shared `NewRoutineDialog` so the tasks board
  * schedule view can open the consolidated editor without changing its
  * own API. `onStateChange` is accepted for source-compat but ignored —
  * the inner dialog owns its own draft state.
@@ -69,7 +69,7 @@ export function ScheduleJobDialog({
 }
 
 /**
- * Thin wrapper around the shared `HeartbeatDialog` so board-v2 schedule-view
+ * Thin wrapper around the shared `HeartbeatDialog` so tasks board schedule-view
  * callers keep compiling. `onStateChange` is accepted for source-compat.
  */
 export function ScheduleHeartbeatDialog({

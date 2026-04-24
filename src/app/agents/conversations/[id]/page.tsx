@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { readConversationDetail } from "@/lib/agents/conversation-store";
+import { buildTaskHref } from "@/lib/navigation/task-route";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { CopyButton } from "./copy-button";
 import { parseTranscript } from "./transcript-parser";
@@ -92,11 +93,7 @@ export default async function ConversationTranscriptPage({
             </div>
             <div className="flex items-center gap-2">
               <Link
-                href={
-                  detail.meta.cabinetPath && detail.meta.cabinetPath !== "."
-                    ? `/#/cabinet/${encodeURIComponent(detail.meta.cabinetPath)}/tasks/${encodeURIComponent(detail.meta.id)}`
-                    : `/#/ops/tasks/${encodeURIComponent(detail.meta.id)}`
-                }
+                href={buildTaskHref(detail.meta.id, detail.meta.cabinetPath)}
                 className="inline-flex h-10 items-center rounded-full bg-foreground px-4 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
               >
                 Open in task viewer

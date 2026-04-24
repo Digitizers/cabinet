@@ -8,7 +8,7 @@ let git: SimpleGit | null = null;
 async function getGit(): Promise<SimpleGit | null> {
   if (git) return git;
 
-  const gitDir = path.join(DATA_DIR, ".git");
+  const gitDir = path.join(/*turbopackIgnore: true*/ DATA_DIR, ".git");
   if (await fileExists(gitDir)) {
     git = simpleGit(DATA_DIR);
     return git;

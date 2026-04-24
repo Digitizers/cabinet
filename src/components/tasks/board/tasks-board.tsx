@@ -61,17 +61,15 @@ import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { useAppStore } from "@/stores/app-store";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { TaskMeta } from "@/types/tasks";
+import { cn } from "@/lib/utils";
 
 /**
- * Entry point for the v2 Task Board. Phase 1 ships read-only:
+ * Entry point for the Task Board.
  *  - Kanban / List / Schedule views toggleable from the header
- *  - Right-side display-only People rail
  *  - Click-to-open DetailPanel that embeds the existing TaskConversationPage
  *  - Live updates via /api/agents/conversations/events SSE
- *
- * No DnD, no write actions — those land in later phases.
  */
-export function TasksBoardV2({
+export function TasksBoard({
   cabinetPath = ROOT_CABINET_PATH,
   visibilityMode: visibilityModeProp = "own",
   standalone = false,
@@ -243,7 +241,7 @@ export function TasksBoardV2({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
-      <header className="flex items-center gap-3 border-b border-border/70 px-6 py-3">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/95 px-4 py-2.5 sm:px-6">
         {standalone && (
           <Link
             href="/"
@@ -328,14 +326,14 @@ export function TasksBoardV2({
                       await Promise.all(
                         selectedTasks.map((t) =>
                           reassignConversation(t.id, slug, t.cabinetPath).catch((err) =>
-                            console.error("[board-v2] bulk reassign failed", t.id, err)
+                            console.error("[board] bulk reassign failed", t.id, err)
                           )
                         )
                       );
                       clearSelection();
                       await refresh();
                     } catch (err) {
-                      console.error("[board-v2] bulk reassign failed", err);
+                      console.error("[board] bulk reassign failed", err);
                     }
                   }}
                   triggerClassName="inline-flex items-center gap-1 rounded px-1.5 text-[10.5px] text-sky-700 hover:bg-sky-500/20 dark:text-sky-300"
@@ -356,45 +354,83 @@ export function TasksBoardV2({
             </>
           )}
 
-          {filteredTasks.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                const toDelete = filteredTasks.slice();
-                const count = toDelete.length;
-                const narrowed = !!agentFilter || triggerFilter !== "all";
+          <button
+            type="button"
+            onClick={() => {
+              const toDelete = filteredTasks.slice();
+              const count = toDelete.length;
+              if (count === 0) {
+                const scope =
+                  triggerFilter !== "all"
+                    ? `${triggerFilter} task`
+                    : agentFilter
+                    ? "task"
+                    : "task";
+                const narrowedBy =
+                  triggerFilter !== "all" && agentFilter
+                    ? `the ${triggerFilter} filter and selected agent`
+                    : triggerFilter !== "all"
+                    ? `the ${triggerFilter} filter`
+                    : agentFilter
+                    ? "the selected agent filter"
+                    : null;
                 setPendingConfirm({
-                  id: `delete-all-${Date.now()}`,
-                  title: `Delete ${count} task${count === 1 ? "" : "s"}?`,
-                  body: `This permanently removes conversation meta, transcripts, and artifacts for every task currently shown${
-                    narrowed ? " by the active filters" : ""
-                  }. This can't be undone.`,
-                  confirmLabel: `Delete ${count}`,
-                  destructive: true,
-                  onConfirm: async () => {
-                    const ids = new Set(toDelete.map((t) => t.id));
-                    await Promise.all(
-                      toDelete.map((t) =>
-                        deleteConversation(t.id, t.cabinetPath).catch((err) =>
-                          console.error("[board-v2] bulk delete failed", t.id, err)
-                        )
-                      )
-                    );
-                    if (selectedId && ids.has(selectedId)) setSelectedId(null);
-                    clearSelection();
-                    await refresh();
-                  },
+                  id: `delete-empty-${Date.now()}`,
+                  title: `No ${scope}s to delete`,
+                  body: narrowedBy
+                    ? `Nothing matches ${narrowedBy}. Clear the filter, pick another view, or create a new task.`
+                    : `There are no tasks on the board yet. Create one with the + New Task button.`,
+                  confirmLabel: "Got it",
+                  infoOnly: true,
+                  onConfirm: () => {},
                 });
-              }}
-              title={`Delete all ${filteredTasks.length} shown task${
-                filteredTasks.length === 1 ? "" : "s"
-              }`}
-              aria-label="Delete all shown tasks"
-              className="inline-flex size-5 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 className="size-3" />
-            </button>
-          )}
+                return;
+              }
+              const narrowed = !!agentFilter || triggerFilter !== "all";
+              setPendingConfirm({
+                id: `delete-all-${Date.now()}`,
+                title: `Delete ${count} task${count === 1 ? "" : "s"}?`,
+                body: `This permanently removes conversation meta, transcripts, and artifacts for every task currently shown${
+                  narrowed ? " by the active filters" : ""
+                }. This can't be undone.`,
+                confirmLabel: `Delete ${count}`,
+                destructive: true,
+                onConfirm: async () => {
+                  const ids = new Set(toDelete.map((t) => t.id));
+                  await Promise.all(
+                    toDelete.map((t) =>
+                      deleteConversation(t.id, t.cabinetPath).catch((err) =>
+                        console.error("[board] bulk delete failed", t.id, err)
+                      )
+                    )
+                  );
+                  if (selectedId && ids.has(selectedId)) setSelectedId(null);
+                  clearSelection();
+                  await refresh();
+                },
+              });
+            }}
+            title={
+              filteredTasks.length > 0
+                ? `Delete all ${filteredTasks.length} shown task${
+                    filteredTasks.length === 1 ? "" : "s"
+                  }`
+                : "Nothing to delete in this view"
+            }
+            aria-label={
+              filteredTasks.length > 0
+                ? "Delete all shown tasks"
+                : "No tasks in this view"
+            }
+            className={cn(
+              "inline-flex size-5 items-center justify-center rounded-md transition-colors",
+              filteredTasks.length > 0
+                ? "text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive"
+                : "text-muted-foreground/40 hover:bg-muted/60 hover:text-muted-foreground/70"
+            )}
+          >
+            <Trash2 className="size-3" />
+          </button>
 
           <div className="h-3.5 w-px bg-border/60" />
 

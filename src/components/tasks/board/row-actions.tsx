@@ -48,7 +48,7 @@ export function RowActions({
       }
       if (onRefresh) await onRefresh();
     } catch (err) {
-      console.error(`[board-v2] ${kind} failed`, err);
+      console.error(`[board] ${kind} failed`, err);
     } finally {
       setBusy(null);
     }
@@ -61,7 +61,7 @@ export function RowActions({
       await reassignConversation(task.id, toSlug, task.cabinetPath);
       if (onRefresh) await onRefresh();
     } catch (err) {
-      console.error("[board-v2] reassign failed", err);
+      console.error("[board] reassign failed", err);
     } finally {
       setBusy(null);
     }

@@ -283,17 +283,31 @@ export function KBEditor() {
 
   // When content updates from store (after loadPage), set it in editor
   const prevPathRef = useRef<string | null>(null);
+  const renderedKeyRef = useRef<string | null>(null);
   const [renderedPath, setRenderedPath] = useState<string | null>(null);
   useEffect(() => {
     if (!editor || currentPath === null) return;
     // Skip if content hasn't actually changed (same path, dirty edit)
     if (useEditorStore.getState().isDirty && currentPath === prevPathRef.current) return;
+    // During page navigation the store briefly holds content="" while the
+    // fetch is in flight. Rendering that empty string into ProseMirror is
+    // pure waste — every extension runs a full schema pass twice per
+    // navigation. Skip until the real content arrives.
+    if (isLoading && content === "") return;
+    // Dedupe identical (path, content) renders — e.g. cached paint followed
+    // by a fresh fetch that returned the same markdown.
+    const key = `${currentPath} ${content}`;
+    if (renderedKeyRef.current === key) {
+      if (renderedPath !== currentPath) setRenderedPath(currentPath);
+      return;
+    }
     prevPathRef.current = currentPath;
 
     const setContent = async () => {
       isLoadingRef.current = true;
       const html = await markdownToHtml(content, currentPath);
       editor.commands.setContent(html);
+      renderedKeyRef.current = key;
       setRenderedPath(currentPath);
       setTimeout(() => {
         isLoadingRef.current = false;
@@ -301,7 +315,7 @@ export function KBEditor() {
     };
 
     setContent();
-  }, [editor, content, currentPath]);
+  }, [editor, content, currentPath, isLoading, renderedPath]);
 
   const showLoadingOverlay =
     currentPath !== null && (isLoading || renderedPath !== currentPath);

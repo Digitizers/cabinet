@@ -313,7 +313,7 @@ export function KanbanView({
       await Promise.all(
         running.map((t) =>
           stopConversation(t.id, t.cabinetPath).catch((err) =>
-            console.error("[board-v2] bulk stop failed", t.id, err)
+            console.error("[board] bulk stop failed", t.id, err)
           )
         )
       );
@@ -340,7 +340,7 @@ export function KanbanView({
       await Promise.all(
         restartable.map((t) =>
           restartConversation(t.id, t.cabinetPath).catch((err) =>
-            console.error("[board-v2] bulk restart failed", t.id, err)
+            console.error("[board] bulk restart failed", t.id, err)
           )
         )
       );

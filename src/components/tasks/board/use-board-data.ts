@@ -110,7 +110,7 @@ export function useBoardData({ cabinetPath, visibilityMode = "own" }: Options): 
     setLoading(true);
     Promise.all([refreshOverview(), refreshConversations()])
       .catch((err) => {
-        console.error("[board-v2] initial load failed", err);
+        console.error("[board] initial load failed", err);
       })
       .finally(() => {
         if (mountedRef.current) setLoading(false);

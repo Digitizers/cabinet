@@ -5,7 +5,7 @@ import {
 
 /**
  * Shape of the per-request runtime override posted by the various composers
- * (cabinet home, board-v2 new-task dialog, task-detail continue composer,
+ * (cabinet home, tasks board new-task dialog, task-detail continue composer,
  * agents workspace, AI panel, status-bar pill). Every field is optional; when
  * omitted, the runner falls back to the conversation's stored meta / the
  * agent's default.

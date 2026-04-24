@@ -27,7 +27,6 @@ import {
 import { HomeBlueprintBackground } from "@/components/onboarding/home-blueprint-background";
 import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
-import { RuntimeSelectionBanner } from "@/components/composer/task-runtime-picker";
 import type { ProviderInfo } from "@/types/agents";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
 import { showError } from "@/lib/ui/toast";
@@ -45,12 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  getModelEffortLevels,
-  getSuggestedProviderEffort,
-  resolveProviderEffort,
-  resolveProviderModel,
-} from "@/lib/agents/runtime-options";
+import { getSuggestedProviderEffort } from "@/lib/agents/runtime-options";
 
 type OnboardingVerifyStatus =
   | "pass"
@@ -1557,14 +1551,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [isExistingCabinet, setIsExistingCabinet] = useState(false);
   const readyProviders = providers.filter((p) => p.available && p.authenticated);
   const anyProviderReady = readyProviders.length > 0;
-  const activeProvider = providers.find((p) => p.id === selectedProvider);
-  const activeModel = resolveProviderModel(
-    activeProvider,
-    selectedModel || undefined,
-    undefined
-  );
-  const activeModels = activeProvider?.models || [];
-  const activeEffortLevels = getModelEffortLevels(activeProvider, activeModel?.id);
   const sortedProviders = useMemo(() => {
     const rank = (p: ProviderInfo) =>
       p.available && p.authenticated ? 0 : p.available ? 1 : 2;
@@ -2526,114 +2512,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </div>
               )}
 
-              {/* Selected runtime summary */}
-              {activeProvider && (
-                <RuntimeSelectionBanner
-                  providers={providers}
-                  value={{
-                    providerId: selectedProvider,
-                    model: selectedModel,
-                    effort: selectedEffort,
-                  }}
-                  label="Default Model"
-                />
-              )}
-
-              {/* Model selector — shown when a ready provider is selected */}
-              {activeModels.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: WEB.textTertiary }}>
-                    Default model
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {activeModels.map((m) => {
-                      const isMSelected = selectedModel === m.id;
-                      return (
-                        <button
-                          key={m.id}
-                          onClick={() => {
-                            const nextEffortId =
-                              resolveProviderEffort(
-                                activeProvider,
-                                m.id,
-                                selectedEffort || undefined,
-                                undefined
-                              )?.id ||
-                              getSuggestedProviderEffort(activeProvider, m.id)?.id ||
-                              null;
-                            setSelectedModel(m.id);
-                            setSelectedEffort(nextEffortId);
-                          }}
-                          className="rounded-xl p-3 text-left transition-all"
-                          style={{
-                            background: isMSelected ? WEB.accentBg : WEB.bgCard,
-                            border: `1px solid ${isMSelected ? WEB.borderDark : WEB.borderLight}`,
-                          }}
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <div
-                              className="flex size-3 shrink-0 items-center justify-center rounded-full"
-                              style={{
-                                border: `1.5px solid ${isMSelected ? WEB.accent : WEB.borderDark}`,
-                                background: isMSelected ? WEB.accent : "transparent",
-                              }}
-                            >
-                              {isMSelected && <Check className="size-1.5 text-white" />}
-                            </div>
-                            <p className="text-[13px] font-medium" style={{ color: WEB.text }}>{m.name}</p>
-                          </div>
-                          {m.description && (
-                            <p className="text-[11px] ml-5" style={{ color: WEB.textSecondary }}>{m.description}</p>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Effort level selector — only for providers that support it */}
-              {activeEffortLevels.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: WEB.textTertiary }}>
-                    {activeModel?.name
-                      ? `Reasoning effort · ${activeModel.name}`
-                      : "Reasoning effort"}
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-4">
-                    {activeEffortLevels.map((e) => {
-                      const isESelected = selectedEffort === e.id;
-                      return (
-                        <button
-                          key={e.id}
-                          onClick={() => setSelectedEffort(e.id)}
-                          className="rounded-xl p-3 text-left transition-all"
-                          style={{
-                            background: isESelected ? WEB.accentBg : WEB.bgCard,
-                            border: `1px solid ${isESelected ? WEB.borderDark : WEB.borderLight}`,
-                          }}
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <div
-                              className="flex size-3 shrink-0 items-center justify-center rounded-full"
-                              style={{
-                                border: `1.5px solid ${isESelected ? WEB.accent : WEB.borderDark}`,
-                                background: isESelected ? WEB.accent : "transparent",
-                              }}
-                            >
-                              {isESelected && <Check className="size-1.5 text-white" />}
-                            </div>
-                            <p className="text-[13px] font-medium" style={{ color: WEB.text }}>{e.name}</p>
-                          </div>
-                          {e.description && (
-                            <p className="text-[11px] ml-5" style={{ color: WEB.textSecondary }}>{e.description}</p>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* Model + effort selectors are intentionally hidden during onboarding.
+                  The provider tile click still seeds sensible defaults via
+                  resolveProviderModel / getSuggestedProviderEffort, and users can
+                  refine model/effort later from Settings → Providers. */}
 
               {/* Coming soon providers */}
               <div className="space-y-2">

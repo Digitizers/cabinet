@@ -10,6 +10,8 @@ export interface PendingConfirm {
   confirmLabel: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /** Hide the cancel button — use for informational popups with just an OK. */
+  infoOnly?: boolean;
   onConfirm: () => Promise<void> | void;
 }
 
@@ -50,13 +52,15 @@ export function ConfirmPopover({
           </p>
         )}
         <div className="mt-4 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="rounded-md border border-border/60 bg-background px-3 py-1 text-[12px] font-medium text-foreground hover:bg-muted"
-          >
-            {pending.cancelLabel ?? "Cancel"}
-          </button>
+          {!pending.infoOnly && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="rounded-md border border-border/60 bg-background px-3 py-1 text-[12px] font-medium text-foreground hover:bg-muted"
+            >
+              {pending.cancelLabel ?? "Cancel"}
+            </button>
+          )}
           <button
             type="button"
             onClick={async () => {

@@ -24,6 +24,11 @@ export const editorExtensions = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
     codeBlock: false, // replaced by CodeBlockLowlight
+    // StarterKit v3 bundles Link + Underline — we register our own customized
+    // versions below (custom Link.extend + colorAndStyleExtensions Underline),
+    // so disable the bundled copies to avoid duplicate-extension warnings.
+    link: false,
+    underline: false,
   }),
   CodeBlockLowlight.configure({
     lowlight,

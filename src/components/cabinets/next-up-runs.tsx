@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Clock3, HeartPulse } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AgentPill } from "@/components/tasks/board-v2/agent-pill";
+import { AgentPill } from "@/components/tasks/board/agent-pill";
 import { getScheduleEvents, type ScheduleEvent } from "@/lib/agents/cron-compute";
 import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
 

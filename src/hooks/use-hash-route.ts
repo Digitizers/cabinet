@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { buildTaskHash, buildTasksHash } from "@/lib/navigation/task-route";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -67,10 +68,10 @@ function buildHash(section: SectionState, pagePath: string | null): string {
     return `#/cabinet/${encodePathSegment(cabinetPath)}/agents`;
   }
   if (section.type === "task" && section.taskId) {
-    return `#/cabinet/${encodePathSegment(cabinetPath)}/tasks/${encodePathSegment(section.taskId)}`;
+    return buildTaskHash(section.taskId, cabinetPath);
   }
   if (section.type === "tasks") {
-    return `#/cabinet/${encodePathSegment(cabinetPath)}/tasks`;
+    return buildTasksHash(cabinetPath);
   }
   if (section.type === "settings") {
     return section.slug

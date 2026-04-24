@@ -159,7 +159,7 @@ export function useDragHandler({
                 },
               });
             } catch (err) {
-              console.error("[board-v2] stop failed", err);
+              console.error("[board] stop failed", err);
             }
           },
         });
@@ -188,7 +188,7 @@ export function useDragHandler({
               if (isBulk) clearSelection();
               await onRefresh();
             } catch (err) {
-              console.error("[board-v2] restart failed", err);
+              console.error("[board] restart failed", err);
             }
           },
         });
@@ -217,7 +217,7 @@ export function useDragHandler({
             },
           });
         } catch (err) {
-          console.error("[board-v2] archive failed", err);
+          console.error("[board] archive failed", err);
         }
         return;
       }
@@ -243,7 +243,7 @@ export function useDragHandler({
             },
           });
         } catch (err) {
-          console.error("[board-v2] restore failed", err);
+          console.error("[board] restore failed", err);
         }
         return;
       }
@@ -281,7 +281,7 @@ export function useDragHandler({
           await setConversationBoardOrder(activeId, newOrder, cabinetPath);
           await onRefresh();
         } catch (err) {
-          console.error("[board-v2] reorder failed", err);
+          console.error("[board] reorder failed", err);
         }
         return;
       }

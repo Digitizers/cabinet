@@ -1,7 +1,7 @@
 schemaVersion: 1
-id: asdf-root
-name: asdf
+id: hilas-cabinet-root
+name: Hila's Cabinet
 kind: root
 version: 0.1.0
-description: dev
+description: Hila's Cabinet cabinet.
 entry: index.md

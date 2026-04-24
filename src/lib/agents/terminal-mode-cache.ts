@@ -5,7 +5,7 @@ import { isLegacyAdapterType } from "./adapters/legacy-ids";
  *
  * TaskConversationPage uses this to mount the xterm shell before its own
  * detail fetch resolves — any surface that has already seen the task in a
- * conversations-list response (sidebar RecentTasks, board-v2, etc.) warms
+ * conversations-list response (sidebar RecentTasks, tasks board, etc.) warms
  * the cache via conversationMetaToTaskMeta. A hit lets the terminal start
  * connecting seconds earlier on warm navigation and much earlier on cold.
  *
