@@ -94,7 +94,7 @@ export function ListView({
   _lane?: LaneKey;
 }) {
   return (
-    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto">
+    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto md:px-[4%] lg:px-[6%] xl:px-[8%] 2xl:px-[10%]">
       {tasks.length === 0 ? (
         <div className="flex h-full items-center justify-center p-8 text-[13px] text-muted-foreground">
           No tasks match these filters.
@@ -117,14 +117,14 @@ export function ListView({
                     task={task}
                     agents={agents}
                     onRefresh={onRefresh}
-                    className="absolute right-24 top-1/2 z-10 -translate-y-1/2"
+                    className="absolute right-[300px] top-1/2 z-10 -translate-y-1/2"
                   />
                 ) : null}
                 <button
                   type="button"
                   onClick={() => onSelect(task.id)}
                   className={cn(
-                    "relative flex w-full items-center gap-3 px-4 text-left transition-colors",
+                    "relative flex w-full items-center gap-3 px-6 text-left transition-colors",
                     density === "compact" ? "py-1.5" : "py-2.5",
                     isSelected ? "bg-primary/5" : "hover:bg-accent/35"
                   )}
@@ -136,10 +136,10 @@ export function ListView({
                     />
                   ) : null}
                   <StatusIcon state={state} />
-                  <AgentPill agent={agent} slug={task.agentSlug ?? "editor"} size="sm" />
                   <span className="flex-1 truncate text-[13px] font-medium text-foreground">
                     {task.title}
                   </span>
+                  <AgentPill agent={agent} slug={task.agentSlug ?? "editor"} size="sm" />
                   <TriggerBadge trigger={task.trigger} />
                   <span className="w-20 shrink-0 text-right text-[10.5px] tabular-nums text-muted-foreground">
                     {relTime(lastActivity, now)}

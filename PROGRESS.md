@@ -1176,3 +1176,4 @@
 [2026-04-24] Added Songs/19-parking-lot-apostles.md — original alt-country song about teenagers hanging out in a church parking lot during youth group.
 
 [2026-04-24] Added Songs/20-the-coat-still-smells-like-you.md — original folk ballad about a dog grieving after losing its person, with verses, pre-chorus, chorus, bridge, and outro.
+[2026-04-24] Tasks list view: reordered row to place the agent chip immediately left of the trigger badge (status · title · agent · trigger · time), bumped row horizontal padding px-4 → px-6, shifted the hover-action cluster from right-24 to right-[300px] so it no longer overlaps the trigger/time column, and added responsive page-edge gaps on the list scroll wrapper (md:px-[4%], lg:px-[6%], xl:px-[8%], 2xl:px-[10%]). File: `src/components/tasks/board/list-view.tsx`.
