@@ -113,6 +113,12 @@ interface CreateConversationInput {
   adapterType?: string;
   adapterConfig?: Record<string, unknown>;
   mentionedPaths?: string[];
+  /**
+   * Composer attachments sent with the kickoff message. Stored on
+   * ConversationMeta so the synthetic turn-1 view can render the
+   * thumbnails inline without a separate lookup.
+   */
+  attachmentPaths?: string[];
   jobId?: string;
   jobName?: string;
   scheduledAt?: string;
@@ -193,6 +199,20 @@ function makeSummaryFromOutput(output: string): string | undefined {
   return lines[0]?.slice(0, 300);
 }
 
+/**
+ * Strip the trailing "Attached files (read with the Read tool...)" section
+ * appended to adapter prompts by `buildAttachmentContext`. Defensive: even
+ * once attachmentPaths are stored on meta/turns, old conversations may
+ * still have the block baked into the extracted user request.
+ */
+function stripAttachmentTrailer(text: string): string {
+  const idx = text.search(
+    /\n*\s*Attached files \(read with the Read tool/i
+  );
+  if (idx === -1) return text;
+  return text.slice(0, idx).trimEnd();
+}
+
 export function extractConversationRequest(prompt: string): string {
   const normalized = prompt.replace(/\r+/g, "\n");
   const markers = ["User request:\n", "Job instructions:\n"];
@@ -200,11 +220,13 @@ export function extractConversationRequest(prompt: string): string {
   for (const marker of markers) {
     const index = normalized.lastIndexOf(marker);
     if (index !== -1) {
-      return normalized.slice(index + marker.length).trim();
+      return stripAttachmentTrailer(
+        normalized.slice(index + marker.length).trim()
+      );
     }
   }
 
-  return normalized.trim();
+  return stripAttachmentTrailer(normalized.trim());
 }
 
 // Agents sometimes cram multiple files onto one ARTIFACT: line (e.g.
@@ -475,6 +497,10 @@ export async function createConversation(
     promptPath: virtualPathFromFs(promptPathFs(id, cp)),
     transcriptPath: virtualPathFromFs(transcriptPathFs(id, cp)),
     mentionedPaths: input.mentionedPaths || [],
+    attachmentPaths:
+      input.attachmentPaths && input.attachmentPaths.length > 0
+        ? input.attachmentPaths
+        : undefined,
     artifactPaths: [],
   };
 
@@ -1305,6 +1331,190 @@ export async function deleteConversation(id: string, cabinetPath?: string): Prom
   return true;
 }
 
+/**
+ * Walk every cabinet's `.agents/.conversations/_pending/` directory and
+ * delete staging dirs older than `maxAgeMs` (default 24h). Called by the
+ * daemon on startup and daily thereafter so attachments pasted into the
+ * composer without being sent don't leak forever. Best-effort — errors
+ * on individual entries are logged and the sweep continues.
+ */
+export async function cleanupStaleStagingAttachments(
+  maxAgeMs: number = 24 * 60 * 60 * 1000
+): Promise<{ scanned: number; removed: number }> {
+  const now = Date.now();
+  let scanned = 0;
+  let removed = 0;
+
+  // Collect candidate _pending dirs: the root one plus every cabinet's.
+  const pendingDirs: string[] = [path.join(CONVERSATIONS_DIR, "_pending")];
+  try {
+    // Walk top-level dirs under DATA_DIR to find cabinet scopes.
+    const entries = await fs.readdir(DATA_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === ".agents") continue; // root is already covered
+      const cabinetPending = path.join(
+        DATA_DIR,
+        entry.name,
+        ".agents",
+        ".conversations",
+        "_pending"
+      );
+      pendingDirs.push(cabinetPending);
+    }
+  } catch {
+    // ignore — DATA_DIR may not exist in some test envs
+  }
+
+  for (const pendingDir of pendingDirs) {
+    if (!(await fileExists(pendingDir))) continue;
+    let entries: import("fs").Dirent[];
+    try {
+      entries = (await fs.readdir(pendingDir, {
+        withFileTypes: true,
+      })) as unknown as import("fs").Dirent[];
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      scanned += 1;
+      const entryPath = path.join(pendingDir, entry.name);
+      try {
+        const stat = await fs.stat(entryPath);
+        const age = now - stat.mtimeMs;
+        if (age > maxAgeMs) {
+          await fs.rm(entryPath, { recursive: true, force: true });
+          removed += 1;
+        }
+      } catch (err) {
+        console.warn(
+          `[cleanupStaleStagingAttachments] skipped ${entryPath}:`,
+          err
+        );
+      }
+    }
+  }
+
+  return { scanned, removed };
+}
+
+/**
+ * Overwrite the stored prompt.md for an existing conversation. Used by
+ * the runner after attachments are moved out of the staging dir so the
+ * on-disk prompt reflects the final cwd-relative attachment paths. Runs
+ * after createConversation has written the base prompt; safe to call
+ * idempotently.
+ */
+export async function updateConversationPrompt(
+  id: string,
+  prompt: string,
+  cabinetPath?: string
+): Promise<void> {
+  await writeFileContent(promptPathFs(id, cabinetPath), prompt);
+}
+
+/**
+ * Move composer attachments from a kickoff staging directory into the
+ * newly-created conversation's attachments directory. Returns the rewritten
+ * virtual paths (one per input path) so the caller can feed them into the
+ * adapter prompt. Paths that don't match the staging pattern are passed
+ * through unchanged.
+ *
+ * The expected input paths look like:
+ *   `{cabinetPath?}/.agents/.conversations/_pending/{stagingClientUuid}/attachments/{file}`
+ * and get rewritten to:
+ *   `{cabinetPath?}/.agents/.conversations/{conversationId}/attachments/{file}`
+ *
+ * Move strategy: rename the whole staging `attachments/` subdir when the
+ * target doesn't exist (fast, atomic). Falls back to per-file moves when
+ * the target already exists (edge case).
+ */
+export async function moveStagingAttachments(args: {
+  stagingClientUuid: string;
+  conversationId: string;
+  cabinetPath?: string;
+  attachmentPaths: string[];
+}): Promise<string[]> {
+  const { stagingClientUuid, conversationId, cabinetPath, attachmentPaths } = args;
+  if (!stagingClientUuid || attachmentPaths.length === 0) return attachmentPaths;
+
+  const convDir = conversationDir(conversationId, cabinetPath);
+  const stagingDirFs = path.join(
+    resolveConversationsDir(cabinetPath),
+    "_pending",
+    stagingClientUuid,
+    "attachments"
+  );
+  const finalDirFs = path.join(convDir, "attachments");
+
+  // If the staging dir doesn't exist, nothing to move. This is fine —
+  // callers may pass attachment paths that were already uploaded straight
+  // to the conversation dir (continuation turns).
+  if (!(await fileExists(stagingDirFs))) {
+    return attachmentPaths;
+  }
+
+  await ensureDirectory(convDir);
+
+  try {
+    // Fast path: target doesn't exist, rename the whole dir.
+    if (!(await fileExists(finalDirFs))) {
+      await fs.rename(stagingDirFs, finalDirFs);
+    } else {
+      // Slow path: target exists, move files one by one.
+      const entries = await listDirectory(stagingDirFs);
+      for (const entry of entries) {
+        const from = path.join(stagingDirFs, entry.name);
+        const to = path.join(finalDirFs, entry.name);
+        await fs.rename(from, to);
+      }
+      // Drop the now-empty staging dir.
+      try {
+        await fs.rmdir(stagingDirFs);
+      } catch {
+        // ignore
+      }
+    }
+  } catch (err) {
+    console.warn(
+      `[moveStagingAttachments] move failed for ${stagingClientUuid}:`,
+      err
+    );
+    // Best-effort: pass through original paths so the adapter can still
+    // find the files in the staging dir.
+    return attachmentPaths;
+  }
+
+  // Clean up the now-empty parent `{cabinet?}/_pending/{uuid}/` wrapper.
+  try {
+    const pendingWrapper = path.dirname(stagingDirFs);
+    await fs.rmdir(pendingWrapper);
+  } catch {
+    // ignore — either non-empty (other files) or already gone
+  }
+
+  // Rewrite the virtual paths. The staging segment includes the cabinet
+  // prefix (if any) + `.agents/.conversations/_pending/{uuid}/attachments/`
+  // and gets replaced with `.agents/.conversations/{conversationId}/attachments/`.
+  const stagingSegment = `/.agents/.conversations/_pending/${stagingClientUuid}/attachments/`;
+  const finalSegment = `/.agents/.conversations/${conversationId}/attachments/`;
+  // Handle both cabinet-scoped and root variants (root paths start with the
+  // segment itself without a leading cabinet).
+  const rootStagingPrefix = `.agents/.conversations/_pending/${stagingClientUuid}/attachments/`;
+  const rootFinalPrefix = `.agents/.conversations/${conversationId}/attachments/`;
+
+  return attachmentPaths.map((p) => {
+    if (p.includes(stagingSegment)) {
+      return p.replace(stagingSegment, finalSegment);
+    }
+    if (p.startsWith(rootStagingPrefix)) {
+      return rootFinalPrefix + p.slice(rootStagingPrefix.length);
+    }
+    return p;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Multi-turn extensions (v2)
 //
@@ -1316,6 +1526,12 @@ export async function deleteConversation(id: string, cabinetPath?: string): Prom
 export interface AppendUserTurnInput {
   content: string;
   mentionedPaths?: string[];
+  /**
+   * Composer attachments for this user turn. Persisted on the turn file
+   * frontmatter so the UI can render inline thumbnails when the
+   * conversation is reloaded.
+   */
+  attachmentPaths?: string[];
   ts?: string;
 }
 
@@ -1368,6 +1584,10 @@ async function readTurnOne(
     ts: meta.startedAt,
     content: userContent,
     mentionedPaths: meta.mentionedPaths,
+    attachmentPaths:
+      meta.attachmentPaths && meta.attachmentPaths.length > 0
+        ? meta.attachmentPaths
+        : undefined,
   };
 
   // Turn 1 agent: while the conversation is still running and the daemon
@@ -1662,6 +1882,10 @@ export async function appendUserTurn(
     ts,
     content: input.content,
     mentionedPaths: input.mentionedPaths,
+    attachmentPaths:
+      input.attachmentPaths && input.attachmentPaths.length > 0
+        ? input.attachmentPaths
+        : undefined,
   };
 
   await writeTurnFile(id, cp, turn);

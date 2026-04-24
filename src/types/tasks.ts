@@ -77,6 +77,12 @@ export interface TurnMeta {
   exitCode?: number | null;
   error?: string;
   artifacts?: TurnArtifact[];
+  /**
+   * Virtual paths of files the user attached to this turn via the composer.
+   * Populated on user turns; always empty for agent turns. UI renders these
+   * as inline thumbnails/chips in the turn bubble via `/api/assets/...`.
+   */
+  attachmentPaths?: string[];
 }
 
 export interface Turn extends TurnMeta {

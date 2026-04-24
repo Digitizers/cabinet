@@ -90,6 +90,7 @@ export function conversationTurnToTaskTurn(turn: ConversationTurn): Turn {
     tokens: turn.tokens,
     awaitingInput: turn.awaitingInput,
     pending: turn.pending,
+    attachmentPaths: turn.attachmentPaths,
     artifacts: turn.artifacts?.map(kbArtifact),
   };
 }

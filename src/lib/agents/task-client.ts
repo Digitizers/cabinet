@@ -61,6 +61,7 @@ export async function postTurn(
   id: string,
   input: AppendTurnInput & {
     mentionedPaths?: string[];
+    attachmentPaths?: string[];
     runtime?: ConversationRuntimeOverride;
   },
   cabinetPath?: string
@@ -80,6 +81,7 @@ export async function postTurn(
         userMessage: input.content,
         cabinetPath,
         mentionedPaths: input.mentionedPaths,
+        attachmentPaths: input.attachmentPaths,
         providerId: runtime.providerId,
         adapterType: runtime.adapterType,
         model: runtime.model,

@@ -21,10 +21,12 @@ import {
   extractAgentTurnContent,
   finalizeConversation,
   isCabinetBlockMissing,
+  moveStagingAttachments,
   readConversationMeta,
   readConversationTurns,
   readSession,
   updateAgentTurn,
+  updateConversationPrompt,
   writeConversationMeta,
   writeSession,
 } from "./conversation-store";
@@ -57,6 +59,13 @@ interface StartConversationInput {
   adapterType?: string;
   adapterConfig?: Record<string, unknown>;
   mentionedPaths?: string[];
+  /**
+   * Virtual paths of composer attachments. When `stagingClientUuid` is
+   * also set, these are kickoff-staging paths that get moved into the
+   * conversation dir before the adapter runs.
+   */
+  attachmentPaths?: string[];
+  stagingClientUuid?: string;
   jobId?: string;
   jobName?: string;
   scheduledAt?: string;
@@ -278,6 +287,37 @@ async function buildMentionContext(mentionedPaths: string[]): Promise<string> {
   return `\n\nReferenced pages:\n${valid.join("\n\n")}`;
 }
 
+/**
+ * Convert absolute virtual attachment paths to cwd-relative paths the
+ * adapter can feed to its `Read` tool. The adapter runs with cwd set to
+ * the cabinet dir (or DATA_DIR when there's no cabinet), so we strip the
+ * cabinet prefix when present and fall back to absolute paths otherwise.
+ */
+function buildAttachmentContext(
+  attachmentPaths: string[] | undefined,
+  cabinetPath: string | undefined
+): string {
+  if (!attachmentPaths || attachmentPaths.length === 0) return "";
+
+  const normalizedCabinet = cabinetPath?.replace(/^\/+|\/+$/g, "");
+  const relatives = attachmentPaths.map((p) => {
+    const clean = p.replace(/^\/+/, "");
+    if (normalizedCabinet && clean.startsWith(`${normalizedCabinet}/`)) {
+      return clean.slice(normalizedCabinet.length + 1);
+    }
+    // No cabinet (root) — path is already relative to DATA_DIR which is
+    // the adapter cwd, so pass through.
+    return clean;
+  });
+
+  return [
+    "",
+    "",
+    "Attached files (read with the Read tool; paths are relative to your cwd):",
+    ...relatives.map((rel) => `- ${rel}`),
+  ].join("\n");
+}
+
 export async function buildManualConversationPrompt(input: {
   agentSlug: string;
   userMessage: string;
@@ -455,6 +495,64 @@ export async function startConversationRun(
     scheduledAt: input.scheduledAt,
   });
 
+  // Composer attachments: kickoff turns upload to a staging dir keyed by
+  // `stagingClientUuid`. Move them into the real conversation dir now that
+  // we know `meta.id`, persist the final paths on meta so the synthetic
+  // turn-1 view can render inline thumbnails, then splice an "Attached
+  // files" section into the prompt using cwd-relative paths so the
+  // adapter (e.g. Claude Code) can Read them without knowing Cabinet's
+  // virtual-path layout.
+  let finalPrompt = input.prompt;
+  if (input.attachmentPaths && input.attachmentPaths.length > 0) {
+    let finalAttachmentPaths = input.attachmentPaths;
+    if (input.stagingClientUuid) {
+      try {
+        finalAttachmentPaths = await moveStagingAttachments({
+          stagingClientUuid: input.stagingClientUuid,
+          conversationId: meta.id,
+          cabinetPath: meta.cabinetPath || input.cabinetPath,
+          attachmentPaths: input.attachmentPaths,
+        });
+      } catch (err) {
+        console.warn(
+          `[startConversationRun] attachment staging move failed for ${meta.id}:`,
+          err
+        );
+      }
+    }
+    try {
+      await writeConversationMeta({
+        ...meta,
+        attachmentPaths: finalAttachmentPaths,
+      });
+      meta.attachmentPaths = finalAttachmentPaths;
+    } catch (err) {
+      console.warn(
+        `[startConversationRun] failed to persist attachmentPaths for ${meta.id}:`,
+        err
+      );
+    }
+    const attachmentContext = buildAttachmentContext(
+      finalAttachmentPaths,
+      meta.cabinetPath || input.cabinetPath
+    );
+    if (attachmentContext) {
+      finalPrompt = `${input.prompt}${attachmentContext}`;
+      try {
+        await updateConversationPrompt(
+          meta.id,
+          finalPrompt,
+          meta.cabinetPath || input.cabinetPath
+        );
+      } catch (err) {
+        console.warn(
+          `[startConversationRun] failed to persist attachment-aware prompt for ${meta.id}:`,
+          err
+        );
+      }
+    }
+  }
+
   const skillsSync = requestedSkillSlugs
     ? syncSkillsToTmpdir(meta.id, requestedSkillSlugs)
     : null;
@@ -469,7 +567,7 @@ export async function startConversationRun(
   try {
     await createDaemonSession({
       id: meta.id,
-      prompt: input.prompt,
+      prompt: finalPrompt,
       providerId: resolvedProviderId,
       adapterType: resolvedAdapterType,
       adapterConfig: spawnAdapterConfig,
@@ -796,6 +894,13 @@ export async function startJobConversation(
 export interface ContinueConversationInput {
   userMessage: string;
   mentionedPaths?: string[];
+  /**
+   * Virtual paths of composer attachments for this follow-up turn.
+   * Uploaded directly to `{conversationId}/attachments/` (no staging,
+   * since the conversation already exists) and appended to the
+   * continuation prompt's "Attached files" section.
+   */
+  attachmentPaths?: string[];
   cabinetPath?: string;
   timeoutMs?: number;
   /** Per-turn runtime override. Applied only to this follow-up. */
@@ -1071,11 +1176,16 @@ async function buildContinuationPrompt(options: {
   meta: ConversationMeta;
   userMessage: string;
   mentionedPaths: string[];
+  attachmentPaths?: string[];
   persona: AgentPersona | null;
   baseCwd: string;
   priorTurns: { role: "user" | "agent"; content: string; pending?: boolean }[];
 }): Promise<string> {
   const mentionContext = await buildMentionContext(options.mentionedPaths);
+  const attachmentContext = buildAttachmentContext(
+    options.attachmentPaths,
+    options.meta.cabinetPath
+  );
 
   const canDispatch = resolvePersonaCanDispatch(options.persona);
 
@@ -1089,7 +1199,7 @@ async function buildContinuationPrompt(options: {
       }),
       mentionContext.trim(),
       "",
-      `User follow-up:\n${options.userMessage}`,
+      `User follow-up:\n${options.userMessage}${attachmentContext}`,
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -1113,7 +1223,7 @@ async function buildContinuationPrompt(options: {
     "Prior conversation (for context, do not re-output):",
     serializeTurnHistory(options.priorTurns),
     "",
-    `User follow-up:\n${options.userMessage}${mentionContext}`,
+    `User follow-up:\n${options.userMessage}${mentionContext}${attachmentContext}`,
   ].join("\n");
 }
 
@@ -1131,6 +1241,7 @@ export async function continueConversationRun(
     {
       content: input.userMessage,
       mentionedPaths: input.mentionedPaths,
+      attachmentPaths: input.attachmentPaths,
     },
     cp
   );
@@ -1217,6 +1328,7 @@ export async function continueConversationRun(
           meta,
           userMessage: input.userMessage,
           mentionedPaths: input.mentionedPaths || [],
+          attachmentPaths: input.attachmentPaths,
           persona: legacyPersona,
           baseCwd: legacyBaseCwd,
           priorTurns,
@@ -1307,6 +1419,7 @@ export async function continueConversationRun(
     meta,
     userMessage: input.userMessage,
     mentionedPaths: input.mentionedPaths || [],
+    attachmentPaths: input.attachmentPaths,
     persona,
     baseCwd,
     priorTurns: allTurnsForReplay,
@@ -1318,6 +1431,7 @@ export async function continueConversationRun(
         meta,
         userMessage: input.userMessage,
         mentionedPaths: input.mentionedPaths || [],
+        attachmentPaths: input.attachmentPaths,
         persona,
         baseCwd,
         priorTurns: [],

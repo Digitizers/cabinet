@@ -77,6 +77,7 @@ import type { AgentListItem, ProviderInfo } from "@/types/agents";
 import { flattenTree } from "@/lib/tree-utils";
 import { DepthDropdown } from "@/components/cabinets/depth-dropdown";
 import { ComposerInput } from "@/components/composer/composer-input";
+import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
 import {
   TaskRuntimePicker,
   type TaskRuntimeSelection,
@@ -533,14 +534,34 @@ export function AgentsWorkspace({
 
   // Shared composer hook for agent workspace panel and quick-send popup
   const submitTargetRef = useRef<string>("editor");
+  const stagingClientUuid = useMemo(
+    () =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `c-${Date.now()}`,
+    []
+  );
+  const attachments = useComposerAttachments({
+    cabinetPath: effectiveCabinetPath,
+    clientAttachmentId: stagingClientUuid,
+  });
   const composer = useComposer({
     items: mentionItems,
-    onSubmit: async ({ message, mentionedPaths: paths }) => {
+    attachments,
+    stagingClientUuid,
+    onSubmit: async ({
+      message,
+      mentionedPaths: paths,
+      attachmentPaths,
+      stagingClientUuid: turnStagingUuid,
+    }) => {
       const targetAgentSlug = submitTargetRef.current;
       const data = await createConversation({
         agentSlug: targetAgentSlug,
         userMessage: message,
         mentionedPaths: paths,
+        attachmentPaths,
+        stagingClientUuid: turnStagingUuid,
         cabinetPath: effectiveCabinetPath,
         ...taskRuntime,
       });
@@ -2167,6 +2188,7 @@ export function AgentsWorkspace({
     return (
       <ComposerInput
         composer={composer}
+        attachments={attachments}
         placeholder={`Ask ${panelAgent?.name || agentSlug} to work on something. Type @ to mention pages or agents.`}
         submitLabel="Start"
         variant="card"
@@ -3978,6 +4000,7 @@ export function AgentsWorkspace({
             <div className="relative z-10 w-full max-w-xl">
               <ComposerInput
                 composer={composer}
+                attachments={attachments}
                 placeholder={`Ask ${targetAgent?.name || quickSendAgent} to work on something. Type @ to mention pages or agents.`}
                 submitLabel="Send"
                 variant="card"

@@ -6,6 +6,7 @@ import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
 interface ContinueBody {
   userMessage?: string;
   mentionedPaths?: string[];
+  attachmentPaths?: string[];
   cabinetPath?: string;
   providerId?: string;
   adapterType?: string;
@@ -53,6 +54,9 @@ export async function POST(
   const mentionedPaths = Array.isArray(body.mentionedPaths)
     ? body.mentionedPaths.filter((v): v is string => typeof v === "string")
     : [];
+  const attachmentPaths = Array.isArray(body.attachmentPaths)
+    ? body.attachmentPaths.filter((v): v is string => typeof v === "string")
+    : [];
 
   // Runtime override: users can switch provider/model/effort per turn.
   // Normalization (legacy-adapter swap, model/effort stripping in terminal
@@ -80,6 +84,7 @@ export async function POST(
   void continueConversationRun(id, {
     userMessage,
     mentionedPaths,
+    attachmentPaths,
     cabinetPath: existing.cabinetPath ?? cabinetPath,
     providerId: runtime.providerId,
     adapterType: runtime.adapterType,

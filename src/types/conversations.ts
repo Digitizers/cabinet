@@ -63,6 +63,11 @@ export interface ConversationTurn {
   exitCode?: number | null;
   error?: string;
   mentionedPaths?: string[];
+  /**
+   * Composer attachments for this user turn. Virtual paths under DATA_DIR;
+   * typically `{cabinet?}/.agents/.conversations/{id}/attachments/{file}`.
+   */
+  attachmentPaths?: string[];
   artifacts?: string[];
 }
 
@@ -109,6 +114,13 @@ export interface ConversationMeta {
   promptPath: string;
   transcriptPath: string;
   mentionedPaths: string[];
+  /**
+   * Composer attachments carried on the kickoff (turn-1) user message.
+   * Continuation turns store their own attachments on the turn file; this
+   * field just backs the synthetic turn-1 render. Virtual paths under
+   * DATA_DIR.
+   */
+  attachmentPaths?: string[];
   artifactPaths: string[];
   summary?: string;
   contextSummary?: string;
@@ -191,6 +203,19 @@ export interface CreateConversationRequest extends ConversationRuntimeOverride {
   agentSlug?: string;
   userMessage: string;
   mentionedPaths?: string[];
+  /**
+   * Virtual paths of files the user attached to the composer. During
+   * kickoff these sit under `.agents/.conversations/_pending/{stagingClientUuid}/attachments/`;
+   * the server moves them to the newly-created conversation's dir and
+   * rewrites the paths before building the adapter prompt.
+   */
+  attachmentPaths?: string[];
+  /**
+   * Client-generated UUID identifying the composer's staging dir. Only
+   * set for kickoff turns that carry attachments; continuation turns
+   * upload straight to the conversation dir and leave this undefined.
+   */
+  stagingClientUuid?: string;
   cabinetPath?: string;
   pagePath?: string;
 }

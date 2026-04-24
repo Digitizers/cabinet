@@ -12,6 +12,7 @@ import {
   type StartWorkMode,
 } from "@/components/composer/start-work-dialog";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
+import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
 import { cn } from "@/lib/utils";
 import type { ConversationRuntimeOverride } from "@/types/conversations";
 
@@ -52,9 +53,16 @@ export interface TaskComposerPanelProps {
    * adapterType/model/effort so the chip reflects what produced the last turn.
    */
   initialRuntime?: TaskRuntimeSelection;
+  /**
+   * Cabinet + conversation IDs so attachments upload directly to the
+   * conversation's attachments dir (no staging needed on continuation turns).
+   */
+  cabinetPath?: string;
+  conversationId?: string;
   onSend: (payload: {
     text: string;
     mentionedPaths: string[];
+    attachmentPaths: string[];
     runtime: ConversationRuntimeOverride;
   }) => void | Promise<void>;
   /**
@@ -82,6 +90,8 @@ export interface TaskComposerPanelProps {
 export function TaskComposerPanel({
   awaitingInput,
   initialRuntime,
+  cabinetPath,
+  conversationId,
   onSend,
   mentionableItems,
   autoLoadMentions = true,
@@ -138,13 +148,16 @@ export function TaskComposerPanel({
     async ({
       message,
       mentionedPaths,
+      attachmentPaths,
     }: {
       message: string;
       mentionedPaths: string[];
+      attachmentPaths: string[];
     }) => {
       await onSend({
         text: message,
         mentionedPaths,
+        attachmentPaths,
         runtime: {
           providerId: effectiveRuntime.providerId,
           adapterType: effectiveRuntime.adapterType,
@@ -160,10 +173,28 @@ export function TaskComposerPanel({
     [onSend, effectiveRuntime]
   );
 
+  // Continuation turns upload directly into the existing conversation's
+  // attachments dir — no staging needed. When conversationId is missing
+  // (shouldn't happen for this surface), fall back to a stable random id
+  // so the hook's staging path is well-formed.
+  const clientAttachmentId = useMemo(
+    () =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `c-${Date.now()}`,
+    []
+  );
+  const attachments = useComposerAttachments({
+    cabinetPath,
+    conversationId,
+    clientAttachmentId,
+  });
+
   const composer = useComposer({
     items,
     onSubmit: handleSubmit,
     disabled,
+    attachments,
   });
 
   return (
@@ -196,6 +227,7 @@ export function TaskComposerPanel({
       <ComposerInput
         composer={composer}
         items={items}
+        attachments={attachments}
         placeholder={
           awaitingInput ? "Reply to the agent…" : "Continue the conversation…"
         }

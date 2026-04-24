@@ -115,6 +115,7 @@ export function deserializeTurn(
     exitCode: data.exitCode,
     error: data.error,
     mentionedPaths: data.mentionedPaths,
+    attachmentPaths: data.attachmentPaths,
     artifacts: data.artifacts,
   };
 }

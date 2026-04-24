@@ -651,6 +651,7 @@ export function TaskConversationPage({
     async (payload: {
       text: string;
       mentionedPaths: string[];
+      attachmentPaths: string[];
       runtime: {
         providerId?: string;
         adapterType?: string;
@@ -723,6 +724,7 @@ export function TaskConversationPage({
             role: "user",
             content: payload.text,
             mentionedPaths: payload.mentionedPaths,
+            attachmentPaths: payload.attachmentPaths,
             runtime: payload.runtime,
           },
           task.meta.cabinetPath
@@ -1548,6 +1550,8 @@ export function TaskConversationPage({
                     <div className="[&_textarea]:bg-zinc-900 [&_textarea]:text-zinc-100 [&_textarea]:placeholder:text-zinc-500 [&_textarea]:border-zinc-800 [&_*]:!text-zinc-100">
                       <TaskComposerPanel
                         awaitingInput={task.meta.status === "awaiting-input"}
+                        cabinetPath={task.meta.cabinetPath}
+                        conversationId={task.meta.id}
                         onSend={handleSend}
                         onScheduleHandoff={openScheduleHandoff}
                         initialRuntime={{
@@ -1637,6 +1641,8 @@ export function TaskConversationPage({
               <div className="mx-auto w-full max-w-3xl">
                 <TaskComposerPanel
                   awaitingInput={task.meta.status === "awaiting-input"}
+                  cabinetPath={task.meta.cabinetPath}
+                  conversationId={task.meta.id}
                   onSend={handleSend}
                   onScheduleHandoff={openScheduleHandoff}
                   initialRuntime={{

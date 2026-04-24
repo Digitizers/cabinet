@@ -8,6 +8,11 @@ interface MentionChipsProps {
   mentionedAgents: string[];
   items: MentionableItem[];
   onRemove: (type: "page" | "agent", id: string) => void;
+  /**
+   * When true, render chips without the outer padded container so they can
+   * share a row with other chip types (attachments, etc.).
+   */
+  inline?: boolean;
 }
 
 export function MentionChips({
@@ -15,6 +20,7 @@ export function MentionChips({
   mentionedAgents,
   items,
   onRemove,
+  inline = false,
 }: MentionChipsProps) {
   if (mentionedPaths.length === 0 && mentionedAgents.length === 0) return null;
 
@@ -24,8 +30,8 @@ export function MentionChips({
   const findIcon = (slug: string) =>
     items.find((i) => i.type === "agent" && i.id === slug)?.icon;
 
-  return (
-    <div className="flex flex-wrap gap-2 px-4 pb-2">
+  const chips = (
+    <>
       {mentionedAgents.map((slug) => (
         <span
           key={`agent-${slug}`}
@@ -60,6 +66,9 @@ export function MentionChips({
           </button>
         </span>
       ))}
-    </div>
+    </>
   );
+
+  if (inline) return chips;
+  return <div className="flex flex-wrap gap-2 px-4 pb-2">{chips}</div>;
 }

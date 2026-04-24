@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
@@ -19,6 +19,7 @@ import {
   type StartWorkMode,
 } from "@/components/composer/start-work-dialog";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
+import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import {
   Dialog,
@@ -342,9 +343,31 @@ export function HomeScreen() {
     })),
   ];
 
+  const stagingClientUuid = useMemo(
+    () =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `c-${Date.now()}`,
+    []
+  );
+  const attachments = useComposerAttachments({
+    // Home-screen has no cabinet context — attachments land at the root
+    // cabinet (data/.agents/.conversations/_pending/...).
+    cabinetPath: undefined,
+    clientAttachmentId: stagingClientUuid,
+  });
+
   const composer = useComposer({
     items: mentionItems,
-    onSubmit: async ({ message, mentionedPaths, mentionedAgents }) => {
+    attachments,
+    stagingClientUuid,
+    onSubmit: async ({
+      message,
+      mentionedPaths,
+      mentionedAgents,
+      attachmentPaths,
+      stagingClientUuid: turnStagingUuid,
+    }) => {
       const targetAgent =
         mentionedAgents.length > 0 ? mentionedAgents[0] : "editor";
 
@@ -352,6 +375,8 @@ export function HomeScreen() {
         agentSlug: targetAgent,
         userMessage: message,
         mentionedPaths,
+        attachmentPaths,
+        stagingClientUuid: turnStagingUuid,
         ...taskRuntime,
       });
       setSection({
@@ -378,6 +403,7 @@ export function HomeScreen() {
           placeholder="I want to create..."
           variant="card"
           items={mentionItems}
+          attachments={attachments}
           autoFocus
           className="w-full"
           minHeight="44px"

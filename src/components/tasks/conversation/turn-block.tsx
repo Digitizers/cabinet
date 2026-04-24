@@ -14,6 +14,7 @@ import { useTreeStore } from "@/stores/tree-store";
 import { cn } from "@/lib/utils";
 import type { Turn } from "@/types/tasks";
 import { Markdown } from "./markdown";
+import { TurnAttachments } from "./turn-attachments";
 import { ConversationContentViewer } from "@/components/agents/conversation-content-viewer";
 import {
   AgentAvatar,
@@ -268,6 +269,10 @@ export function TurnBlock({
           />
         ) : turn.content.trim() ? (
           <ConversationContentViewer text={turn.content} />
+        ) : null}
+
+        {isUser && turn.attachmentPaths && turn.attachmentPaths.length > 0 ? (
+          <TurnAttachments paths={turn.attachmentPaths} />
         ) : null}
 
         {!isUser && turn.pending ? <PendingIndicator /> : null}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo } from "react";
+import type { UseComposerAttachmentsReturn } from "@/components/composer/use-composer-attachments";
 
 export interface MentionableItem {
   type: "page" | "agent";
@@ -14,6 +15,8 @@ export interface ComposerPayload {
   message: string;
   mentionedPaths: string[];
   mentionedAgents: string[];
+  attachmentPaths: string[];
+  stagingClientUuid?: string;
 }
 
 export interface MentionInsertBehavior {
@@ -27,6 +30,8 @@ export interface UseComposerOptions {
   disabled?: boolean;
   initialMentionedAgents?: string[];
   getMentionInsertBehavior?: (item: MentionableItem) => MentionInsertBehavior | void;
+  attachments?: UseComposerAttachmentsReturn;
+  stagingClientUuid?: string;
 }
 
 export interface UseComposerReturn {
@@ -52,6 +57,8 @@ export function useComposer({
   disabled = false,
   initialMentionedAgents,
   getMentionInsertBehavior,
+  attachments,
+  stagingClientUuid,
 }: UseComposerOptions): UseComposerReturn {
   const initialAgentsRef = useRef(initialMentionedAgents ?? []);
   const [input, setInput] = useState("");
@@ -182,21 +189,41 @@ export function useComposer({
     setMentionQuery("");
     setMentionIndex(0);
     setSubmitting(false);
-  }, []);
+    attachments?.clear();
+  }, [attachments]);
 
   const submit = useCallback(async (directMessage?: string) => {
     const msg = directMessage?.trim() || input.trim();
     if (!msg || disabled || submitting) return;
+    if (attachments?.isUploading) return;
 
     const paths = [...mentionedPaths];
     const agents = [...mentionedAgents];
+    const attachmentPaths = attachments
+      ? attachments.ready
+          .map((a) => a.virtualPath)
+          .filter((p): p is string => typeof p === "string")
+      : [];
+    const isStagingKickoff =
+      !!attachments && attachments.targetDir.includes("/_pending/");
+    const kickoffStagingUuid =
+      isStagingKickoff && attachmentPaths.length > 0
+        ? stagingClientUuid
+        : undefined;
 
     setSubmitting(true);
     try {
-      await onSubmit({ message: msg, mentionedPaths: paths, mentionedAgents: agents });
+      await onSubmit({
+        message: msg,
+        mentionedPaths: paths,
+        mentionedAgents: agents,
+        attachmentPaths,
+        stagingClientUuid: kickoffStagingUuid,
+      });
       setInput("");
       setMentionedPaths([]);
       setMentionedAgents(initialAgentsRef.current);
+      attachments?.clear();
     } catch {
       // Restore input on failure
       setInput(msg);
@@ -205,7 +232,7 @@ export function useComposer({
     } finally {
       setSubmitting(false);
     }
-  }, [input, disabled, submitting, mentionedPaths, mentionedAgents, onSubmit]);
+  }, [input, disabled, submitting, mentionedPaths, mentionedAgents, onSubmit, attachments, stagingClientUuid]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

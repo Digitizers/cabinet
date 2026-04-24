@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
+import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
 import { createConversation } from "@/lib/agents/conversation-client";
 import { flattenTree } from "@/lib/tree-utils";
 import { useTreeStore } from "@/stores/tree-store";
@@ -91,9 +92,25 @@ export function CabinetTaskComposer({
     [assignableAgents, pages]
   );
 
+  const stagingClientUuid = useMemo(
+    () =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `c-${Date.now()}`,
+    []
+  );
+  const attachmentsCabinetPath =
+    selectedAgent?.cabinetPath || cabinetPath;
+  const attachments = useComposerAttachments({
+    cabinetPath: attachmentsCabinetPath,
+    clientAttachmentId: stagingClientUuid,
+  });
+
   const composer = useComposer({
     items: mentionItems,
     disabled: !selectedAgent,
+    attachments,
+    stagingClientUuid,
     getMentionInsertBehavior: (item) => {
       if (item.type !== "agent") return;
       const nextAgent =
@@ -106,13 +123,20 @@ export function CabinetTaskComposer({
         trackMention: false,
       };
     },
-    onSubmit: async ({ message, mentionedPaths }) => {
+    onSubmit: async ({
+      message,
+      mentionedPaths,
+      attachmentPaths,
+      stagingClientUuid: turnStagingUuid,
+    }) => {
       if (!selectedAgent) return;
       const agentCabinetPath = selectedAgent.cabinetPath || cabinetPath;
       const data = await createConversation({
         agentSlug: selectedAgent.slug,
         userMessage: message,
         mentionedPaths,
+        attachmentPaths,
+        stagingClientUuid: turnStagingUuid,
         cabinetPath: agentCabinetPath,
         ...taskRuntime,
       });
@@ -156,6 +180,7 @@ export function CabinetTaskComposer({
         placeholder={placeholder}
         submitLabel="Start"
         items={mentionItems}
+        attachments={attachments}
         minHeight="72px"
         maxHeight="220px"
         className="w-full"

@@ -37,6 +37,7 @@ import {
 import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
 import {
   appendConversationTranscript,
+  cleanupStaleStagingAttachments,
   finalizeConversation,
   listConversationMetas,
   readConversationMeta,
@@ -1701,6 +1702,24 @@ server.listen(PORT, () => {
 
   void reloadSchedules();
   void cleanupStaleRunningConversations();
+  // Sweep composer-attachment staging dirs that were abandoned (paste
+  // without send). Runs once on boot, then daily.
+  void cleanupStaleStagingAttachments().then((r) => {
+    if (r.removed > 0) {
+      console.log(
+        `[staging-attachments] cleaned ${r.removed}/${r.scanned} stale dirs on boot`
+      );
+    }
+  });
+  cron.schedule("17 3 * * *", () => {
+    void cleanupStaleStagingAttachments().then((r) => {
+      if (r.removed > 0) {
+        console.log(
+          `[staging-attachments] daily sweep: removed ${r.removed}/${r.scanned}`
+        );
+      }
+    });
+  });
   void bootstrapSearchIndex().then(() => startSearchWatcher());
   void (async () => {
     try {

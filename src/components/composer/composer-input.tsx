@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MentionDropdown } from "./mention-dropdown";
 import { MentionChips } from "./mention-chips";
+import { AttachmentChips } from "./attachment-chips";
+import { AttachmentPickerButton } from "./attachment-picker-button";
+import type { UseComposerAttachmentsReturn } from "./use-composer-attachments";
 import type { UseComposerReturn, MentionableItem } from "@/hooks/use-composer";
 
 export interface ComposerInputProps {
@@ -52,6 +55,12 @@ export interface ComposerInputProps {
    * space from the textarea.
    */
   topRightOverlay?: React.ReactNode;
+  /**
+   * When provided, renders paperclip button + drag/drop + paste handlers
+   * and displays attachment chips alongside mentions. Omit to disable
+   * attachments entirely on a surface.
+   */
+  attachments?: UseComposerAttachmentsReturn;
 }
 
 export function ComposerInput({
@@ -75,6 +84,7 @@ export function ComposerInput({
   textareaClassName,
   focusTint,
   topRightOverlay,
+  attachments,
 }: ComposerInputProps) {
   useEffect(() => {
     if (autoFocus) {
@@ -82,8 +92,51 @@ export function ComposerInput({
     }
   }, [autoFocus]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isDisabled = disabled || composer.submitting;
   const [cardFocused, setCardFocused] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const isUploading = attachments?.isUploading ?? false;
+  const isDisabled = disabled || composer.submitting;
+  const sendDisabled =
+    isDisabled || !composer.input.trim() || isUploading;
+  const attachmentsEnabled = !!attachments && attachments.enabled;
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!attachmentsEnabled) return;
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!attachmentsEnabled) return;
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!attachmentsEnabled) return;
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) {
+      setIsDragging(false);
+      return;
+    }
+    e.preventDefault();
+    attachments?.addFiles(e.dataTransfer.files);
+    setIsDragging(false);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!attachmentsEnabled) return;
+    const files = e.clipboardData?.files;
+    if (!files || files.length === 0) return;
+    e.preventDefault();
+    attachments?.addFiles(files);
+  };
+
+  const hasChips =
+    composer.mentions.paths.length > 0 ||
+    composer.mentions.agents.length > 0 ||
+    (attachments?.attachments.length ?? 0) > 0;
 
   return (
     <div className={cn("relative flex flex-col", className)}>
@@ -92,7 +145,8 @@ export function ComposerInput({
           "relative flex flex-col",
           variant === "card" && "rounded-2xl border border-border bg-card",
           focusTint && "transition-all",
-          focusTint && cardFocused && "shadow-sm"
+          focusTint && cardFocused && "shadow-sm",
+          isDragging && "ring-2 ring-primary/60 ring-offset-0"
         )}
         style={
           focusTint && cardFocused
@@ -112,6 +166,9 @@ export function ComposerInput({
               }
             : undefined
         }
+        onDragOver={attachmentsEnabled ? handleDragOver : undefined}
+        onDragLeave={attachmentsEnabled ? handleDragLeave : undefined}
+        onDrop={attachmentsEnabled ? handleDrop : undefined}
       >
         {topRightOverlay ? (
           <div className="absolute right-3 top-3 z-10">
@@ -132,6 +189,7 @@ export function ComposerInput({
             ref={composer.textareaRef}
             value={composer.input}
             onChange={composer.handleChange}
+            onPaste={attachmentsEnabled ? handlePaste : undefined}
             onKeyDown={(e) => {
               if (onKeyDown) {
                 onKeyDown(e);
@@ -150,21 +208,38 @@ export function ComposerInput({
           />
         </div>
 
-        <MentionChips
-          mentionedPaths={composer.mentions.paths}
-          mentionedAgents={composer.mentions.agents}
-          items={items}
-          onRemove={composer.removeMention}
-        />
+        {hasChips ? (
+          <div className="flex flex-wrap gap-2 px-4 pb-2">
+            <MentionChips
+              mentionedPaths={composer.mentions.paths}
+              mentionedAgents={composer.mentions.agents}
+              items={items}
+              onRemove={composer.removeMention}
+              inline
+            />
+            {attachments ? (
+              <AttachmentChips
+                attachments={attachments.attachments}
+                onRemove={attachments.remove}
+              />
+            ) : null}
+          </div>
+        ) : null}
 
         <div
           className={cn(
             "flex items-center gap-2 px-4 pb-3",
-            actionsStart ? "justify-between" : "justify-end"
+            actionsStart || attachmentsEnabled ? "justify-between" : "justify-end"
           )}
         >
-          {actionsStart ? (
+          {(actionsStart || attachmentsEnabled) ? (
             <div className="flex items-center gap-2 flex-wrap">
+              {attachmentsEnabled ? (
+                <AttachmentPickerButton
+                  onPick={(files) => attachments?.addFiles(files)}
+                  disabled={isDisabled}
+                />
+              ) : null}
               {actionsStart}
             </div>
           ) : null}
@@ -179,7 +254,7 @@ export function ComposerInput({
                 variant="outline"
                 className="h-8 gap-2 text-xs"
                 onClick={secondaryAction.onClick}
-                disabled={isDisabled || !composer.input.trim() || secondaryAction.disabled}
+                disabled={isDisabled || !composer.input.trim() || secondaryAction.disabled || isUploading}
               >
                 {secondaryAction.loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -192,7 +267,8 @@ export function ComposerInput({
             <Button
               className="h-8 gap-2 text-xs"
               onClick={() => void composer.submit()}
-              disabled={isDisabled || !composer.input.trim()}
+              disabled={sendDisabled}
+              title={isUploading ? "Uploading attachments…" : undefined}
             >
               {composer.submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -203,6 +279,14 @@ export function ComposerInput({
             </Button>
           </div>
         </div>
+
+        {isDragging ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-primary/5">
+            <span className="rounded-full border border-primary/40 bg-background px-3 py-1 text-xs text-primary shadow-sm">
+              Drop to attach
+            </span>
+          </div>
+        ) : null}
 
         {footer}
       </div>

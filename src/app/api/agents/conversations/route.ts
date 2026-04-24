@@ -88,6 +88,15 @@ export async function POST(req: NextRequest) {
     const mentionedPaths = Array.isArray(body.mentionedPaths)
       ? body.mentionedPaths.filter((value: unknown): value is string => typeof value === "string")
       : [];
+    const attachmentPaths = Array.isArray(body.attachmentPaths)
+      ? body.attachmentPaths.filter(
+          (value: unknown): value is string => typeof value === "string"
+        )
+      : [];
+    const stagingClientUuid =
+      typeof body.stagingClientUuid === "string" && body.stagingClientUuid.trim()
+        ? body.stagingClientUuid.trim()
+        : undefined;
     const pagePath =
       typeof body.pagePath === "string" && body.pagePath.trim()
         ? body.pagePath.trim()
@@ -161,6 +170,8 @@ export async function POST(req: NextRequest) {
         "mentionedPaths" in conversationInput
           ? conversationInput.mentionedPaths
           : mentionedPaths,
+      attachmentPaths,
+      stagingClientUuid,
       cwd: conversationInput.cwd,
       cabinetPath: conversationCabinetPath,
       onComplete: async (completion) => {

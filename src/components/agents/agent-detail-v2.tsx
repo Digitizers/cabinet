@@ -86,6 +86,7 @@ import {
 } from "@/components/composer/start-work-dialog";
 import { ComposerInput } from "@/components/composer/composer-input";
 import { useComposer } from "@/hooks/use-composer";
+import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { editorExtensions } from "@/components/editor/extensions";
 import { markdownToHtml } from "@/lib/markdown/to-html";
@@ -922,7 +923,11 @@ function Composer({
   onScheduleHandoff,
 }: {
   persona: AgentPersona;
-  onSubmit: (message: string, runtime: TaskRuntimeSelection) => void;
+  onSubmit: (
+    message: string,
+    runtime: TaskRuntimeSelection,
+    extras: { attachmentPaths: string[]; stagingClientUuid?: string }
+  ) => void;
   submitting: boolean;
   onScheduleHandoff?: (
     mode: Exclude<StartWorkMode, "now">,
@@ -954,10 +959,31 @@ function Composer({
 
   const name = getAgentDisplayName(persona) || persona.name;
 
+  const stagingClientUuid = useMemo(
+    () =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `c-${Date.now()}`,
+    []
+  );
+  const attachments = useComposerAttachments({
+    cabinetPath: persona.cabinetPath,
+    clientAttachmentId: stagingClientUuid,
+  });
+
   const composer = useComposer({
     items: [],
-    onSubmit: async ({ message }) => {
-      onSubmit(message, runtime);
+    attachments,
+    stagingClientUuid,
+    onSubmit: async ({
+      message,
+      attachmentPaths,
+      stagingClientUuid: turnStagingUuid,
+    }) => {
+      onSubmit(message, runtime, {
+        attachmentPaths,
+        stagingClientUuid: turnStagingUuid,
+      });
     },
     disabled: submitting,
   });
@@ -966,6 +992,7 @@ function Composer({
     <div className="px-6 pb-5">
       <ComposerInput
         composer={composer}
+        attachments={attachments}
         placeholder={`Ask ${name} something…`}
         submitLabel="Send"
         variant="card"
@@ -1962,7 +1989,11 @@ export function AgentDetailV2({
   }, [refresh]);
 
   const handleComposerSubmit = useCallback(
-    async (message: string, runtime: TaskRuntimeSelection) => {
+    async (
+      message: string,
+      runtime: TaskRuntimeSelection,
+      extras: { attachmentPaths: string[]; stagingClientUuid?: string }
+    ) => {
       if (!persona) return;
       setSubmitting(true);
       try {
@@ -1978,6 +2009,8 @@ export function AgentDetailV2({
             adapterType: runtime.adapterType,
             model: runtime.model,
             effort: runtime.effort,
+            attachmentPaths: extras.attachmentPaths,
+            stagingClientUuid: extras.stagingClientUuid,
           }),
         });
         if (res.ok) {
