@@ -6,11 +6,9 @@ import {
   ArrowLeft,
   ArrowRightLeft,
   Bot,
-  Check,
   ChevronDown,
   Clock3,
   HeartPulse,
-  Layers,
   Loader2,
   Plus,
   Repeat,
@@ -58,7 +56,7 @@ import { TaskCard } from "./task-card";
 import { CARD_DROP_PREFIX } from "./dnd-keys";
 import { deriveLane, laneSort, type LaneKey } from "./lane-rules";
 import { BoardSkeleton } from "./board-skeletons";
-import { CABINET_VISIBILITY_OPTIONS } from "@/lib/cabinets/visibility";
+import { DepthDropdown } from "@/components/cabinets/depth-dropdown";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { useAppStore } from "@/stores/app-store";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
@@ -579,52 +577,6 @@ export function TasksBoardV2({
     </div>
   );
 }
-// touch 1776619357
-
-function DepthDropdown({
-  mode,
-  onChange,
-}: {
-  mode: CabinetVisibilityMode;
-  onChange: (mode: CabinetVisibilityMode) => void;
-}) {
-  const current =
-    CABINET_VISIBILITY_OPTIONS.find((o) => o.value === mode) ??
-    CABINET_VISIBILITY_OPTIONS[0];
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-        title={current.label}
-      >
-        <Layers className="size-3.5" />
-        <span className="tabular-nums">{current.shortLabel}</span>
-        <ChevronDown className="size-3 opacity-60" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[220px]">
-        {CABINET_VISIBILITY_OPTIONS.map((opt) => {
-          const active = opt.value === mode;
-          return (
-            <DropdownMenuItem
-              key={opt.value}
-              onClick={() => onChange(opt.value)}
-              className="flex items-center justify-between gap-3 py-1.5"
-            >
-              <span className="flex items-center gap-2">
-                <span className="inline-flex w-6 shrink-0 justify-center text-[11px] font-semibold tabular-nums text-muted-foreground">
-                  {opt.shortLabel}
-                </span>
-                <span className="text-[12.5px]">{opt.label}</span>
-              </span>
-              {active && <Check className="size-3.5 text-primary" />}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 function NewWorkButton({
   onCreate,
 }: {

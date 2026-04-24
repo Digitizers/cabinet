@@ -52,20 +52,9 @@ import {
   findRootCabinetNode,
 } from "@/lib/cabinets/tree";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
-import {
-  cabinetVisibilityModeLabel,
-  CABINET_VISIBILITY_OPTIONS,
-} from "@/lib/cabinets/visibility";
 import { getDataDir } from "@/lib/data-dir-cache";
-import type { CabinetOverview, CabinetVisibilityMode } from "@/types/cabinets";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import type { CabinetOverview } from "@/types/cabinets";
+import { DepthDropdown } from "@/components/cabinets/depth-dropdown";
 
 interface AgentSummary {
   scopedId?: string;
@@ -451,38 +440,14 @@ export function TreeView() {
           </ContextMenuContent>
           </ContextMenu>
 
-          <Select
-            items={CABINET_VISIBILITY_OPTIONS.map((opt) => ({
-              label: opt.shortLabel,
-              value: opt.value,
-            }))}
-            value={cabinetVisibilityMode}
-            onValueChange={(value) =>
-              setCabinetVisibilityMode(
-                effectiveCabinetPath,
-                value as CabinetVisibilityMode
-              )
+          <DepthDropdown
+            mode={cabinetVisibilityMode}
+            onChange={(mode) =>
+              setCabinetVisibilityMode(effectiveCabinetPath, mode)
             }
-          >
-            <SelectTrigger
-              size="sm"
-              className="ml-auto h-5 min-w-0 w-auto gap-0.5 rounded border-none bg-transparent px-1.5 py-0 text-[9px] font-medium uppercase tracking-wide text-muted-foreground/70 shadow-none hover:text-foreground/80 focus-visible:ring-0"
-            >
-              <SelectValue placeholder="Own" />
-            </SelectTrigger>
-            <SelectContent align="end" className="min-w-[200px]">
-              <SelectGroup>
-                {CABINET_VISIBILITY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <span className="font-medium">{opt.shortLabel}</span>
-                    <span className="ml-1.5 text-xs text-muted-foreground">
-                      {opt.label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+            compact
+            className="ml-auto"
+          />
         </div>
 
         {cabinetExpanded && (
