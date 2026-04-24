@@ -1155,3 +1155,5 @@
 [2026-04-24] Refined Agents slide tagline to 'Your AI agents get the work done — 24/7. Go rest.'
 [2026-04-24] Finalized Agents slide tagline to 'Go be human. They'll handle the rest.'
 [2026-04-24] Extended Agents slide tagline to 'Your AI agents get the work done, 24/7. Go be human — they'll handle the rest.'
+[2026-04-24] Rewrote the first-load breaking-changes warning dialog (`src/components/layout/breaking-changes-warning.tsx`) to cover data-safety and liability: removed the "come back in a few hours" line and added language about elevated agent permissions (`--dangerously-skip-permissions`), third-party AI provider data handling, a back-up-your-data advisory, and an "as is / no warranty" disclaimer. Bumped ack key to `v2` so existing users re-acknowledge, widened the dialog, and changed the CTA to "I understand — continue".
+[2026-04-24] Removed all em dashes from `src/components/layout/breaking-changes-warning.tsx` (title, body copy, CTA, and SSR comment) per style preference; replaced with colons, commas, or periods as appropriate.

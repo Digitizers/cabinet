@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-const STORAGE_KEY = "cabinet.breaking-changes-warning-ack:v1";
+const STORAGE_KEY = "cabinet.breaking-changes-warning-ack:v2";
 
 export function BreakingChangesWarning() {
   const [open, setOpen] = useState(false);
@@ -19,7 +19,7 @@ export function BreakingChangesWarning() {
     try {
       if (!localStorage.getItem(STORAGE_KEY)) setOpen(true);
     } catch {
-      // localStorage unavailable (private mode, SSR) — skip silently
+      // localStorage unavailable (private mode, SSR); skip silently
     }
   }, []);
 
@@ -34,27 +34,46 @@ export function BreakingChangesWarning() {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) acknowledge(); }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
-            Heads up — Cabinet is in active development
+            Heads up: Cabinet is in active development
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Cabinet is currently going through breaking changes. If you&apos;re
-            seeing this message, you&apos;re probably on the most recent
-            development branch — we recommend coming back in a few hours for
-            the best experience.
+            Cabinet is open-source software under active development and may
+            introduce breaking changes without notice. You are running it at
+            your own risk.
+          </p>
+          <p>
+            Cabinet orchestrates third-party AI agents (Claude Code, Codex,
+            Cursor, and others) and by design runs them with elevated
+            permissions (e.g. <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">--dangerously-skip-permissions</code>)
+            so they can read, modify, and delete files in your knowledge base
+            and linked repositories. Agents can make mistakes, and the data
+            you send to AI providers is governed by their terms, not ours.
+          </p>
+          <p>
+            <strong className="text-foreground">Please back up anything you care about.</strong>{" "}
+            If you&apos;re not comfortable with autonomous agents touching
+            your files, or you&apos;re not keeping your own copies of
+            important data, Cabinet may not be for you yet.
+          </p>
+          <p className="text-xs">
+            Cabinet is provided &ldquo;as is&rdquo;, without warranty of any
+            kind. The maintainers and contributors accept no liability for
+            data loss, corruption, leakage, or any other harm arising from
+            your use of Cabinet or the AI providers it integrates with.
           </p>
           <p className="flex items-center gap-1.5">
-            This is a community project and we&apos;d really appreciate your
-            patience <Heart className="h-3.5 w-3.5 inline text-rose-500" fill="currentColor" />
+            Thanks for being here. Community patience keeps this project
+            moving <Heart className="h-3.5 w-3.5 inline text-rose-500" fill="currentColor" />
           </p>
         </div>
         <div className="flex justify-end pt-2">
-          <Button onClick={acknowledge}>Got it</Button>
+          <Button onClick={acknowledge}>I understand, continue</Button>
         </div>
       </DialogContent>
     </Dialog>
