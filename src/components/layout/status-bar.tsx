@@ -13,6 +13,7 @@ import {
   selectDaemonLevel,
   useHealthStore,
 } from "@/stores/health-store";
+import { useGithubStatsStore } from "@/stores/github-stats-store";
 import { createConversation } from "@/lib/agents/conversation-client";
 import {
   TaskRuntimePicker,
@@ -22,8 +23,6 @@ import { dedupFetch } from "@/lib/api/dedup-fetch";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
-const GITHUB_STATS_URL = "/api/github/repo";
-const GITHUB_STARS_FALLBACK = 244;
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -136,11 +135,18 @@ export function StatusBar() {
   const [uncommitted, setUncommitted] = useState(0);
   const [pullStatus, setPullStatus] = useState<"idle" | "pulling" | "pulled" | "up-to-date" | "error">("idle");
   const [pulling, setPulling] = useState(false);
-  const [githubStars, setGithubStars] = useState(GITHUB_STARS_FALLBACK);
-  const [displayStars, setDisplayStars] = useState(0);
+  // Stars: shared store so cross-navigation re-mounts don't restart the
+  // load-and-animate sequence (which is what produced the visible flicker
+  // between fallback / mid-animation / final values). Component-local
+  // animation state is intentionally seeded from the store so re-mounts
+  // after the initial load skip the animation.
+  const githubStars = useGithubStatsStore((s) => s.stars);
+  const fetchStars = useGithubStatsStore((s) => s.fetchStars);
+  const hasFetchedStarsOnce = useGithubStatsStore((s) => s.hasFetchedOnce);
+  const [displayStars, setDisplayStars] = useState<number | null>(githubStars);
   const [starsExploding, setStarsExploding] = useState(false);
   const starsAnimRef = useRef<number | null>(null);
-  const starsAnimated = useRef(false);
+  const starsAnimated = useRef(hasFetchedStarsOnce);
   const didAutoPullRef = useRef(false);
   const appLevel = useHealthStore(selectAppLevel);
   const daemonLevel = useHealthStore(selectDaemonLevel);
@@ -198,22 +204,6 @@ export function StatusBar() {
     }
   };
 
-  const fetchGitHubStats = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await fetch(GITHUB_STATS_URL, {
-        signal,
-        cache: "no-store",
-      });
-      if (!res.ok) return;
-
-      const data = await res.json();
-      if (typeof data.stars === "number") {
-        setGithubStars(data.stars);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
   const pullAndRefresh = useCallback(async () => {
     if (pulling) return;
@@ -266,26 +256,24 @@ export function StatusBar() {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const initialFetch = window.setTimeout(() => {
-      void fetchGitHubStats(controller.signal);
-    }, 0);
+    void fetchStars();
     const handleFocus = () => {
-      void fetchGitHubStats();
+      void fetchStars();
     };
-
     window.addEventListener("focus", handleFocus);
-    return () => {
-      controller.abort();
-      window.clearTimeout(initialFetch);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [fetchGitHubStats]);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [fetchStars]);
 
-  // Animate stars counter from 0 → real value once real data arrives
+  // Animate the count exactly once per session — on the transition from
+  // "loading" (no value) to "loaded". Re-mounts after the value lands skip
+  // the animation entirely because the store already has the value and
+  // starsAnimated.current was seeded with hasFetchedStarsOnce on mount.
   useEffect(() => {
-    if (githubStars === GITHUB_STARS_FALLBACK) return;
-    if (starsAnimated.current) return;
+    if (githubStars === null) return;
+    if (starsAnimated.current) {
+      setDisplayStars(githubStars);
+      return;
+    }
     starsAnimated.current = true;
     const target = githubStars;
     const duration = 2000;
@@ -665,14 +653,22 @@ export function StatusBar() {
           href={GITHUB_REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`Star Cabinet on GitHub (${formatGithubStars(githubStars)} stars)`}
-          title={`Star on GitHub (${formatGithubStars(githubStars)} stars)`}
+          aria-label={
+            displayStars === null
+              ? "Star Cabinet on GitHub"
+              : `Star Cabinet on GitHub (${formatGithubStars(displayStars)} stars)`
+          }
+          title={
+            displayStars === null
+              ? "Star on GitHub"
+              : `Star on GitHub (${formatGithubStars(displayStars)} stars)`
+          }
           className="relative inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-500/35 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
         >
           {starsExploding && <StarExplosion />}
           <Star className="h-3.5 w-3.5 fill-current" />
           <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            {formatGithubStars(displayStars || githubStars)} stars
+            {displayStars === null ? "Star" : `${formatGithubStars(displayStars)} stars`}
           </span>
         </a>
       </div>
