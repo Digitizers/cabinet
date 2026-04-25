@@ -1,7 +1,7 @@
 schemaVersion: 1
-id: hilas-cabinet-root
-name: Hila's Cabinet
+id: my-cabinet-root
+name: My Cabinet
 kind: root
 version: 0.1.0
-description: Hila's Cabinet cabinet.
+description: My Cabinet cabinet.
 entry: index.md

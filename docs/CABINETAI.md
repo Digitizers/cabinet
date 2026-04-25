@@ -31,7 +31,7 @@ npx cabinetai run
 | `cabinetai list` | List cabinets in the current directory |
 | `cabinetai doctor` | Run health checks on the environment |
 | `cabinetai update` | Download a newer app version |
-| `cabinetai uninstall` | Remove cached app versions from ~/.cabinet |
+| `cabinetai uninstall` (alias: `remove`) | Remove cached app versions from ~/.cabinet |
 
 ### `cabinetai create [name]`
 
@@ -113,14 +113,22 @@ Downloads a newer app version by checking the release manifest on GitHub.
 cabinetai update
 ```
 
-### `cabinetai uninstall`
+### `cabinetai uninstall` (alias: `remove`)
 
-Removes cached app versions from `~/.cabinet/`. Cabinet directories and data are never touched.
+Removes cached app versions from `~/.cabinet/`. Prints a summary of what will be deleted and asks for confirmation. Your cabinet directories and their data are never touched — those you'd delete manually.
 
 ```bash
 cabinetai uninstall          # remove cached app versions only
-cabinetai uninstall --all    # remove entire ~/.cabinet directory
+cabinetai uninstall --all    # remove ~/.cabinet AND telemetry data
+cabinetai uninstall --yes    # skip the confirmation prompt
+cabinetai remove             # alias for uninstall
 ```
+
+With `--all`, also removes the platform-specific telemetry directory:
+
+- macOS: `~/Library/Application Support/cabinet-telemetry`
+- Windows: `%APPDATA%\cabinet-telemetry`
+- Linux: `$XDG_CONFIG_HOME/cabinet` (falls back to `~/.config/cabinet`)
 
 ---
 
