@@ -1522,9 +1522,9 @@ export function SettingsPage() {
                   Cabinet Cloud
                 </h3>
                 <p className="text-[12px] text-muted-foreground mb-3">
-                  A hosted version of Cabinet is in the works — same product, none of the
-                  self-hosting plumbing. Drop your email below and we&apos;ll be in touch
-                  when it&apos;s ready.
+                  Connect to your Cabinet from anywhere, while your AI team works 24/7
+                  for you. Drop your email below and we&apos;ll let you know when
+                  Cabinet Cloud opens up.
                 </p>
                 {cloudStatus === "success" || cloudStatus === "already" ? (
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-[13px]">

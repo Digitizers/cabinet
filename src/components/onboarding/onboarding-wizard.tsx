@@ -1844,24 +1844,24 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     },
     {
       eyebrow: "Cabinet Cloud",
-      title: "Cabinet Cloud is for people who want the magic without babysitting the plumbing.",
+      title: "Your Cabinet, anywhere. Your AI team, always on.",
       description:
-        "Self-hosting is great until you're explaining ports, sync, and local setup to a teammate who just wanted the doc to open.",
+        "Open your Cabinet from any device while your AI agents keep working — drafting, researching, organizing — even when your laptop is closed.",
       aside:
-        "Cloud is the future easy button: easier sharing, less setup, and fewer heroic acts of yak shaving before coffee.",
+        "Cabinet Cloud is coming soon. Same product, none of the self-hosting plumbing.",
       cards: [
         {
-          title: "Join the Cabinet Cloud waitlist",
+          title: "Connect from anywhere",
           description:
-            "Raise your hand if you want the hosted version first when it is ready. Drop your email below — we'll be in touch.",
+            "One Cabinet across phone, laptop, and browser. Pick up exactly where you left off, no setup required.",
           cta: "",
           icon: <Cloud className="size-4" />,
           iconClassName: "",
         },
         {
-          title: "Why people want it",
+          title: "Agents that don't sleep",
           description:
-            "Less setup, easier sharing, faster onboarding for teams, and a much lower chance of explaining terminal tabs before lunch.",
+            "Your AI team keeps running 24/7 in the background. Wake up to drafts written, inboxes triaged, and research done.",
           cta: "",
           icon: <Rocket className="size-4" />,
           iconClassName: "",
@@ -2783,7 +2783,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         </span>
                         <div className="flex min-w-0 flex-col items-start gap-0.5 text-left">
                           <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Join the Cabinet Cloud waitlist</span>
-                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Get the hosted version when it&apos;s ready</span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Connect from anywhere. Your AI team works 24/7.</span>
                         </div>
                       </div>
                       {cloudStatus === "success" || cloudStatus === "already" ? (
