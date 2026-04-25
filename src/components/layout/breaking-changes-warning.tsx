@@ -33,7 +33,21 @@ export function BreakingChangesWarning() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) acknowledge(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v, details) => {
+        if (v) return;
+        // Esc and outside clicks must not auto-accept the legal disclaimer;
+        // acceptance has to be a deliberate click on "I understand, continue"
+        // (or the X). Reasons we ignore: "escape-key", "outside-press".
+        const reason = details?.reason;
+        if (reason === "escape-key" || reason === "outside-press") {
+          details?.cancel?.();
+          return;
+        }
+        acknowledge();
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
