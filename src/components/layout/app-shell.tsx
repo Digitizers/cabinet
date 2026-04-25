@@ -39,6 +39,10 @@ import { useGlobalHotkeys } from "@/hooks/use-global-hotkeys";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { StatusBar } from "@/components/layout/status-bar";
 import { DaemonHealthBanner } from "@/components/layout/daemon-health-banner";
+import {
+  DISCLAIMER_ACKED_EVENT,
+  isDisclaimerAcknowledged,
+} from "@/components/layout/breaking-changes-warning";
 import { TourModal } from "@/components/onboarding/tour/tour-modal";
 import { useTour } from "@/components/onboarding/tour/use-tour";
 import { UpdateDialog } from "@/components/layout/update-dialog";
@@ -255,10 +259,17 @@ export function AppShell() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Onboarding tour. Auto-opens once per browser after the wizard; also
-  // listens for `cabinet:show-tour` events so the status-bar replay button
-  // can re-open it anytime.
-  const tour = useTour(showWizard === false);
+  // Onboarding tour. Auto-opens once per browser after the wizard *and*
+  // after the legal disclaimer has been explicitly acknowledged. Without
+  // the disclaimer gate, both modals stack on first run (audit #007).
+  const [disclaimerAcked, setDisclaimerAcked] = useState<boolean>(false);
+  useEffect(() => {
+    setDisclaimerAcked(isDisclaimerAcknowledged());
+    const onAck = () => setDisclaimerAcked(true);
+    window.addEventListener(DISCLAIMER_ACKED_EVENT, onAck);
+    return () => window.removeEventListener(DISCLAIMER_ACKED_EVENT, onAck);
+  }, []);
+  const tour = useTour(showWizard === false && disclaimerAcked);
 
   const handleLaunchTourTask = useCallback((initialPrompt: string) => {
     setSection({ type: "tasks" });

@@ -12,6 +12,22 @@ import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY = "cabinet.breaking-changes-warning-ack:v2";
 
+// Fired after the user explicitly accepts the disclaimer. Other surfaces
+// (e.g. the tour auto-open) listen for this so they can sequence behind the
+// disclaimer instead of stacking on top of it.
+export const DISCLAIMER_ACKED_EVENT = "cabinet:disclaimer-acked";
+
+export function isDisclaimerAcknowledged(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return !!window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // Storage unavailable (private mode); fail open so we don't block the
+    // rest of the app forever on a check we can't perform.
+    return true;
+  }
+}
+
 export function BreakingChangesWarning() {
   const [open, setOpen] = useState(false);
 
@@ -28,6 +44,9 @@ export function BreakingChangesWarning() {
       localStorage.setItem(STORAGE_KEY, new Date().toISOString());
     } catch {
       // noop
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(DISCLAIMER_ACKED_EVENT));
     }
     setOpen(false);
   };
