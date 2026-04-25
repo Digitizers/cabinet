@@ -1531,8 +1531,8 @@ export function SettingsPage() {
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
                     <span>
                       {cloudStatus === "already"
-                        ? "You&apos;re already on the list — we&apos;ll be in touch."
-                        : "You&apos;re on the list. We&apos;ll email you when Cabinet Cloud opens up."}
+                        ? "You're already on the list — we'll be in touch."
+                        : "You're on the list. We'll email you when Cabinet Cloud opens up."}
                     </span>
                   </div>
                 ) : (
