@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { HeaderActions } from "@/components/layout/header-actions";
 import { ReturnToChip } from "@/components/layout/return-to-chip";
 import { ViewerBreadcrumb } from "@/components/layout/viewer-breadcrumb";
+import { NewTaskButton } from "@/components/composer/new-task-button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -59,6 +60,7 @@ export function ViewerToolbar({
       <div className="flex shrink-0 items-center gap-1">
         {children}
         <HeaderActions />
+        <NewTaskButton />
       </div>
     </div>
   );

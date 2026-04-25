@@ -78,6 +78,7 @@ import type { AgentListItem, ProviderInfo } from "@/types/agents";
 import { flattenTree } from "@/lib/tree-utils";
 import { DepthDropdown } from "@/components/cabinets/depth-dropdown";
 import { ComposerInput } from "@/components/composer/composer-input";
+import { NewTaskButton } from "@/components/composer/new-task-button";
 import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
 import {
   TaskRuntimePicker,
@@ -3069,6 +3070,7 @@ export function AgentsWorkspace({
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
+                <NewTaskButton />
               </div>
             </div>
 

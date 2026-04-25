@@ -153,9 +153,9 @@ export function TasksBoard({
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as
-        | { initialPrompt?: string }
+        | { initialPrompt?: string; initialMode?: StartWorkMode }
         | undefined;
-      setNewTaskMode("now");
+      setNewTaskMode(detail?.initialMode ?? "now");
       setNewTaskInitialPrompt(detail?.initialPrompt);
       setNewTaskOpen(true);
     };
