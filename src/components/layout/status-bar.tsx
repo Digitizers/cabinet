@@ -54,6 +54,20 @@ function formatGithubStars(stars: number) {
   return new Intl.NumberFormat("en-US").format(stars);
 }
 
+// Audit #092: surface the last successful health check in the popover so
+// users can see how stale "Running"/"Down" actually is. "5s ago" is fine,
+// "11m ago" should make a green pill suspect.
+function formatRelativeAgo(ts: number | null, now: number): string {
+  if (!ts) return "never";
+  const sec = Math.max(0, Math.round((now - ts) / 1000));
+  if (sec < 5) return "just now";
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  return `${hr}h ago`;
+}
+
 /* ── Star burst explosion particles ── */
 const BURST_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
@@ -152,6 +166,8 @@ export function StatusBar() {
   const daemonLevel = useHealthStore(selectDaemonLevel);
   const installKind = useHealthStore((s) => s.installKind);
   const startHealthPolling = useHealthStore((s) => s.startPolling);
+  const lastDaemonOkAt = useHealthStore((s) => s.lastDaemonOkAt);
+  const lastAppOkAt = useHealthStore((s) => s.lastAppOkAt);
 
   // Pill is honest about uncertainty: until the first health poll lands we
   // show "Checking…" rather than flashing green. After that, daemon needs
@@ -162,6 +178,17 @@ export function StatusBar() {
   const daemonAlive = daemonLevel !== "down";
 
   const [showServerPopup, setShowServerPopup] = useState(false);
+
+  // Tick a "now" value while the popover is open so the relative-time
+  // strings ("13s ago") stay fresh even when no poll has fired in the
+  // meantime. 1 Hz is plenty — we only render seconds for the first
+  // minute, then minutes after that.
+  const [popupNow, setPopupNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!showServerPopup) return;
+    const id = setInterval(() => setPopupNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [showServerPopup]);
   const [providerStatuses, setProviderStatuses] = useState<
     { id: string; name: string; available: boolean; authenticated: boolean }[]
   >([]);
@@ -420,6 +447,9 @@ export function StatusBar() {
                         ? "Pages, editor, search, and file management are working."
                         : "Pages, editor, search, and saving are unavailable. You can still read cached content."}
                     </p>
+                    <p className="text-[10px] text-muted-foreground/50 pl-3.5">
+                      Last seen: {formatRelativeAgo(lastAppOkAt, popupNow)}
+                    </p>
                   </div>
 
                   {/* Daemon */}
@@ -433,6 +463,9 @@ export function StatusBar() {
                       {daemonAlive
                         ? "AI agents, scheduled jobs, and the web terminal are working."
                         : "AI agents, scheduled jobs, and the web terminal are unavailable. Page editing still works."}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/50 pl-3.5">
+                      Last seen: {formatRelativeAgo(lastDaemonOkAt, popupNow)}
                     </p>
                   </div>
 
