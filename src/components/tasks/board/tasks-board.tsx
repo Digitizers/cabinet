@@ -402,6 +402,7 @@ export function TasksBoard({
                 }. This can't be undone.`,
                 confirmLabel: `Delete ${count}`,
                 destructive: true,
+                typedConfirmation: "DELETE",
                 onConfirm: async () => {
                   const ids = new Set(toDelete.map((t) => t.id));
                   await Promise.all(
