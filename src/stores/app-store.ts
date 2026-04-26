@@ -182,7 +182,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         keepalive: true,
       }).catch(() => {});
     }
-    set({ section, taskPanelConversation: null, taskPanelFullscreen: false, returnTo: null });
+    // Audit #131: keep the task side panel visible across navigation so the
+    // user can launch a task and keep working while it runs. The panel is
+    // dismissed explicitly via its X button or replaced by another launch.
+    // Fullscreen mode is reset on navigation though — full-screen is bound
+    // to a specific surface, not a free-floating overlay.
+    set({ section, taskPanelFullscreen: false, returnTo: null });
   },
 
   pushSection: (next, from) => {
@@ -195,13 +200,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         keepalive: true,
       }).catch(() => {});
     }
-    set({ section: next, taskPanelConversation: null, taskPanelFullscreen: false, returnTo: from });
+    set({ section: next, taskPanelFullscreen: false, returnTo: from });
   },
 
   popReturnTo: () => {
     const { returnTo } = get();
     if (!returnTo) return;
-    set({ section: returnTo, returnTo: null, taskPanelConversation: null, taskPanelFullscreen: false });
+    set({ section: returnTo, returnTo: null, taskPanelFullscreen: false });
   },
 
   toggleTerminal: () => {

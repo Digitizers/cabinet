@@ -450,7 +450,7 @@ function SlideYours() {
     <DemoSlideShell
       title={
         <>
-          Yours, <span style={{ color: P.accent }}>not ours</span>.
+          <span style={{ color: P.accent }}>Yours</span>, not ours.
         </>
       }
       description={

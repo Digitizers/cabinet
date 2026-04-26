@@ -152,9 +152,10 @@ function SlideQueue() {
       }
       description={
         <>
-          When agents propose actions they stack up here. Skim them, approve
-          the easy ones in batch, and look twice at the ones flagged for
-          cost, conflicts, or destructive changes.
+          When agents propose actions they stack up here — and on the kanban
+          they surface in the &ldquo;Your turn&rdquo; lane. Skim them,
+          approve the easy ones in batch, and look twice at the ones flagged
+          for cost, conflicts, or destructive changes.
         </>
       }
     >

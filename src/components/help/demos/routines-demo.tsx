@@ -43,9 +43,10 @@ function SlideThreeWays() {
       }
       description={
         <>
-          Cron if you like cron. Plain English if you don&apos;t. Or pick a
-          one-off date for &ldquo;just this once, next Monday.&rdquo; Same
-          routine, three doors in.
+          Routines are tasks running on a schedule. Use cron if you speak
+          cron. Plain English if you don&apos;t. Or pick a one-off date for
+          &ldquo;just this once, next Monday.&rdquo; Same routine, three
+          doors in.
         </>
       }
     >

@@ -45,6 +45,10 @@ import {
 } from "@/components/layout/breaking-changes-warning";
 import { TourModal } from "@/components/onboarding/tour/tour-modal";
 import { useTour } from "@/components/onboarding/tour/use-tour";
+import { StartWorkDialog } from "@/components/composer/start-work-dialog";
+import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
+import type { CabinetAgentSummary } from "@/types/cabinets";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { BreakingChangesWarning } from "@/components/layout/breaking-changes-warning";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
@@ -275,18 +279,26 @@ export function AppShell() {
   }, []);
   const tour = useTour(showWizard === false && disclaimerAcked);
 
+  // Tour-finish task composer. Opened from the tour's "Write your first task"
+  // CTA. We mount the dialog at AppShell level so the user can land on the
+  // composer popup wherever they were — no jarring section change to /tasks.
+  const [tourTaskOpen, setTourTaskOpen] = useState(false);
+  const [tourTaskPrompt, setTourTaskPrompt] = useState<string | undefined>(undefined);
+  const [tourTaskAgents, setTourTaskAgents] = useState<CabinetAgentSummary[]>([]);
+
   const handleLaunchTourTask = useCallback((initialPrompt: string) => {
-    setSection({ type: "tasks" });
-    // Let section switch render before opening the composer so its listener
-    // is actually mounted (same pattern as the sidebar "+ New Task" pill).
-    window.setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("cabinet:open-create-task", {
-          detail: { initialPrompt },
-        }),
-      );
-    }, 100);
-  }, [setSection]);
+    setTourTaskPrompt(initialPrompt);
+    setTourTaskOpen(true);
+    // Refresh the agent roster on each open so the agent picker reflects
+    // whatever the user has installed.
+    fetchCabinetOverviewClient(ROOT_CABINET_PATH, "all")
+      .then((data) => {
+        setTourTaskAgents((data.agents || []) as CabinetAgentSummary[]);
+      })
+      .catch(() => {
+        // Empty list is fine — StartWorkDialog handles it gracefully.
+      });
+  }, []);
 
   const handleWizardComplete = useCallback(() => {
     setShowWizard(false);
@@ -633,6 +645,22 @@ export function AppShell() {
         open={tour.open}
         onClose={tour.close}
         onLaunchTask={handleLaunchTourTask}
+      />
+      <StartWorkDialog
+        open={tourTaskOpen}
+        onOpenChange={setTourTaskOpen}
+        cabinetPath={ROOT_CABINET_PATH}
+        agents={tourTaskAgents}
+        initialMode="now"
+        initialPrompt={tourTaskPrompt}
+        onStarted={(conversationId) => {
+          setTourTaskOpen(false);
+          setSection({
+            type: "task",
+            taskId: conversationId,
+            cabinetPath: ROOT_CABINET_PATH,
+          });
+        }}
       />
     </div>
   );

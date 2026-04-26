@@ -5,6 +5,7 @@ import {
   CalendarRange,
   CheckCircle2,
   ChevronDown,
+  Clock,
   Cpu,
   FileText,
   Filter,
@@ -12,7 +13,9 @@ import {
   KanbanSquare,
   LayoutList,
   Loader2,
+  Megaphone,
   MessageCircleQuestion,
+  PenLine,
   Search,
 } from "lucide-react";
 import { TOUR_PALETTE as P } from "@/components/onboarding/tour/palette";
@@ -233,7 +236,234 @@ function SlideThreeViews() {
   );
 }
 
-/* ── Slide 3: Filter the noise ──────────────────────────────────────── */
+/* ── Slide 3: Schedule view ──────────────────────────────────────────── */
+function SlideScheduleView() {
+  type Block = {
+    day: number; // 0..4 Mon..Fri
+    startHour: number; // 8..18
+    duration: number; // hours
+    title: string;
+    agent: string;
+    icon: typeof Search;
+    tint: string;
+    status: "running" | "scheduled" | "done";
+  };
+
+  const blocks: Block[] = [
+    { day: 0, startHour: 9, duration: 1, title: "News scan", agent: "Researcher", icon: Search, tint: "#E8C896", status: "done" },
+    { day: 0, startHour: 11, duration: 2, title: "Q2 brief", agent: "Analyst", icon: FileText, tint: "#D9B98A", status: "running" },
+    { day: 1, startHour: 9, duration: 1, title: "News scan", agent: "Researcher", icon: Search, tint: "#E8C896", status: "scheduled" },
+    { day: 1, startHour: 14, duration: 1, title: "Standup", agent: "CMO", icon: Megaphone, tint: "#EDDCC4", status: "scheduled" },
+    { day: 2, startHour: 9, duration: 1, title: "News scan", agent: "Researcher", icon: Search, tint: "#E8C896", status: "scheduled" },
+    { day: 2, startHour: 10, duration: 3, title: "Launch post", agent: "Editor", icon: PenLine, tint: "#F0E1D0", status: "scheduled" },
+    { day: 4, startHour: 18, duration: 1, title: "Digest", agent: "Editor", icon: PenLine, tint: "#F0E1D0", status: "scheduled" },
+  ];
+
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const hours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+  const ROW_H = 14; // px per hour
+  const GRID_HEIGHT = hours.length * ROW_H;
+
+  return (
+    <DemoSlideShell
+      title={
+        <>
+          On the <span style={{ color: P.accent }}>calendar</span>.
+        </>
+      }
+      description={
+        <>
+          Switch to Schedule and the same tasks land on a real calendar — see
+          what&apos;s running now, what&apos;s queued for later today, and
+          what&apos;s coming up the rest of the week.
+        </>
+      }
+    >
+      <CardChrome width={460}>
+        <div
+          className="flex items-center gap-2 px-4 pt-3 pb-2"
+          style={{ borderBottom: `1px solid ${P.border}` }}
+        >
+          <CalendarRange className="h-4 w-4" style={{ color: P.accent }} />
+          <span className="text-[12px] font-semibold" style={{ color: P.text }}>
+            Schedule · this week
+          </span>
+          <span
+            className="ml-auto rounded-full px-2 py-0.5 text-[9px] font-semibold"
+            style={{ background: P.accentBg, color: P.accent }}
+          >
+            7 tasks
+          </span>
+        </div>
+
+        {/* Grid: hour gutter + 5 day columns */}
+        <div className="px-3 py-3">
+          {/* Day header */}
+          <div className="grid" style={{ gridTemplateColumns: "28px repeat(5, 1fr)", gap: 4 }}>
+            <div />
+            {days.map((d) => (
+              <div
+                key={d}
+                className="flex h-6 items-center justify-center rounded-md text-[9.5px] font-semibold"
+                style={{ background: P.paperWarm, color: P.textSecondary }}
+              >
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Body grid */}
+          <div
+            className="mt-1 grid"
+            style={{ gridTemplateColumns: "28px repeat(5, 1fr)", gap: 4 }}
+          >
+            {/* Hour gutter */}
+            <div
+              className="relative"
+              style={{ height: GRID_HEIGHT }}
+            >
+              {hours.map((h, i) => (
+                <div
+                  key={h}
+                  className="absolute left-0 right-0 text-[7.5px] font-semibold tracking-wide"
+                  style={{
+                    top: i * ROW_H - 4,
+                    color: P.textTertiary,
+                  }}
+                >
+                  {h}
+                </div>
+              ))}
+            </div>
+
+            {/* Day columns */}
+            {days.map((_, dayIdx) => (
+              <div
+                key={dayIdx}
+                className="relative rounded-md"
+                style={{
+                  height: GRID_HEIGHT,
+                  background: P.paperWarm,
+                  border: `1px solid ${P.borderLight}`,
+                }}
+              >
+                {/* Hour grid lines */}
+                {hours.map((_, i) =>
+                  i === 0 ? null : (
+                    <div
+                      key={i}
+                      className="absolute left-0 right-0"
+                      style={{
+                        top: i * ROW_H,
+                        height: 1,
+                        background: P.borderLight,
+                        opacity: 0.5,
+                      }}
+                    />
+                  ),
+                )}
+
+                {/* Now line — Tuesday 14:00 ish */}
+                {dayIdx === 1 && (
+                  <div
+                    className="absolute left-0 right-0 z-10"
+                    style={{
+                      top: (14 - hours[0]) * ROW_H + ROW_H / 2,
+                      height: 1,
+                      background: "#D44A4A",
+                    }}
+                  >
+                    <span
+                      className="absolute -top-1 -left-1 h-2 w-2 rounded-full"
+                      style={{ background: "#D44A4A" }}
+                    />
+                  </div>
+                )}
+
+                {/* Blocks for this day */}
+                {blocks
+                  .filter((b) => b.day === dayIdx)
+                  .map((b, i) => {
+                    const Icon = b.icon;
+                    const top = (b.startHour - hours[0]) * ROW_H;
+                    const height = b.duration * ROW_H - 2;
+                    const isRunning = b.status === "running";
+                    const isDone = b.status === "done";
+                    const blockIndex = blocks.indexOf(b);
+                    return (
+                      <div
+                        key={i}
+                        className="absolute left-0.5 right-0.5 flex items-start gap-1 overflow-hidden rounded px-1 py-0.5 opacity-0"
+                        style={{
+                          top,
+                          height,
+                          background: isDone ? P.bgCard : b.tint,
+                          border: `1px solid ${isRunning ? P.accent : P.borderDark}`,
+                          opacity: isDone ? 0.6 : 1,
+                          animation:
+                            "cabinet-tour-fade-up 0.35s ease-out forwards",
+                          animationDelay: `${300 + blockIndex * 90}ms`,
+                          boxShadow: isRunning
+                            ? `0 0 0 2px ${P.accentBg}`
+                            : "none",
+                        }}
+                        title={`${b.title} · ${b.agent}`}
+                      >
+                        <Icon
+                          className="h-2 w-2 shrink-0 mt-0.5"
+                          style={{ color: P.accent }}
+                        />
+                        <span
+                          className="truncate text-[7.5px] font-semibold"
+                          style={{
+                            color: P.text,
+                            textDecoration: isDone ? "line-through" : "none",
+                          }}
+                        >
+                          {b.title}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer legend */}
+        <div
+          className="flex items-center gap-3 px-4 py-2 opacity-0"
+          style={{
+            borderTop: `1px solid ${P.borderLight}`,
+            animation: "cabinet-tour-fade-up 0.4s ease-out forwards",
+            animationDelay: "1100ms",
+          }}
+        >
+          <span className="flex items-center gap-1 text-[9px]" style={{ color: P.textSecondary }}>
+            <span
+              className="h-2 w-2 rounded-sm"
+              style={{ background: "#E8C896", border: `1px solid ${P.accent}` }}
+            />
+            Running
+          </span>
+          <span className="flex items-center gap-1 text-[9px]" style={{ color: P.textSecondary }}>
+            <span
+              className="h-2 w-2 rounded-sm"
+              style={{ background: P.bgCard, border: `1px solid ${P.borderDark}` }}
+            />
+            Scheduled
+          </span>
+          <span className="ml-auto flex items-center gap-1 text-[9px]" style={{ color: "#D44A4A" }}>
+            <Clock className="h-2 w-2" />
+            Now · Tue 14:00
+          </span>
+        </div>
+      </CardChrome>
+    </DemoSlideShell>
+  );
+}
+
+/* ── Slide 4: Filter the noise ──────────────────────────────────────── */
 function SlideFilters() {
   const filters = [
     { label: "Agent: Editor", active: true },
@@ -344,7 +574,7 @@ function SlideFilters() {
   );
 }
 
-/* ── Slide 4: Pick the brain per task ────────────────────────────────── */
+/* ── Slide 5: Pick the brain per task ────────────────────────────────── */
 function SlideRuntime() {
   const providers = [
     { name: "Claude", model: "Sonnet 4.6", selected: true },
@@ -461,7 +691,7 @@ function SlideRuntime() {
   );
 }
 
-/* ── Slide 5: Inside a task ──────────────────────────────────────────── */
+/* ── Slide 6: Inside a task ──────────────────────────────────────────── */
 function SlideInside() {
   return (
     <DemoSlideShell
@@ -578,6 +808,7 @@ export function buildTaskBoardDemo(): DemoConfig {
     slides: [
       { id: "board", render: () => <SlideBoard /> },
       { id: "views", render: () => <SlideThreeViews /> },
+      { id: "schedule", render: () => <SlideScheduleView /> },
       { id: "filters", render: () => <SlideFilters /> },
       { id: "runtime", render: () => <SlideRuntime /> },
       { id: "inside", render: () => <SlideInside /> },

@@ -254,9 +254,10 @@ function SlideVisibility() {
       }
       description={
         <>
-          Open My Cabinet at the top and decide how deep to look — just this
-          one, plus direct children, plus two levels, or every nested team.
-          Same UI, different scope.
+          Just like in a real org — the CEO can peek at the C-suite&apos;s
+          work, then zoom all the way down to the people on the ground. You
+          decide: just this cabinet&apos;s tasks and agents, the close teams,
+          or everyone, all the way down.
         </>
       }
     >
