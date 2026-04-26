@@ -23,8 +23,9 @@ import {
 } from "./help-visuals";
 import { DemoModal, type DemoConfig } from "./demo-modal";
 import { buildAiTeamDemo } from "./demos/ai-team-demo";
+import { buildTaskBoardDemo } from "./demos/task-board-demo";
 
-type DemoId = "ai-team";
+type DemoId = "ai-team" | "task-board";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 
@@ -78,9 +79,9 @@ const HELP_ITEMS: HelpItem[] = [
     ),
     description:
       "Kanban, list, and schedule views. Filter by agent or status. Pick a runtime per task.",
-    cta: "Open the board",
+    cta: "Watch the demo",
     visual: <TasksVisual />,
-    action: { kind: "navigate", section: { type: "tasks", cabinetPath: ROOT_CABINET_PATH } },
+    action: { kind: "demo", demoId: "task-board" },
   },
   {
     id: "knowledge",
@@ -289,6 +290,11 @@ export function HelpPage() {
   const launchDemo = (demoId: DemoId) => {
     if (demoId === "ai-team") {
       setActiveDemo(buildAiTeamDemo());
+      return;
+    }
+    if (demoId === "task-board") {
+      setActiveDemo(buildTaskBoardDemo());
+      return;
     }
   };
 
