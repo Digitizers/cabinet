@@ -183,7 +183,7 @@ const HELP_ITEMS: HelpItem[] = [
   },
 ];
 
-function HelpCard({ item }: { item: HelpItem }) {
+function HelpCard({ item, reversed }: { item: HelpItem; reversed: boolean }) {
   const setSection = useAppStore((s) => s.setSection);
   const isSoon = item.action.kind === "soon";
 
@@ -211,7 +211,7 @@ function HelpCard({ item }: { item: HelpItem }) {
           "hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-22px_rgba(59,47,47,0.45)] cursor-pointer",
         isSoon && "cursor-default",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2",
-        "md:grid-cols-[1.15fr_1fr]",
+        reversed ? "md:grid-cols-[1fr_1.15fr]" : "md:grid-cols-[1.15fr_1fr]",
       )}
       style={{
         background: P.paper,
@@ -219,7 +219,12 @@ function HelpCard({ item }: { item: HelpItem }) {
         opacity: isSoon ? 0.85 : 1,
       }}
     >
-      <div className="flex flex-col justify-center gap-4 p-8 md:p-10 lg:p-12">
+      <div
+        className={cn(
+          "flex flex-col justify-center gap-4 p-8 md:p-10 lg:p-12",
+          reversed && "md:order-2",
+        )}
+      >
         <h3
           className="font-logo italic tracking-tight text-[40px] leading-[1.05] sm:text-[48px] lg:text-[56px]"
           style={{ color: P.text }}
@@ -247,8 +252,13 @@ function HelpCard({ item }: { item: HelpItem }) {
       </div>
 
       <div
-        className="relative flex min-h-[220px] items-center justify-center md:min-h-[300px]"
-        style={{ borderLeft: `1px solid ${P.borderLight}` }}
+        className={cn(
+          "relative flex min-h-[220px] items-center justify-center md:min-h-[300px]",
+          reversed && "md:order-1",
+        )}
+        style={{
+          [reversed ? "borderRight" : "borderLeft"]: `1px solid ${P.borderLight}`,
+        }}
       >
         {item.visual}
       </div>
@@ -284,8 +294,8 @@ export function HelpPage() {
           </div>
 
           <div className="flex flex-col gap-6">
-            {HELP_ITEMS.map((item) => (
-              <HelpCard key={item.id} item={item} />
+            {HELP_ITEMS.map((item, i) => (
+              <HelpCard key={item.id} item={item} reversed={i % 2 === 1} />
             ))}
           </div>
 
