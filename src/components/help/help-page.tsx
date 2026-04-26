@@ -25,9 +25,10 @@ import { DemoModal, type DemoConfig } from "./demo-modal";
 import { buildAiTeamDemo } from "./demos/ai-team-demo";
 import { buildCabinetsDemo } from "./demos/cabinets-demo";
 import { buildKnowledgeDemo } from "./demos/knowledge-demo";
+import { buildRoutinesDemo } from "./demos/routines-demo";
 import { buildTaskBoardDemo } from "./demos/task-board-demo";
 
-type DemoId = "ai-team" | "task-board" | "knowledge" | "cabinets";
+type DemoId = "ai-team" | "task-board" | "knowledge" | "cabinets" | "routines";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 
@@ -120,9 +121,9 @@ const HELP_ITEMS: HelpItem[] = [
     ),
     description:
       "Run a task daily at 9am, weekly on Friday, or once next Monday. Cron, calendar, or natural language.",
-    cta: "Schedule something",
+    cta: "Watch the demo",
     visual: <RoutinesVisual />,
-    action: { kind: "navigate", section: { type: "cabinet", cabinetPath: ROOT_CABINET_PATH } },
+    action: { kind: "demo", demoId: "routines" },
   },
   {
     id: "conversations",
@@ -304,6 +305,10 @@ export function HelpPage() {
     }
     if (demoId === "cabinets") {
       setActiveDemo(buildCabinetsDemo());
+      return;
+    }
+    if (demoId === "routines") {
+      setActiveDemo(buildRoutinesDemo());
       return;
     }
   };
