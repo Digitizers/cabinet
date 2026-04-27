@@ -124,7 +124,18 @@ export function TreeView() {
   const tasksExpanded = activeDrawer === "tasks";
   const kbExpanded = activeDrawer === "data";
   const [agents, setAgents] = useState<AgentSummary[]>([]);
-  const [cabinetAgentScopeName, setCabinetAgentScopeName] = useState<string | null>(null);
+  const [cabinetAgentScopeName, setCabinetAgentScopeName] = useState<string | null>(() => {
+    // Audit #027: seed from localStorage on first paint so we don't flash
+    // the bare "Cabinet" placeholder before the cabinet-overview API
+    // responds. The active cabinet path isn't known here yet (depends on
+    // section state), so we read root's name as the initial fallback.
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem(`cabinet.name.${ROOT_CABINET_PATH}`);
+    } catch {
+      return null;
+    }
+  });
   const [kbSubPageOpen, setKbSubPageOpen] = useState(false);
   const [kbSubPageTitle, setKbSubPageTitle] = useState("");
   const [cabinetDeleteOpen, setCabinetDeleteOpen] = useState(false);
@@ -164,7 +175,15 @@ export function TreeView() {
         cabinetVisibilityMode,
         { force: true }
       );
-      setCabinetAgentScopeName(data.cabinet.name || "Cabinet");
+      // Audit #027: cache the resolved name so the next cold paint can
+      // skip the "Cabinet" flicker before the API responds.
+      const resolved = data.cabinet.name || "Cabinet";
+      try {
+        if (resolved && resolved !== "Cabinet") {
+          localStorage.setItem(`cabinet.name.${activeCabinet?.path || ROOT_CABINET_PATH}`, resolved);
+        }
+      } catch { /* ignore storage failures */ }
+      setCabinetAgentScopeName(resolved);
       setAgents(
         (data.agents || []).map((agent) => ({
           scopedId: agent.scopedId,
