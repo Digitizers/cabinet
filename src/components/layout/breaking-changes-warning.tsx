@@ -88,7 +88,7 @@ export function BreakingChangesWarning() {
         acknowledge();
       }}
     >
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Info className="h-4 w-4 text-muted-foreground" />
