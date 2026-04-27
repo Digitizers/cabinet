@@ -791,8 +791,8 @@ export function StatusBar() {
         </button>
         <button
           onClick={toggleTerminal}
-          aria-label={terminalOpen ? "Hide terminal" : "Open terminal"}
-          title={terminalOpen ? "Hide terminal" : "Open terminal"}
+          aria-label={terminalOpen ? "New terminal tab" : "Open terminal"}
+          title={terminalOpen ? "New terminal tab" : "Open terminal"}
           className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 ${terminalOpen ? "text-primary" : ""}`}
         >
           <Terminal className="h-3 w-3" />

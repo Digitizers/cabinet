@@ -231,7 +231,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleTerminal: () => {
     const { terminalOpen, terminalTabs, terminalCwd } = get();
-    if (!terminalOpen && terminalTabs.length === 0) {
+    if (terminalOpen) {
+      // Panel is already visible — open a new tab rather than closing
+      const num = terminalTabs.length + 1;
+      const id = `term-${Date.now()}`;
+      set({
+        terminalTabs: [...terminalTabs, { id, label: `Terminal ${num}`, adapterType: "shell", cwd: terminalCwd ?? undefined }],
+        activeTerminalTab: id,
+      });
+    } else if (terminalTabs.length === 0) {
       const id = `term-${Date.now()}`;
       set({
         terminalOpen: true,
@@ -239,11 +247,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         activeTerminalTab: id,
       });
     } else {
-      set({ terminalOpen: !terminalOpen });
+      set({ terminalOpen: true });
     }
   },
 
-  closeTerminal: () => set({ terminalOpen: false }),
+  closeTerminal: () => set({ terminalOpen: false, terminalTabs: [], activeTerminalTab: null }),
 
   addTerminalTab: (label?: string, prompt?: string, adapterType?: string) => {
     const { terminalTabs, terminalCwd } = get();
