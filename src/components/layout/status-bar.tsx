@@ -191,6 +191,7 @@ export function StatusBar() {
       setAiSubmitting(false);
     }
   };
+  const [isGitRepo, setIsGitRepo] = useState(false);
   const [uncommitted, setUncommitted] = useState(0);
   const [uncommittedFiles, setUncommittedFiles] = useState<Array<{ path: string; status: "M" | "?" | "A" | "D" | "R" }>>([]);
   const [uncommittedTruncated, setUncommittedTruncated] = useState(false);
@@ -273,6 +274,7 @@ export function StatusBar() {
       const res = await fetch("/api/git/commit");
       if (res.ok) {
         const data = await res.json();
+        setIsGitRepo(!!data.isGit);
         setUncommitted(data.uncommitted || 0);
         setUncommittedFiles(Array.isArray(data.files) ? data.files : []);
         setUncommittedTruncated(!!data.truncated);
@@ -779,16 +781,18 @@ export function StatusBar() {
             </div>
           )}
         </div>
-        <button
-          onClick={pullAndRefresh}
-          disabled={pulling}
-          aria-label="Pull latest changes from GitHub and refresh"
-          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
-          title="Pull latest from GitHub & refresh"
-        >
-          <RefreshCw className={`h-3 w-3 ${pulling ? "animate-spin" : ""}`} />
-          Sync
-        </button>
+        {isGitRepo && (
+          <button
+            onClick={pullAndRefresh}
+            disabled={pulling}
+            aria-label="Pull latest changes from GitHub and refresh"
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
+            title="Pull latest from GitHub & refresh"
+          >
+            <RefreshCw className={`h-3 w-3 ${pulling ? "animate-spin" : ""}`} />
+            Sync
+          </button>
+        )}
         <button
           onClick={toggleTerminal}
           aria-label={terminalOpen ? "New terminal tab" : "Open terminal"}

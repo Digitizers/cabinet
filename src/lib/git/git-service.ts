@@ -176,9 +176,9 @@ export interface UncommittedFile {
 
 const MAX_UNCOMMITTED_LIST = 50;
 
-export async function getStatus(): Promise<{ uncommitted: number; files: UncommittedFile[]; truncated: boolean }> {
+export async function getStatus(): Promise<{ uncommitted: number; files: UncommittedFile[]; truncated: boolean; isGit: boolean }> {
   const g = await getGit();
-  if (!g) return { uncommitted: 0, files: [], truncated: false };
+  if (!g) return { uncommitted: 0, files: [], truncated: false, isGit: false };
 
   try {
     const status = await g.status();
@@ -199,8 +199,9 @@ export async function getStatus(): Promise<{ uncommitted: number; files: Uncommi
       uncommitted: files.length,
       files: files.slice(0, MAX_UNCOMMITTED_LIST),
       truncated: files.length > MAX_UNCOMMITTED_LIST,
+      isGit: true,
     };
   } catch {
-    return { uncommitted: 0, files: [], truncated: false };
+    return { uncommitted: 0, files: [], truncated: false, isGit: false };
   }
 }
