@@ -275,23 +275,17 @@ export function KanbanView({
           .map((s) => s.trim())
           .filter(Boolean) as LaneKey[]
       );
-    if (prev === null) {
-      if (runningCount > 0) {
-        const next = parse();
-        if (next.has("running")) {
-          next.delete("running");
-          setCollapsedCsv([...next].join(","));
-        }
-      }
-      return;
-    }
-    if (prev === 0 && runningCount > 0) {
+    // Always force RUNNING open while tasks are present — users shouldn't be
+    // able to hide live work. Auto-collapse only when the lane empties.
+    if (runningCount > 0) {
       const next = parse();
       if (next.has("running")) {
         next.delete("running");
         setCollapsedCsv([...next].join(","));
       }
-    } else if (prev > 0 && runningCount === 0) {
+      return;
+    }
+    if (prev !== null && prev > 0 && runningCount === 0) {
       const next = parse();
       if (!next.has("running")) {
         next.add("running");
@@ -391,7 +385,7 @@ export function KanbanView({
                 <LaneHeader
                   lane={lane}
                   count={items.length}
-                  onCollapse={() => toggleLane(lane.key)}
+                  onCollapse={isRunning && items.length > 0 ? undefined : () => toggleLane(lane.key)}
                   onAddTask={isInbox && onAddTask ? onAddTask : undefined}
                   onKillAll={
                     isRunning && items.length > 0 && onRefresh

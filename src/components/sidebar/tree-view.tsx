@@ -480,6 +480,7 @@ export function TreeView() {
                   {
                     id: "data" as DrawerId,
                     label: "Data",
+                    addLabel: "New Page",
                     icon: BookOpen,
                     addIcon: FilePlus,
                     onOpen: () => {
@@ -509,6 +510,7 @@ export function TreeView() {
                   {
                     id: "agents" as DrawerId,
                     label: "Agents",
+                    addLabel: "New Agent",
                     icon: Users,
                     addIcon: UserPlus,
                     onOpen: () =>
@@ -531,6 +533,7 @@ export function TreeView() {
                   {
                     id: "tasks" as DrawerId,
                     label: "Tasks",
+                    addLabel: "New Task",
                     icon: SquareKanban,
                     addIcon: ListPlus,
                     onOpen: () =>
@@ -550,17 +553,19 @@ export function TreeView() {
                       }, 100);
                     },
                   },
-                ] as const).map((drawer) => {
+                ] as const).map((drawer, drawerIdx) => {
                   const Icon = drawer.icon;
                   const AddIcon = drawer.addIcon;
                   const active = activeDrawer === drawer.id;
+                  const shortcutNum = drawerIdx + 1;
                   return (
                     <div key={drawer.id} className="relative group">
                       <button
                         type="button"
                         role="tab"
                         aria-selected={active}
-                        aria-label={`${drawer.label} drawer`}
+                        aria-label={`${drawer.label} drawer (⌘${shortcutNum})`}
+                        title={`${drawer.label} — ⌘${shortcutNum}`}
                         onClick={() => {
                           setActiveDrawer(drawer.id);
                           drawer.onOpen();
@@ -592,8 +597,8 @@ export function TreeView() {
                             e.stopPropagation();
                             drawer.onAdd();
                           }}
-                          title={`Add to ${drawer.label}`}
-                          aria-label={`Add to ${drawer.label}`}
+                          title={drawer.addLabel}
+                          aria-label={drawer.addLabel}
                           className="absolute right-1 top-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground/70 opacity-0 transition-opacity duration-150 hover:bg-muted hover:text-foreground group-hover:opacity-100"
                         >
                           <AddIcon className="h-3 w-3" />

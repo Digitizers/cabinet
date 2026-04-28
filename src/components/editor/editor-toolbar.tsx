@@ -35,6 +35,7 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  MoreHorizontal,
 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -87,7 +88,7 @@ function ToolButton({ label, icon: Icon, active, disabled, style, onAction }: To
       }}
       className={cn(
         "h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-accent transition-colors disabled:opacity-40",
-        active && "bg-accent text-foreground"
+        active && "bg-accent text-foreground ring-1 ring-inset ring-foreground/15"
       )}
     >
       <Icon className="h-4 w-4" />
@@ -102,6 +103,8 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   const isRtl = frontmatter?.dir === "rtl";
 
   const [popover, setPopover] = useState<PopoverKind>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -262,7 +265,8 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         style?: React.CSSProperties;
       };
 
-  const items: ButtonSpec[] = [
+  // Primary items — always visible in the toolbar
+  const primaryItems: ButtonSpec[] = [
     { icon: Heading1, action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive("heading", { level: 1 }), label: "Heading 1" },
     { icon: Heading2, action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive("heading", { level: 2 }), label: "Heading 2" },
     { icon: Heading3, action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive("heading", { level: 3 }), label: "Heading 3" },
@@ -290,40 +294,41 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       style: currentHighlight ? { backgroundColor: currentHighlight } : undefined,
     },
     { separator: true },
-    { icon: SuperIcon, action: () => editor.chain().focus().toggleSuperscript().run(), isActive: editor.isActive("superscript"), label: "Superscript" },
-    { icon: SubIcon, action: () => editor.chain().focus().toggleSubscript().run(), isActive: editor.isActive("subscript"), label: "Subscript" },
-    { separator: true },
     { icon: List, action: () => editor.chain().focus().toggleBulletList().run(), isActive: editor.isActive("bulletList"), label: "Bullet list" },
     { icon: ListOrdered, action: () => editor.chain().focus().toggleOrderedList().run(), isActive: editor.isActive("orderedList"), label: "Ordered list" },
     { icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), isActive: editor.isActive("blockquote"), label: "Blockquote" },
     { icon: CheckSquare, action: () => editor.chain().focus().toggleTaskList().run(), isActive: editor.isActive("taskList"), label: "Checklist" },
     { icon: FileCode, action: () => editor.chain().focus().toggleCodeBlock().run(), isActive: editor.isActive("codeBlock"), label: "Code block" },
     { icon: Minus, action: () => editor.chain().focus().setHorizontalRule().run(), isActive: false, label: "Divider" },
-    { separator: true },
+  ];
+
+  // Overflow items — tucked behind the "More" button
+  const overflowItems: ButtonSpec[] = [
     { icon: AlignLeft, action: () => editor.chain().focus().setTextAlign("left").run(), isActive: editor.isActive({ textAlign: "left" }), label: "Align left" },
     { icon: AlignCenter, action: () => editor.chain().focus().setTextAlign("center").run(), isActive: editor.isActive({ textAlign: "center" }), label: "Align center" },
     { icon: AlignRight, action: () => editor.chain().focus().setTextAlign("right").run(), isActive: editor.isActive({ textAlign: "right" }), label: "Align right" },
     { icon: AlignJustify, action: () => editor.chain().focus().setTextAlign("justify").run(), isActive: editor.isActive({ textAlign: "justify" }), label: "Justify" },
     { separator: true },
+    { icon: SuperIcon, action: () => editor.chain().focus().toggleSuperscript().run(), isActive: editor.isActive("superscript"), label: "Superscript" },
+    { icon: SubIcon, action: () => editor.chain().focus().toggleSubscript().run(), isActive: editor.isActive("subscript"), label: "Subscript" },
+    { separator: true },
     {
       icon: ImageIcon,
-      action: (e) =>
-        openPopoverFromButton(e, (anchor) => ({ type: "media", kind: "image", anchor })),
+      action: (e) => { setMoreOpen(false); openPopoverFromButton(e, (anchor) => ({ type: "media", kind: "image", anchor })); },
       isActive: false,
-      label: "Insert image (upload, URL, or paste/drop)",
+      label: "Insert image",
     },
     {
       icon: VideoIcon,
-      action: (e) =>
-        openPopoverFromButton(e, (anchor) => ({ type: "media", kind: "video", anchor })),
+      action: (e) => { setMoreOpen(false); openPopoverFromButton(e, (anchor) => ({ type: "media", kind: "video", anchor })); },
       isActive: false,
       label: "Insert video",
     },
     {
       icon: Sparkles,
-      action: (e) => openPopoverFromButton(e, (anchor) => ({ type: "embed", anchor })),
+      action: (e) => { setMoreOpen(false); openPopoverFromButton(e, (anchor) => ({ type: "embed", anchor })); },
       isActive: false,
-      label: "Embed — YouTube, X, Vimeo, Loom, TikTok, Spotify…",
+      label: "Embed",
     },
     { separator: true },
     { icon: Undo, action: () => editor.chain().focus().undo().run(), isActive: false, label: "Undo" },
@@ -368,7 +373,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           onWheel={onWheel}
           className="flex items-center gap-0.5 px-2 py-1 overflow-x-auto overflow-y-hidden scrollbar-none"
         >
-          {items.map((item, i) => {
+          {primaryItems.map((item, i) => {
             if ("separator" in item) {
               return (
                 <Separator key={i} orientation="vertical" className="mx-1 h-6 shrink-0" />
@@ -385,8 +390,56 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
               />
             );
           })}
+          <Separator orientation="vertical" className="mx-1 h-6 shrink-0" />
+          <button
+            ref={moreButtonRef}
+            type="button"
+            aria-label="More formatting options"
+            title="More formatting options"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setMoreOpen((v) => !v)}
+            className={cn(
+              "h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-accent transition-colors",
+              moreOpen && "bg-accent text-foreground ring-1 ring-inset ring-foreground/15"
+            )}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
         </div>
       </div>
+
+      {moreOpen && (
+        <div
+          data-editor-popover="true"
+          className="z-50 rounded-md border border-border bg-popover shadow-lg"
+          style={{
+            position: "fixed",
+            top: moreButtonRef.current
+              ? moreButtonRef.current.getBoundingClientRect().bottom + 4
+              : 40,
+            right: 8,
+          }}
+        >
+          <ClickOutsideClose onClose={() => setMoreOpen(false)} />
+          <div className="flex flex-wrap gap-0.5 p-1.5 max-w-[240px]">
+            {overflowItems.map((item, i) => {
+              if ("separator" in item) {
+                return <div key={i} className="w-full h-px bg-border/60 my-0.5" />;
+              }
+              return (
+                <ToolButton
+                  key={i}
+                  label={item.label}
+                  icon={item.icon}
+                  active={item.isActive}
+                  style={item.style}
+                  onAction={(e) => { setMoreOpen(false); item.action(e); }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {popover && (popover.type === "color" || popover.type === "highlight") && (
         <div
