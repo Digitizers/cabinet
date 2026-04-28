@@ -411,8 +411,8 @@ export function KBEditor() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex items-center">
-        <div className="flex-1">
+      <div className="flex items-center min-w-0">
+        <div className="flex-1 min-w-0">
           {!sourceMode && <EditorToolbar editor={editor} />}
         </div>
         <button

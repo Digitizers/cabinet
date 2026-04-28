@@ -271,19 +271,12 @@ html[data-custom-theme] .font-logo,
   background-color: color-mix(in oklch, var(--muted-foreground) 55%, transparent);
 }
 
-/* Editor toolbar horizontal scrollbar — always visible, even on macOS where
-   overlay scrollbars normally auto-hide. The toolbar has more buttons than
-   fit on common widths, so we need a definite affordance for "scroll right
-   to see more". */
 .editor-toolbar-scroll {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent) transparent;
 }
 .editor-toolbar-scroll::-webkit-scrollbar {
   height: 6px;
-  -webkit-appearance: none;
-  appearance: none;
-  display: block;
 }
 .editor-toolbar-scroll::-webkit-scrollbar-track {
   background: transparent;

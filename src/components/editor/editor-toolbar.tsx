@@ -129,16 +129,13 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   }, []);
 
   useEffect(() => {
+    if (!editor) return;
     const el = scrollRef.current;
     if (!el) return;
-    // Initial measurement runs after paint so clientWidth/scrollWidth are settled.
     const raf = requestAnimationFrame(updateScrollState);
     const onResize = () => updateScrollState();
     window.addEventListener("resize", onResize);
     el.addEventListener("scroll", updateScrollState);
-    // Observe the container itself and its content so the chevrons appear
-    // when the editor pane resizes (e.g. AI panel toggle) or when the visible
-    // button set changes (e.g. table-mode buttons mounting).
     const ro = new ResizeObserver(() => updateScrollState());
     ro.observe(el);
     for (const child of Array.from(el.children)) ro.observe(child);
@@ -148,7 +145,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       el.removeEventListener("scroll", updateScrollState);
       ro.disconnect();
     };
-  }, [updateScrollState]);
+  }, [editor, updateScrollState]);
 
   // Translate vertical wheel to horizontal scroll
   const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
