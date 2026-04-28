@@ -45,7 +45,7 @@ import {
 } from "@/components/layout/breaking-changes-warning";
 import { TourModal } from "@/components/onboarding/tour/tour-modal";
 import { useTour } from "@/components/onboarding/tour/use-tour";
-import { StartWorkDialog } from "@/components/composer/start-work-dialog";
+import { StartWorkDialog, type StartWorkMode } from "@/components/composer/start-work-dialog";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import type { CabinetAgentSummary } from "@/types/cabinets";
@@ -315,24 +315,32 @@ export function AppShell() {
       });
   }, []);
 
-  // Global Cmd+N new-task composer — opens in-place without navigation.
-  const [globalNewTaskOpen, setGlobalNewTaskOpen] = useState(false);
-  const [globalNewTaskAgents, setGlobalNewTaskAgents] = useState<CabinetAgentSummary[]>([]);
+  // ⌘⌥T (inbox) and ⌘⌥R (run-now) — shared global composer dialog.
+  const [globalTaskOpen, setGlobalTaskOpen] = useState(false);
+  const [globalTaskMode, setGlobalTaskMode] = useState<StartWorkMode>("now");
+  const [globalTaskAgents, setGlobalTaskAgents] = useState<CabinetAgentSummary[]>([]);
+
+  const openGlobalTask = useCallback((mode: StartWorkMode) => {
+    const cabinetPath =
+      ("cabinetPath" in section && section.cabinetPath) || ROOT_CABINET_PATH;
+    fetchCabinetOverviewClient(cabinetPath, "all")
+      .then((data) => { setGlobalTaskAgents((data.agents || []) as CabinetAgentSummary[]); })
+      .catch(() => {});
+    setGlobalTaskMode(mode);
+    setGlobalTaskOpen(true);
+  }, [section]);
 
   useEffect(() => {
-    const handler = () => {
-      const cabinetPath =
-        ("cabinetPath" in section && section.cabinetPath) || ROOT_CABINET_PATH;
-      fetchCabinetOverviewClient(cabinetPath, "all")
-        .then((data) => {
-          setGlobalNewTaskAgents((data.agents || []) as CabinetAgentSummary[]);
-        })
-        .catch(() => {});
-      setGlobalNewTaskOpen(true);
-    };
-    window.addEventListener("cabinet:global-new-task", handler);
-    return () => window.removeEventListener("cabinet:global-new-task", handler);
-  }, [section]);
+    const handler = () => openGlobalTask("inbox");
+    window.addEventListener("cabinet:global-inbox-task", handler);
+    return () => window.removeEventListener("cabinet:global-inbox-task", handler);
+  }, [openGlobalTask]);
+
+  useEffect(() => {
+    const handler = () => openGlobalTask("now");
+    window.addEventListener("cabinet:global-run-task", handler);
+    return () => window.removeEventListener("cabinet:global-run-task", handler);
+  }, [openGlobalTask]);
 
   const handleWizardComplete = useCallback(() => {
     setShowWizard(false);
@@ -698,15 +706,16 @@ export function AppShell() {
         }}
       />
       <StartWorkDialog
-        open={globalNewTaskOpen}
-        onOpenChange={setGlobalNewTaskOpen}
+        open={globalTaskOpen}
+        onOpenChange={setGlobalTaskOpen}
         cabinetPath={
           ("cabinetPath" in section && section.cabinetPath) || ROOT_CABINET_PATH
         }
-        agents={globalNewTaskAgents}
-        initialMode="now"
+        agents={globalTaskAgents}
+        initialMode={globalTaskMode}
         onStarted={async (conversationId, conversationCabinetPath) => {
-          setGlobalNewTaskOpen(false);
+          setGlobalTaskOpen(false);
+          if (globalTaskMode === "inbox") return;
           try {
             const params = new URLSearchParams();
             if (conversationCabinetPath) params.set("cabinetPath", conversationCabinetPath);

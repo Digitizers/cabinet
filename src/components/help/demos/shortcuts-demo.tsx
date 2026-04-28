@@ -67,12 +67,13 @@ const MOD = "⌘";
 
 function SlideGlobal() {
   const rows: { keys: React.ReactNode[]; label: string }[] = [
-    { keys: [`${MOD}⇧T`], label: "New task" },
+    { keys: [`${MOD}⌥T`], label: "Add task to Inbox" },
+    { keys: [`${MOD}⌥R`], label: "Run task now" },
     { keys: [`${MOD}K`], label: "Open search palette" },
     { keys: ["/"], label: "Open search (when idle)" },
     { keys: [`${MOD}S`], label: "Save current page" },
-    { keys: [`${MOD}⇧G`], label: "Toggle Agents view" },
-    { keys: [`${MOD}⇧A`], label: "Toggle AI panel" },
+    { keys: [`${MOD}⌥G`], label: "Toggle Agents view" },
+    { keys: [`${MOD}⌥A`], label: "Toggle AI panel" },
     { keys: ["Ctrl`"], label: "Toggle terminal" },
     { keys: [`${MOD}1`], label: "Sidebar → Data" },
     { keys: [`${MOD}2`], label: "Sidebar → Agents" },
@@ -88,7 +89,7 @@ function SlideGlobal() {
           <span style={{ color: P.accent }}>fast</span>.
         </>
       }
-      description="Ten global shortcuts work from any surface — editor, agents, tasks, terminal. No hunting through menus."
+      description="Global shortcuts work from any surface — editor, agents, tasks, terminal. No hunting through menus."
     >
       <div style={{ width: 360 }} className="space-y-1">
         <SectionLabel>Global</SectionLabel>

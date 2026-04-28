@@ -4,6 +4,7 @@ export type ConversationTrigger = "manual" | "job" | "heartbeat" | "agent";
 export type ConversationSource = "manual" | "editor";
 
 export type ConversationStatus =
+  | "idle"
   | "running"
   | "completed"
   | "failed"
@@ -218,6 +219,8 @@ export interface CreateConversationRequest extends ConversationRuntimeOverride {
   stagingClientUuid?: string;
   cabinetPath?: string;
   pagePath?: string;
+  /** When true, creates the conversation with status "idle" without running it. */
+  draftOnly?: boolean;
 }
 
 export interface CreateConversationResponse {

@@ -414,9 +414,20 @@ export function KanbanView({
                     strategy={verticalListSortingStrategy}
                   >
                     {items.length === 0 ? (
-                      <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-[11px] text-muted-foreground">
+                      isInbox ? (
+                        <div className="rounded-md border border-dashed border-border/50 px-3 py-5 text-center space-y-2">
+                          <p className="text-[11px] text-muted-foreground">{lane.hint}</p>
+                          <p className="text-[10.5px] text-muted-foreground/50">
+                            Press{" "}
+                            <kbd className="rounded px-1 py-0.5 text-[9.5px] ring-1 ring-foreground/10">⌘⌥T</kbd>
+                            {" "}to add a task
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-[11px] text-muted-foreground">
                           {lane.hint}
                         </div>
+                      )
                     ) : (
                       items.map((task) => (
                         <SortableTaskCard

@@ -525,31 +525,26 @@ export function ShortcutsVisual() {
   return (
     <Stage>
       <div className="flex flex-col gap-3">
-        {/* row 1 — most important */}
         <div className="flex items-center gap-2">
-          <KbdChip delay={100}>⌘⇧T</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>New task</span>
+          <KbdChip delay={100}>⌘⌥T</KbdChip>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>Add to Inbox</span>
         </div>
-        {/* row 2 */}
         <div className="flex items-center gap-2">
-          <KbdChip delay={220}>⌘K</KbdChip>
+          <KbdChip delay={200}>⌘⌥R</KbdChip>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>Run task now</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <KbdChip delay={300}>⌘K</KbdChip>
           <span className="text-[10px]" style={{ color: P.textTertiary }}>Search</span>
         </div>
-        {/* row 3 */}
         <div className="flex items-center gap-2">
-          <KbdChip delay={340}>⌘S</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Save</span>
-        </div>
-        {/* row 4 */}
-        <div className="flex items-center gap-2">
-          <KbdChip delay={460}>⌘⇧A</KbdChip>
+          <KbdChip delay={400}>⌘⌥A</KbdChip>
           <span className="text-[10px]" style={{ color: P.textTertiary }}>AI panel</span>
         </div>
-        {/* row 5 */}
         <div className="flex items-center gap-2">
-          <KbdChip delay={580}>⌘1</KbdChip>
-          <KbdChip delay={660}>⌘2</KbdChip>
-          <KbdChip delay={740}>⌘3</KbdChip>
+          <KbdChip delay={500}>⌘1</KbdChip>
+          <KbdChip delay={580}>⌘2</KbdChip>
+          <KbdChip delay={660}>⌘3</KbdChip>
           <span className="text-[10px]" style={{ color: P.textTertiary }}>Drawers</span>
         </div>
       </div>

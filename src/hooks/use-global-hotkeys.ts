@@ -53,31 +53,42 @@ export function useGlobalHotkeys(): void {
       // inside editable surfaces because the modifier makes them unambiguous.
       if (!mod) return;
 
-      // Cmd+Shift+T — open the global new-task composer in place (no navigation)
-      // (Cmd+N conflicts with "New window" in every browser and on macOS system-level)
-      if (e.shiftKey && !e.altKey && (e.key === "t" || e.key === "T")) {
+      // Cmd+Opt+T — quick-add a task to the Inbox (no agent, no run)
+      // e.code used because Option modifies e.key on macOS (Option+T → "†")
+      if (e.altKey && !e.shiftKey && e.code === "KeyT") {
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent("cabinet:global-new-task"));
+        window.dispatchEvent(new CustomEvent("cabinet:global-inbox-task"));
+        return;
+      }
+
+      // Cmd+Opt+R — open the run-now composer (pick agent + start immediately)
+      // e.code used because Option modifies e.key on macOS (Option+R → "®")
+      if (e.altKey && !e.shiftKey && e.code === "KeyR") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("cabinet:global-run-task"));
         return;
       }
 
       // Cmd+S — save the current page
-      if (!e.shiftKey && (e.key === "s" || e.key === "S")) {
+      if (!e.shiftKey && !e.altKey && (e.key === "s" || e.key === "S")) {
         e.preventDefault();
         void useEditorStore.getState().save();
         return;
       }
 
-      // Cmd+Shift+A — toggle AI panel
-      if (e.shiftKey && (e.key === "a" || e.key === "A")) {
+      // Cmd+Opt+A — toggle AI panel
+      // (Cmd+Shift+A = "Search tabs" in Chrome 94+)
+      // e.code used because Option modifies e.key on macOS (Option+A → "å")
+      if (e.altKey && !e.shiftKey && e.code === "KeyA") {
         e.preventDefault();
         useAIPanelStore.getState().toggle();
         return;
       }
 
-      // Cmd+Shift+G — toggle Agents view
-      // (Cmd+M conflicts with "Minimize window" at macOS system level)
-      if (e.shiftKey && (e.key === "g" || e.key === "G")) {
+      // Cmd+Opt+G — toggle Agents view
+      // (Cmd+M = "Minimize window" on macOS; Cmd+Shift+G = "Find Previous" in Chrome/Safari)
+      // e.code used because Option modifies e.key on macOS (Option+G → "©")
+      if (e.altKey && !e.shiftKey && e.code === "KeyG") {
         e.preventDefault();
         const app = useAppStore.getState();
         const { section, setSection } = app;
