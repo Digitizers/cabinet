@@ -123,15 +123,15 @@ export function KBEditor() {
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceText, setSourceText] = useState("");
   // Reset the tab to "page" whenever the path changes — opening a new folder
-  // shouldn't skip its index.md if the previous folder was on Files. Uses the
-  // React-recommended "adjust state during render" pattern instead of an
-  // effect (avoids cascading renders).
+  // shouldn't skip its index.md if the previous folder was on Files. Has to
+  // be an effect (not state-during-render) because Tiptap's EditorContent
+  // calls flushSync internally; setState during the parent render explodes
+  // when EditorContent renders in the same pass.
   const [folderTab, setFolderTab] = useState<"page" | "files">("page");
-  const [tabPath, setTabPath] = useState(currentPath);
-  if (tabPath !== currentPath) {
-    setTabPath(currentPath);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFolderTab("page");
-  }
+  }, [currentPath]);
 
   const handleUpdate = useCallback(
     ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
