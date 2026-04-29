@@ -413,8 +413,8 @@ export function SlideData({ sceneIdx, viewerRevealed }: SlideDataProps) {
                 className="flex items-center gap-2 rounded-md px-1.5 py-1.5 text-[12px] opacity-0"
                 style={{
                   color: P.text,
-                  animation: "cabinet-tour-fade-up 0.25s ease-out forwards",
-                  animationDelay: "1000ms",
+                  animation: "cabinet-tour-fade-up 0.125s ease-out forwards",
+                  animationDelay: "500ms",
                 }}
               >
                 {(() => {
@@ -445,8 +445,8 @@ export function SlideData({ sceneIdx, viewerRevealed }: SlideDataProps) {
                       boxShadow: featured
                         ? `inset 0 0 0 1px ${P.borderDark}`
                         : "none",
-                      animation: "cabinet-tour-fade-up 0.25s ease-out forwards",
-                      animationDelay: `${1050 + i * 40}ms`,
+                      animation: "cabinet-tour-fade-up 0.125s ease-out forwards",
+                      animationDelay: `${525 + i * 20}ms`,
                     }}
                   >
                     <Icon
@@ -479,8 +479,8 @@ export function SlideData({ sceneIdx, viewerRevealed }: SlideDataProps) {
                   width: "44px",
                   height: "44px",
                   background: P.accent,
-                  animation: "cabinet-tour-click-ripple 0.6s ease-out forwards",
-                  animationDelay: "1500ms",
+                  animation: "cabinet-tour-click-ripple 0.3s ease-out forwards",
+                  animationDelay: "750ms",
                 }}
               />
             </div>
@@ -494,8 +494,8 @@ export function SlideData({ sceneIdx, viewerRevealed }: SlideDataProps) {
             className="font-body-serif text-[13px] leading-snug text-center opacity-0"
             style={{
               color: P.textSecondary,
-              animation: "cabinet-tour-fade-up 0.25s ease-out forwards",
-              animationDelay: "1020ms",
+              animation: "cabinet-tour-fade-up 0.125s ease-out forwards",
+              animationDelay: "510ms",
               minHeight: "2.4em",
             }}
           >
@@ -512,12 +512,12 @@ export function SlideData({ sceneIdx, viewerRevealed }: SlideDataProps) {
           style={
             sceneIdx === 0
               ? {
-                  animation: "cabinet-tour-fade-up 0.35s ease-out forwards",
+                  animation: "cabinet-tour-fade-up 0.175s ease-out forwards",
                   animationPlayState: viewerRevealed ? "running" : "paused",
                 }
               : {
-                  animation: "cabinet-tour-fade-up 0.35s ease-out forwards",
-                  animationDelay: "1650ms",
+                  animation: "cabinet-tour-fade-up 0.175s ease-out forwards",
+                  animationDelay: "825ms",
                 }
           }
         >
