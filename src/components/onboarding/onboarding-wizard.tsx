@@ -29,6 +29,8 @@ import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import type { ProviderInfo } from "@/types/agents";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
+import { getDomainAccent } from "@/lib/registry/registry-manifest";
+import { TiltCard } from "@/components/ui/tilt-card";
 import { showError } from "@/lib/ui/toast";
 import { RegistryBrowser } from "@/components/registry/registry-browser";
 import {
@@ -258,22 +260,6 @@ function getAlwaysCheckedForRoom(roomType: RoomType): Set<string> {
 // with a `rooms` field so the carousel can filter per room type.
 type PreMadeTeam = StarterTeam;
 
-const TEAM_DOMAIN_COLORS: Record<string, { bg: string; text: string }> = {
-  Marketing: { bg: "#EDE7F6", text: "#6B4FA0" },
-  Sales: { bg: "#FCE4EC", text: "#B0475A" },
-  Media: { bg: "#E8EAF6", text: "#4A5899" },
-  "E-commerce": { bg: "#E0F2F1", text: "#3A7A6D" },
-  Content: { bg: "#FFF8E1", text: "#8D7039" },
-  Services: { bg: "#E3F2FD", text: "#4A7FB5" },
-  PKM: { bg: "#E1F1FF", text: "#3F6DB5" },
-  Writing: { bg: "#FFF0F5", text: "#9B4B6B" },
-  Admin: { bg: "#F1F1EC", text: "#6F6F57" },
-  Research: { bg: "#E8F5E9", text: "#3F7B44" },
-  Teaching: { bg: "#FFF4E0", text: "#9C6B2A" },
-  Household: { bg: "#FBEFE1", text: "#8C5E3A" },
-  Kids: { bg: "#E8F9F5", text: "#3A8879" },
-};
-
 function TerminalCommand({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -348,47 +334,64 @@ function TeamCarousel({
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-xl"
+      className="tilt-carousel relative w-full py-4"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       <div ref={scrollRef} className="flex gap-2 will-change-transform">
         {doubled.map((item, i) => {
-          const domain = "domain" in item ? item.domain : "";
           const agentCount = "agentCount" in item ? item.agentCount : ("agents" in item ? (item as PreMadeTeam).agents : 0);
-          const colors = TEAM_DOMAIN_COLORS[domain] || { bg: WEB.accentBg, text: WEB.accent };
+          const coverUrl = "coverUrl" in item ? item.coverUrl : null;
+          const domain = "domain" in item ? item.domain : "Other";
+          const accent = getDomainAccent(domain);
           return (
-            <button
+            <TiltCard
               key={`${item.name}-${i}`}
-              className="flex-shrink-0 w-44 rounded-lg p-3 flex flex-col text-left transition-all hover:-translate-y-0.5"
+              className="flex-shrink-0 w-48"
+              style={{ "--accent": accent } as React.CSSProperties}
+            >
+            <button
+              className="fancy-card w-48 flex flex-col text-left"
               style={{
                 border: `1px solid ${WEB.border}`,
                 background: WEB.bgCard,
-                height: 88,
                 cursor: isReal ? "pointer" : "default",
               }}
               onClick={() => {
                 if (isReal) onSelect(item as RegistryTemplate);
               }}
             >
-              <p className="text-[11px] font-medium leading-tight" style={{ color: WEB.text }}>
-                {item.name}
-              </p>
-              <p className="text-[10px] mt-1 leading-snug line-clamp-2" style={{ color: WEB.textSecondary }}>
-                {item.description}
-              </p>
-              <div className="flex items-center justify-between mt-auto">
-                <span
-                  className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
-                  style={{ background: colors.bg, color: colors.text }}
-                >
-                  {domain}
-                </span>
-                <span className="text-[9px]" style={{ color: WEB.textTertiary }}>
-                  {agentCount} agents
-                </span>
+              <div
+                className="relative h-20 w-full"
+                style={{
+                  background: coverUrl ? undefined : WEB.accentBg,
+                  backgroundImage: coverUrl ? `url(${coverUrl})` : undefined,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+                aria-hidden
+              >
+                {!coverUrl && (
+                  <div className="absolute inset-0 flex items-center justify-center text-xl opacity-40">
+                    📦
+                  </div>
+                )}
+              </div>
+              <div className="p-2.5 flex flex-col gap-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-[11px] font-medium leading-tight line-clamp-1 flex-1 min-w-0" style={{ color: WEB.text }}>
+                    {item.name}
+                  </p>
+                  <span className="text-[9px] shrink-0" style={{ color: WEB.textTertiary }}>
+                    {agentCount} agents
+                  </span>
+                </div>
+                <p className="text-[9px] leading-snug line-clamp-2" style={{ color: WEB.textSecondary }}>
+                  {item.description}
+                </p>
               </div>
             </button>
+            </TiltCard>
           );
         })}
       </div>
@@ -1647,6 +1650,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [libraryTemplates, setLibraryTemplates] = useState<LibraryTemplate[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
   const [launching, setLaunching] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [githubStars, setGithubStars] = useState(GITHUB_STARS_FALLBACK);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -1960,6 +1964,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       : null;
   const isGitHubCommunityStep = communityStep?.eyebrow === "GitHub";
   const launchDisabled = launching || selectedAgentCount === 0;
+  const finalLaunchDisabled = launchDisabled || !disclaimerAccepted;
   const starsLabel = `${formatGithubStars(githubStars)} GitHub stars`;
 
   /* ─── Shared inline styles (website tokens) ─── */
@@ -3058,6 +3063,121 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               </div>
 
 
+              <div
+                className="rounded-xl p-4 space-y-3 text-sm"
+                style={{
+                  border: `1px solid ${WEB.border}`,
+                  background: WEB.bgCard,
+                }}
+              >
+                <p className="text-[13px] font-semibold" style={{ color: WEB.text }}>
+                  Before you launch
+                </p>
+                <ul className="space-y-2">
+                  <li className="flex gap-3">
+                    <span
+                      className="mt-2 size-1 shrink-0 rounded-full"
+                      style={{ background: WEB.textTertiary }}
+                      aria-hidden
+                    />
+                    <span style={{ color: WEB.textSecondary }}>
+                      <strong className="font-medium" style={{ color: WEB.text }}>
+                        Agents run with full access.
+                      </strong>{" "}
+                      Cabinet uses{" "}
+                      <code
+                        className="rounded px-1 py-0.5 text-[11px]"
+                        style={{ background: WEB.bgWarm, color: WEB.text }}
+                      >
+                        --dangerously-skip-permissions
+                      </code>{" "}
+                      (Claude Code) and equivalent flags in other providers. This is identical
+                      to running these CLI tools from your own terminal. Any MCP servers or
+                      tools you&apos;ve configured may be invoked automatically by agents.
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span
+                      className="mt-2 size-1 shrink-0 rounded-full"
+                      style={{ background: WEB.textTertiary }}
+                      aria-hidden
+                    />
+                    <span style={{ color: WEB.textSecondary }}>
+                      <strong className="font-medium" style={{ color: WEB.text }}>
+                        Back up your data regularly.
+                      </strong>{" "}
+                      Agents can read, write, and delete files across your KB and linked repos.
+                      Cabinet is not responsible for data loss. You are responsible for the AI
+                      providers you choose and their terms of service.
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span
+                      className="mt-2 size-1 shrink-0 rounded-full"
+                      style={{ background: WEB.textTertiary }}
+                      aria-hidden
+                    />
+                    <span style={{ color: WEB.textSecondary }}>
+                      <strong className="font-medium" style={{ color: WEB.text }}>
+                        Beta software. Things may break.
+                      </strong>{" "}
+                      We ship fast. Breaking changes can land without notice.
+                    </span>
+                  </li>
+                </ul>
+                <label
+                  className="flex cursor-pointer items-start gap-2 pt-1"
+                  style={{ color: WEB.text }}
+                >
+                  <input
+                    type="checkbox"
+                    name="disclaimer-accept"
+                    aria-label="I have read and I accept"
+                    checked={disclaimerAccepted}
+                    onChange={(e) => setDisclaimerAccepted(e.target.checked)}
+                    className="mt-0.5 size-4 shrink-0 rounded"
+                    style={{ borderColor: WEB.border, accentColor: WEB.accent }}
+                  />
+                  <span>I understand and want to continue.</span>
+                </label>
+                <p
+                  className="text-[11px]"
+                  style={{ color: WEB.textTertiary }}
+                >
+                  By continuing you agree to our{" "}
+                  <a
+                    href="https://runcabinet.com/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2"
+                    style={{ color: WEB.textSecondary }}
+                  >
+                    Terms
+                  </a>{" "}
+                  and{" "}
+                  <a
+                    href="https://runcabinet.com/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2"
+                    style={{ color: WEB.textSecondary }}
+                  >
+                    Privacy
+                  </a>
+                  . Cabinet is an{" "}
+                  <a
+                    href="https://github.com/hilash/cabinet"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2"
+                    style={{ color: WEB.textSecondary }}
+                  >
+                    open-source project
+                  </a>
+                  .
+                </p>
+              </div>
+
               <div className="flex items-center justify-between pt-2">
                 <button
                   onClick={() => setStep(COMMUNITY_END_STEP)}
@@ -3069,7 +3189,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </button>
                 <button
                   onClick={launch}
-                  disabled={launchDisabled}
+                  disabled={finalLaunchDisabled}
                   className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
                   style={{ background: WEB.accent }}
                 >

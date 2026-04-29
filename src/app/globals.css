@@ -205,6 +205,15 @@ html[data-custom-theme] .tiptap h4 {
   animation: cabinet-card-glow 2s ease-in-out infinite;
 }
 
+/* One-shot reveal for the app shell on the render that immediately follows
+   onboarding wizard completion. Pairs with a ~700ms tour auto-open delay
+   so the user gets a beat to register the app before the tour pops in. */
+@keyframes app-reveal {
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-app-reveal { animation: app-reveal 250ms ease-out both; }
+
 /* Sidebar tree-node blink — used when focusPath() scrolls-to a row.
    Fades a violet wash in/out twice, then returns to the row's normal
    (selected) background. The wash is tuned to read clearly on both
@@ -895,3 +904,34 @@ em-emoji-picker {
 }
 .registry-prose > *:first-child { margin-top: 0; }
 .registry-prose > *:last-child { margin-bottom: 0; }
+
+/* ─── Tilt card hover treatment ───
+   Pairs with <TiltCard> in src/components/ui/tilt-card.tsx.
+   Each instance can override --accent inline (on TiltCard) to get a
+   domain-tinted glow; the inline value is inherited into .fancy-card. */
+.fancy-card {
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fancy-card:hover {
+  box-shadow:
+    0 24px 64px color-mix(in srgb, var(--accent, var(--primary)) 40%, transparent),
+    0 4px 12px color-mix(in srgb, var(--accent, var(--primary)) 25%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent, var(--primary)) 60%, transparent);
+  border-color: var(--accent, var(--primary));
+}
+/* Carousel container that lets card hover-glow bleed outside the strip
+   while still hard-clipping the horizontally-scrolling content. */
+.tilt-carousel {
+  overflow-x: clip;
+  overflow-y: visible;
+  overflow-clip-margin: 120px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fancy-card { transition: none; }
+  .fancy-card:hover { box-shadow: none; }
+}

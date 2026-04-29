@@ -80,6 +80,7 @@ interface RegistryDetail {
   readmeHtml: string;
   tags: string[];
   domain: string;
+  coverUrl: string | null;
   stats: { totalAgents: number; totalJobs: number; totalCabinets: number };
 }
 
@@ -443,6 +444,9 @@ const DOMAIN_COLORS: Record<string, { bg: string; text: string }> = {
   Media:                  { bg: "#faf5ff", text: "#7c3aed" },
   "E-commerce":           { bg: "#f0fdf4", text: "#15803d" },
   Sales:                  { bg: "#fff1f2", text: "#be123c" },
+  Education:              { bg: "#f0fdfa", text: "#0f766e" },
+  Lifestyle:              { bg: "#fdf4ff", text: "#a21caf" },
+  Other:                  { bg: "#f5f5f4", text: "#57534e" },
 };
 
 function ListItem({ template, onClick }: { template: RegistryTemplate; onClick: () => void }) {
@@ -450,11 +454,29 @@ function ListItem({ template, onClick }: { template: RegistryTemplate; onClick: 
   return (
     <button
       onClick={onClick}
-      className="group flex items-center gap-5 w-full rounded-xl border px-5 py-4 text-left transition-all duration-200 hover:shadow-sm"
+      className="group flex items-center gap-4 w-full rounded-xl border px-4 py-3 text-left transition-all duration-200 hover:shadow-sm"
       style={{ borderColor: P.border, backgroundColor: P.bgCard }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = P.borderDark; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = P.border; }}
     >
+      <div
+        className="shrink-0 h-14 w-20 rounded-lg overflow-hidden border"
+        style={{
+          borderColor: P.border,
+          backgroundColor: P.bgWarm,
+          backgroundImage: template.coverUrl ? `url(${template.coverUrl})` : undefined,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+        aria-hidden
+      >
+        {!template.coverUrl && (
+          <div className="h-full w-full flex items-center justify-center text-lg" style={{ color: P.textMuted }}>
+            <Archive className="h-5 w-5" />
+          </div>
+        )}
+      </div>
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <h3 className="text-base font-semibold truncate transition-colors duration-150" style={{ color: P.textPrimary }}>
@@ -556,9 +578,13 @@ function DetailView({
           name: detail.meta.name,
           description: detail.meta.description,
           domain: detail.domain,
+          version: detail.meta.version || "0.1.0",
+          cover: null,
+          coverUrl: detail.coverUrl ?? null,
           agentCount: detail.stats.totalAgents,
           jobCount: detail.stats.totalJobs,
           childCount: detail.stats.totalCabinets > 1 ? detail.stats.totalCabinets - 1 : 0,
+          tags: detail.tags,
         };
         onImported(tpl, importName.trim() || detail.meta.name);
         setImporting(false);

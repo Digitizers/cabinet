@@ -8,7 +8,7 @@ import {
 } from "@/lib/storage/path-utils";
 import { seedGettingStartedDir } from "@/lib/storage/cabinet-scaffold";
 import { downloadRegistryTemplate } from "@/lib/registry/github-fetch";
-import { REGISTRY_TEMPLATES } from "@/lib/registry/registry-manifest";
+import { getRegistryTemplates } from "@/lib/registry/registry-manifest";
 import { CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
 import { emit as emitTelemetry } from "@/lib/telemetry";
 
@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify the template exists in our manifest
-    const template = REGISTRY_TEMPLATES.find((t) => t.slug === slug);
+    const templates = await getRegistryTemplates();
+    const template = templates.find((t) => t.slug === slug);
     if (!template) {
       return NextResponse.json(
         { error: `Unknown template: ${slug}` },

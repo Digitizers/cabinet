@@ -33,6 +33,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
+import { getDomainAccent } from "@/lib/registry/registry-manifest";
+import { TiltCard } from "@/components/ui/tilt-card";
 
 type QuickAction = {
   label: string;
@@ -117,6 +119,8 @@ const DOMAIN_COLORS: Record<string, string> = {
   "Operations": "bg-slate-500/15 text-slate-400",
   "Paid Social": "bg-pink-500/15 text-pink-400",
   "Content Ops": "bg-amber-500/15 text-amber-400",
+  "Lifestyle": "bg-fuchsia-500/15 text-fuchsia-400",
+  "Other": "bg-muted text-muted-foreground",
 };
 
 function getGreeting(): string {
@@ -135,34 +139,61 @@ function CabinetCard({
 }) {
   const colorClass =
     DOMAIN_COLORS[template.domain] || "bg-muted text-muted-foreground";
+  const accent = getDomainAccent(template.domain);
 
   return (
-    <button
-      onClick={onClick}
-      className="group flex-shrink-0 w-64 h-36 rounded-xl border border-border bg-card p-4 flex flex-col text-left cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    <TiltCard
+      className="flex-shrink-0 w-64"
+      style={{ "--accent": accent } as React.CSSProperties}
     >
-      <h3 className="text-sm font-medium text-foreground leading-tight">
-        {template.name}
-      </h3>
-      <p className="text-xs text-muted-foreground leading-relaxed mt-2 line-clamp-2">
-        {template.description}
-      </p>
-      <div className="flex items-center justify-between mt-auto pt-3">
-        <span
-          className={cn(
-            "text-[10px] font-medium px-2 py-0.5 rounded-full",
-            colorClass
-          )}
-        >
-          {template.domain}
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <Users className="h-3 w-3" />
-          {template.agentCount} agents
-          <Download className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </span>
+      <button
+        onClick={onClick}
+        className="fancy-card group w-full border border-border bg-card flex flex-col text-left"
+      >
+      <div
+        className="relative h-24 w-full bg-muted"
+        style={
+          template.coverUrl
+            ? {
+                backgroundImage: `url(${template.coverUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : undefined
+        }
+      >
+        {!template.coverUrl && (
+          <div className="absolute inset-0 flex items-center justify-center text-3xl opacity-30">
+            📦
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-card/20 to-transparent" />
       </div>
-    </button>
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className="text-sm font-medium text-foreground leading-tight">
+          {template.name}
+        </h3>
+        <p className="text-xs text-muted-foreground leading-relaxed mt-2 line-clamp-2">
+          {template.description}
+        </p>
+        <div className="flex items-center justify-between mt-auto pt-3">
+          <span
+            className={cn(
+              "text-[10px] font-medium px-2 py-0.5 rounded-full",
+              colorClass
+            )}
+          >
+            {template.domain}
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Users className="h-3 w-3" />
+            {template.agentCount} agents
+            <Download className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </span>
+        </div>
+      </div>
+      </button>
+    </TiltCard>
   );
 }
 
@@ -204,7 +235,7 @@ function RegistryCarousel({
 
   return (
     <div
-      className="relative w-full overflow-hidden"
+      className="tilt-carousel relative w-full py-6"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
