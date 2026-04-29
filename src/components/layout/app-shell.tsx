@@ -717,8 +717,8 @@ export function AppShell() {
           void refreshUpdate();
         }}
         onApply={applyUpdate}
-        onCreateBackup={async () => {
-          await createBackup("data");
+        onCreateBackup={async (options) => {
+          await createBackup("data", options);
         }}
         onOpenDataDir={openDataDir}
         onLater={handleUpdateLater}

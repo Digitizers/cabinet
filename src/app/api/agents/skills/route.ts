@@ -1,128 +1,115 @@
-import { spawn } from "child_process";
+import { NextResponse } from "next/server";
 import fs from "fs/promises";
-import { existsSync } from "fs";
 import os from "os";
 import path from "path";
-import { NextResponse } from "next/server";
-import { readSkillCatalog } from "@/lib/agents/adapters/_shared/skills-injection";
+import matter from "gray-matter";
+import { listSkills, readSkill } from "@/lib/agents/skills/loader";
+import { readSkillStats } from "@/lib/agents/skills/stats";
+import { readSkillsLock } from "@/lib/agents/skills/lock";
+import { fetchUpstreamForLock } from "@/lib/agents/skills/upstream";
+import {
+  cabinetPathFromScope,
+  isValidSkillKey,
+  resolveSkillsScopeRoot,
+} from "@/lib/agents/skills/scope";
 
-function resolveSkillsRoot(): string {
-  return path.join(process.env.HOME || os.homedir() || "/tmp", ".cabinet", "skills");
+interface CreateRequest {
+  key: string;
+  name?: string;
+  description?: string;
+  body?: string;
+  scope?: string; // "root" | "cabinet:<path>"  default: "root"
+  allowedTools?: string;
 }
 
-export async function GET(): Promise<NextResponse> {
-  const catalog = readSkillCatalog();
-  return NextResponse.json({
-    root: resolveSkillsRoot(),
-    skills: catalog,
-    count: catalog.length,
-  });
-}
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 64);
-}
-
-function revealCommand(targetPath: string): { command: string; args: string[] } {
-  switch (process.platform) {
-    case "darwin":
-      return { command: "open", args: [targetPath] };
-    case "win32":
-      return { command: "explorer.exe", args: [targetPath] };
-    default:
-      return { command: "xdg-open", args: [targetPath] };
-  }
-}
-
-async function reveal(targetPath: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const { command, args } = revealCommand(targetPath);
-    const child = spawn(command, args, { detached: true, stdio: "ignore" });
-    child.on("error", reject);
-    child.on("spawn", () => {
-      child.unref();
-      resolve();
-    });
-  });
-}
-
-const SKILL_TEMPLATE = (name: string, slug: string) => `---
-name: ${name}
-slug: ${slug}
-description: Short one-line description of what this skill does.
----
-
-# ${name}
-
-Tell the agent what this skill is for and when to use it. Keep it short
-and actionable.
-
-## When to use
-
-- Trigger 1
-- Trigger 2
-
-## How
-
-Step-by-step instructions, examples, or references the agent should
-follow. Drop any helper scripts or reference files alongside this
-\`SKILL.md\` and the agent will be able to read them.
-`;
-
-/**
- * POST /api/agents/skills
- *
- * Body shapes:
- *   - { open: true }          → ensure the skills root exists, reveal in Finder
- *   - { name: "Some Name" }   → scaffold ~/.cabinet/skills/<slug>/SKILL.md, reveal
- *
- * Audit #052: until the marketplace lands, this is the in-app guidance for
- * the otherwise shell-only skills workflow.
- */
 export async function POST(request: Request): Promise<NextResponse> {
-  let body: { open?: boolean; name?: string } = {};
-  try {
-    body = (await request.json()) as typeof body;
-  } catch {
-    /* tolerate empty body — treat as `{ open: true }` */
-  }
-
-  const root = resolveSkillsRoot();
-  await fs.mkdir(root, { recursive: true });
-
-  if (body.name && body.name.trim()) {
-    const name = body.name.trim();
-    const slug = slugify(name);
-    if (!slug) {
-      return NextResponse.json({ error: "Name must contain at least one alphanumeric character." }, { status: 400 });
-    }
-    const skillDir = path.join(root, slug);
-    if (existsSync(skillDir)) {
-      return NextResponse.json({ error: `A skill named "${slug}" already exists.` }, { status: 409 });
-    }
-    await fs.mkdir(skillDir, { recursive: true });
-    await fs.writeFile(path.join(skillDir, "SKILL.md"), SKILL_TEMPLATE(name, slug));
-    try {
-      await reveal(skillDir);
-    } catch {
-      /* reveal is best-effort — the file is on disk regardless */
-    }
-    return NextResponse.json({ ok: true, slug, path: skillDir });
-  }
-
-  // Default: open the root in Finder
-  try {
-    await reveal(root);
-  } catch (err) {
+  const body = (await request.json().catch(() => ({}))) as CreateRequest;
+  if (!body.key || !isValidSkillKey(body.key)) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to open skills folder" },
-      { status: 500 }
+      { error: "key is required and must be kebab-case (lowercase, digits, hyphens)" },
+      { status: 400 },
     );
   }
-  return NextResponse.json({ ok: true, root });
+
+  const scope = body.scope ?? "root";
+  let destRoot: string;
+  try {
+    destRoot = resolveSkillsScopeRoot(scope);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Invalid scope" },
+      { status: 400 },
+    );
+  }
+
+  const skillDir = path.join(destRoot, body.key);
+  const exists = await fs.stat(skillDir).then(() => true).catch(() => false);
+  if (exists) {
+    return NextResponse.json({ error: "skill already exists" }, { status: 409 });
+  }
+
+  await fs.mkdir(skillDir, { recursive: true });
+  const frontmatter: Record<string, unknown> = {
+    name: body.name || body.key,
+    description: body.description ?? "",
+  };
+  if (body.allowedTools) frontmatter["allowed-tools"] = body.allowedTools;
+
+  const skillBody = body.body ?? `# ${body.name || body.key}\n\n${body.description ?? ""}\n`;
+  const md = matter.stringify(skillBody, frontmatter);
+  await fs.writeFile(path.join(skillDir, "SKILL.md"), md, "utf-8");
+
+  const created = await readSkill(body.key, {
+    cabinetPath: cabinetPathFromScope(scope),
+  });
+  return NextResponse.json({ skill: created }, { status: 201 });
+}
+
+export async function GET(request: Request): Promise<NextResponse> {
+  const url = new URL(request.url);
+  const cabinetPath = url.searchParams.get("cabinet") || undefined;
+  const originsParam = url.searchParams.get("origins");
+  const includeSystem = originsParam ? originsParam.split(",").includes("system") : true;
+  const includeLinked = originsParam ? originsParam.split(",").includes("linked") : true;
+  const includeLegacy = originsParam ? originsParam.split(",").includes("legacy") : true;
+
+  const [skills, stats, lock] = await Promise.all([
+    listSkills({
+      cabinetPath,
+      includeSystem,
+      includeLinked,
+      includeLegacy,
+    }),
+    readSkillStats(cabinetPath ?? null),
+    readSkillsLock(),
+  ]);
+
+  // Upstream metadata (GitHub stars + skills.sh installs) for skills that
+  // have a github source recorded in skills-lock.json. Skills authored
+  // directly on disk lack a lock entry → upstream is null and the UI hides
+  // the chip. Fetches are cached aggressively (24h stars, 1h installs).
+  const upstream = await fetchUpstreamForLock(lock);
+
+  // Decorate each entry with stats + upstream when we have them.
+  const entries = skills.map((entry) => ({
+    ...entry,
+    stats: stats.skills[entry.key] ?? null,
+    upstream: upstream.get(entry.key) ?? null,
+  }));
+
+  // Legacy clients consumed `{ root, skills, count }` where `skills[]` had
+  // `{ slug, name, description, path }`. Preserve that surface, plus expose
+  // the richer entries under `entries`.
+  const home = process.env.HOME || os.homedir() || "/tmp";
+  return NextResponse.json({
+    root: path.join(home, ".cabinet", "skills"),
+    count: skills.length,
+    skills: skills.map((entry) => ({
+      slug: entry.key,
+      name: entry.name,
+      description: entry.description ?? undefined,
+      path: entry.path,
+    })),
+    entries,
+  });
 }

@@ -136,6 +136,7 @@ export function ComposerInput({
   const hasChips =
     composer.mentions.paths.length > 0 ||
     composer.mentions.agents.length > 0 ||
+    composer.mentions.skills.length > 0 ||
     (attachments?.attachments.length ?? 0) > 0;
 
   return (
@@ -220,6 +221,7 @@ export function ComposerInput({
             <MentionChips
               mentionedPaths={composer.mentions.paths}
               mentionedAgents={composer.mentions.agents}
+              mentionedSkills={composer.mentions.skills}
               items={items}
               onRemove={composer.removeMention}
               inline
@@ -306,7 +308,7 @@ export function ComposerInput({
       {showKeyHint && (
         <div className="flex items-center justify-end px-2 pt-2">
           <span className="text-[11px] text-muted-foreground/50">
-            use <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">@</kbd> to mention agents &amp; pages
+            use <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">@</kbd> to mention agents, skills &amp; pages
           </span>
         </div>
       )}

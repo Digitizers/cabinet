@@ -29,6 +29,7 @@ import {
   type HeartbeatDraft,
 } from "@/components/composer/scheduling-fields";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
+import { useSkillMentionItems } from "@/hooks/use-skill-mention-items";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { flattenTree } from "@/lib/tree-utils";
@@ -155,6 +156,8 @@ export function StartWorkDialog({
     });
   }, [selectedAgent]);
 
+  const skillItems = useSkillMentionItems({ cabinetPath, enabled: open });
+
   const mentionItems: MentionableItem[] = useMemo(
     () => [
       ...agents.map((a) => ({
@@ -164,6 +167,7 @@ export function StartWorkDialog({
         sublabel: a.role ?? "",
         icon: a.emoji,
       })),
+      ...skillItems,
       ...flattenTree(treeNodes).map((p) => ({
         type: "page" as const,
         id: p.path,
@@ -171,7 +175,7 @@ export function StartWorkDialog({
         sublabel: p.path,
       })),
     ],
-    [agents, treeNodes]
+    [agents, skillItems, treeNodes]
   );
 
   // One composer for task + routine (both need a prompt). Heartbeat mode
@@ -180,13 +184,18 @@ export function StartWorkDialog({
   const stashedPromptRef = useRef<string>("");
 
   const runNow = useCallback(
-    async (message: string, mentionedPaths: string[]) => {
+    async (
+      message: string,
+      mentionedPaths: string[],
+      mentionedSkills: string[],
+    ) => {
       const resolvedAgent = selectedAgent;
       if (!resolvedAgent) throw new Error("No agent available.");
       const result = await createConversation({
         agentSlug: resolvedAgent.slug,
         userMessage: message,
         mentionedPaths,
+        mentionedSkills,
         cabinetPath: resolvedAgent.cabinetPath || cabinetPath,
         ...taskRuntime,
       });
@@ -196,13 +205,18 @@ export function StartWorkDialog({
   );
 
   const addToInbox = useCallback(
-    async (message: string, mentionedPaths: string[]) => {
+    async (
+      message: string,
+      mentionedPaths: string[],
+      mentionedSkills: string[],
+    ) => {
       const resolvedAgent = selectedAgent;
       if (!resolvedAgent) throw new Error("No agent available.");
       const result = await createConversation({
         agentSlug: resolvedAgent.slug,
         userMessage: message,
         mentionedPaths,
+        mentionedSkills,
         cabinetPath: resolvedAgent.cabinetPath || cabinetPath,
         draftOnly: true,
         ...taskRuntime,
@@ -273,14 +287,14 @@ export function StartWorkDialog({
 
   const composer = useComposer({
     items: mentionItems,
-    onSubmit: async ({ message, mentionedPaths }) => {
+    onSubmit: async ({ message, mentionedPaths, mentionedSkills }) => {
       setSubmitting(true);
       setError(null);
       try {
         if (mode === "now") {
-          await runNow(message, mentionedPaths);
+          await runNow(message, mentionedPaths, mentionedSkills);
         } else if (mode === "inbox") {
-          await addToInbox(message, mentionedPaths);
+          await addToInbox(message, mentionedPaths, mentionedSkills);
         } else if (mode === "recurring") {
           await saveRoutine(message);
         } else {

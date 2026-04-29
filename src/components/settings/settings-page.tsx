@@ -36,10 +36,13 @@ import {
   Cloud,
   ArrowRight,
   CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SkillLibrary } from "@/components/skills/skill-library";
+import { ApiKeysSection } from "@/components/settings/api-keys-section";
 import { UpdateSummary } from "@/components/system/update-summary";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useTheme } from "@/components/theme-provider";
@@ -639,7 +642,7 @@ export function SettingsPage() {
       </div>
 
       <ScrollArea className="flex-1 min-h-0 overflow-hidden">
-        <div className="p-4 space-y-6 max-w-2xl">
+        <div className={cn("p-4 space-y-6", tab !== "skills" && "max-w-2xl")}>
           {/* Profile Tab */}
           {tab === "profile" && <ProfileTab />}
 
@@ -913,8 +916,8 @@ export function SettingsPage() {
                 void refreshUpdate();
               }}
               onApply={applyUpdate}
-              onCreateBackup={async () => {
-                await createBackup("data");
+              onCreateBackup={async (options) => {
+                await createBackup("data", options);
               }}
               onOpenDataDir={openDataDir}
             />
@@ -1312,70 +1315,76 @@ export function SettingsPage() {
 
           {/* Integrations Tab */}
           {tab === "integrations" && (
-            <div className="relative">
-              {/* Blurred content preview */}
-              <div className="pointer-events-none select-none blur-[2px] opacity-70" aria-hidden="true">
-                <div>
-                  <h3 className="text-[14px] font-semibold mb-1">MCP Servers</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Configure tool servers that agents can use. Enable a server and provide API credentials for agents to access external services.
-                  </p>
-                  <div className="space-y-3">
-                    {["Brave Search", "GitHub", "Slack"].map((name) => (
-                      <div key={name} className="bg-card border border-border rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="h-4 w-8 rounded-full bg-muted-foreground/30 relative">
-                              <span className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white" />
+            <div className="space-y-8">
+              <ApiKeysSection />
+
+              {/* MCP servers + scheduling defaults — blurred Coming Soon
+                  preview. Self-contained `relative` block so the absolute
+                  overlay scopes to just this section, not the API Keys
+                  controls above it. */}
+              <div className="relative border-t border-border pt-6">
+                <div className="pointer-events-none select-none blur-[2px] opacity-70" aria-hidden="true">
+                  <div>
+                    <h3 className="text-[14px] font-semibold mb-1">MCP Servers</h3>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Configure tool servers that agents can use. Enable a server and provide API credentials for agents to access external services.
+                    </p>
+                    <div className="space-y-3">
+                      {["Brave Search", "GitHub", "Slack"].map((name) => (
+                        <div key={name} className="bg-card border border-border rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="h-4 w-8 rounded-full bg-muted-foreground/30 relative">
+                                <span className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white" />
+                              </div>
+                              <span className="text-[13px] font-medium">{name}</span>
                             </div>
-                            <span className="text-[13px] font-medium">{name}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Disabled</span>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Disabled</span>
+                          <div className="space-y-1.5">
+                            <div>
+                              <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Command</label>
+                              <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">API Key</label>
+                              <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
+                            </div>
+                          </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <div>
-                            <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Command</label>
-                            <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">API Key</label>
-                            <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
-                          </div>
-                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border pt-6 mt-6">
+                    <h3 className="text-[14px] font-semibold mb-1">Scheduling Defaults</h3>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Configure default scheduling behavior for agents and jobs.
+                    </p>
+                    <div className="bg-card border border-border rounded-lg p-3 space-y-3">
+                      <div>
+                        <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Max Concurrent Agents</label>
+                        <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-border pt-6 mt-6">
-                  <h3 className="text-[14px] font-semibold mb-1">Scheduling Defaults</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Configure default scheduling behavior for agents and jobs.
-                  </p>
-                  <div className="bg-card border border-border rounded-lg p-3 space-y-3">
-                    <div>
-                      <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Max Concurrent Agents</label>
-                      <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Active Hours
-                      </label>
-                      <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
+                      <div>
+                        <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Active Hours
+                        </label>
+                        <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Coming Soon overlay */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 bg-background/80 backdrop-blur-sm rounded-xl px-8 py-6 border border-border shadow-lg">
-                  <Plug className="h-6 w-6 text-muted-foreground/50" />
-                  <span className="text-[13px] font-semibold">Coming Soon</span>
-                  <p className="text-[12px] text-muted-foreground text-center max-w-[220px]">
-                    MCP servers, scheduling, and third-party integrations.
-                  </p>
+                <div className="absolute inset-0 flex items-center justify-center pt-6">
+                  <div className="flex flex-col items-center gap-2 bg-background/80 backdrop-blur-sm rounded-xl px-8 py-6 border border-border shadow-lg">
+                    <Plug className="h-6 w-6 text-muted-foreground/50" />
+                    <span className="text-[13px] font-semibold">Coming Soon</span>
+                    <p className="text-[12px] text-muted-foreground text-center max-w-[220px]">
+                      MCP servers, scheduling, and third-party integrations.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1634,263 +1643,47 @@ export function SettingsPage() {
   );
 }
 
-interface SkillEntry {
-  slug: string;
-  name: string;
-  description?: string;
-  path: string;
-}
-
-interface SkillCatalogResponse {
-  root: string;
-  skills: SkillEntry[];
-  count: number;
-}
-
 function SkillsSettings() {
-  const [catalog, setCatalog] = useState<SkillCatalogResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/agents/skills");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as SkillCatalogResponse;
-        if (!cancelled) setCatalog(data);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  // The full library lives in `src/components/skills/skill-library.tsx`.
+  // Settings -> Skills is now the canonical surface (no separate /skills
+  // route or sidebar entry; see docs/SKILLS_PLAN.md Wave 11).
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-[14px] font-semibold">Skills</h3>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Coming soon
-        </span>
+    <div className="flex gap-6 items-start">
+      <div className="flex-1 min-w-0 max-w-3xl">
+        <SkillLibrary />
       </div>
-      <p className="mb-4 text-xs text-muted-foreground">
-        Skills are reusable instruction bundles Cabinet symlinks into each run so
-        agents can reach for them on demand. Drop a directory under{" "}
-        <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
-          {catalog?.root ?? "~/.cabinet/skills/"}
-        </code>{" "}
-        with a <code className="rounded bg-muted px-1 py-0.5 text-[11px]">SKILL.md</code> and
-        any scripts or reference files the skill needs. Editor + selection UI is
-        still in flight — read-only preview for now.
-      </p>
-
-      {loading ? (
-        <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center text-xs text-muted-foreground">
-          <Loader2 className="mx-auto mb-2 size-4 animate-spin" />
-          Scanning the catalog…
+      <aside className="hidden lg:flex w-80 shrink-0 flex-col gap-3 rounded-lg border border-border bg-muted/30 p-5 text-[12px] leading-relaxed text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400" />
+          <h3 className="text-[13px] font-semibold text-foreground">
+            Skills are serious business.
+          </h3>
         </div>
-      ) : error ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
-          Failed to load skill catalog: {error}
-        </div>
-      ) : !catalog || catalog.count === 0 ? (
-        <SkillsSettingsEmptyState root={catalog?.root ?? "~/.cabinet/skills/"} />
-      ) : (
-        <div
-          className="pointer-events-none select-none space-y-2 opacity-60"
-          aria-disabled="true"
-          title="Coming soon — selection is not editable yet"
-        >
-          {catalog.skills.map((skill) => (
-            <div
-              key={skill.slug}
-              className="rounded-lg border border-border/70 bg-card px-4 py-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="size-3 shrink-0 text-muted-foreground/60" />
-                    <p className="truncate text-[13px] font-medium text-foreground">
-                      {skill.name}
-                    </p>
-                    <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {skill.slug}
-                    </code>
-                  </div>
-                  {skill.description && (
-                    <p className="mt-1 text-[11.5px] leading-snug text-muted-foreground">
-                      {skill.description}
-                    </p>
-                  )}
-                  <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground/60">
-                    {skill.path}
-                  </p>
-                </div>
-                <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background">
-                  {/* Empty checkbox: visual-only, not interactive. */}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <p className="mt-4 text-[11px] text-muted-foreground/70">
-        For now, attach skills to an agent by editing that agent&apos;s markdown
-        frontmatter with{" "}
-        <code className="rounded bg-muted px-1 py-0.5">skills: [slug, slug]</code>.
-      </p>
-    </div>
-  );
-}
-
-/**
- * Audit #052: in-app guidance for the otherwise shell-only skills workflow.
- * Two buttons: "New skill" scaffolds `~/.cabinet/skills/<slug>/SKILL.md` from
- * a starter template and reveals it in Finder; "Open folder" reveals the
- * skills root.
- */
-function SkillsSettingsEmptyState({ root }: { root: string }) {
-  const [busy, setBusy] = useState<"open" | "new" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [namePromptOpen, setNamePromptOpen] = useState(false);
-  const [name, setName] = useState("");
-
-  async function openFolder() {
-    if (busy) return;
-    setBusy("open");
-    setError(null);
-    try {
-      const res = await fetch("/api/agents/skills", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ open: true }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function createSkill() {
-    if (busy || !name.trim()) return;
-    setBusy("new");
-    setError(null);
-    try {
-      const res = await fetch("/api/agents/skills", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      setNamePromptOpen(false);
-      setName("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center">
-      <Sparkles className="mx-auto mb-2 size-5 text-muted-foreground/50" />
-      <p className="text-[13px] font-medium text-muted-foreground">
-        No skills detected yet
-      </p>
-      <p className="mt-1 text-[11px] text-muted-foreground/70">
-        Drop a skill directory under{" "}
-        <code className="rounded bg-muted px-1 py-0.5">{root}</code>{" "}
-        — or use the buttons below.
-      </p>
-      {error && (
-        <p className="mx-auto mt-3 max-w-sm rounded-md bg-destructive/10 px-3 py-1.5 text-[11px] text-destructive">
-          {error}
+        <p>
+          Cabinet&apos;s philosophy is to connect you to the world — safely. A
+          skill runs real code on your computer, so treat each one like you
+          would any app you install: read what it does before you trust it.
         </p>
-      )}
-      {namePromptOpen ? (
-        <div className="mx-auto mt-4 flex max-w-sm flex-col gap-2">
-          <input
-            type="text"
-            name="new-skill-name"
-            aria-label="New skill name"
-            value={name}
-            placeholder="e.g. Meeting Notes"
-            autoFocus
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void createSkill();
-              if (e.key === "Escape") {
-                setNamePromptOpen(false);
-                setName("");
-                setError(null);
-              }
-            }}
-            className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-[12px] text-foreground focus:border-border focus:outline-none focus:ring-1 focus:ring-primary/30"
-          />
-          <div className="flex items-center justify-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => void createSkill()}
-              disabled={!name.trim() || busy === "new"}
-              className="inline-flex items-center gap-1 rounded-md bg-foreground px-3 py-1 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {busy === "new" ? <Loader2 className="size-3 animate-spin" /> : null}
-              Create
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setNamePromptOpen(false);
-                setName("");
-                setError(null);
-              }}
-              className="rounded-md border border-border/60 bg-background px-3 py-1 text-[12px] font-medium text-foreground hover:bg-muted"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => setNamePromptOpen(true)}
-            disabled={!!busy}
-            className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+        <p>
+          We&apos;re working on a curated collection of skills and integrations,
+          vetted by a team of ex-Apple engineers and security experts. Until
+          that ships, our advice is simple: don&apos;t install everything you
+          find on the internet. Stick to skills from sources you recognize, and
+          skim the skill&apos;s instructions before running it.
+        </p>
+        <p className="border-t border-border pt-3">
+          Questions? Join us on{" "}
+          <a
+            href="https://discord.gg/hJa5TRTbTH"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground underline underline-offset-2 hover:text-primary"
           >
-            <Sparkles className="size-3.5" />
-            New skill
-          </button>
-          <button
-            type="button"
-            onClick={() => void openFolder()}
-            disabled={!!busy}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background px-3 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-          >
-            {busy === "open" ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <FolderOpen className="size-3.5" />
-            )}
-            Open folder
-          </button>
-        </div>
-      )}
+            Discord
+          </a>
+          .
+        </p>
+      </aside>
     </div>
   );
 }

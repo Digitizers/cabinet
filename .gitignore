@@ -33,6 +33,7 @@ yarn-error.log*
 # env files
 .env*
 !.env.example
+.cabinet.env
 
 # vercel
 .vercel
@@ -90,3 +91,9 @@ cabinetai/node_modules/
 
 # local install config (per-machine dataDir)
 .cabinet-install.json
+
+# skills lock (per-machine; runtime-managed)
+skills-lock.json
+
+# installed skills bundles (per-machine; managed by Settings -> Skills)
+.agents/skills/

@@ -11,6 +11,9 @@ budget: 80
 active: true
 workdir: /data
 workspace: /inbox
+recommendedSkills:
+  - key: gws-workflow-email-to-task
+    source: github:googleworkspace/cli/gws-workflow-email-to-task
 channels:
   - general
   - inbox

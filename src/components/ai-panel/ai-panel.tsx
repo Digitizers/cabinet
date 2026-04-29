@@ -34,6 +34,7 @@ import {
   type AgentPickerOption,
 } from "@/components/composer/agent-picker";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
+import { useSkillMentionItems } from "@/hooks/use-skill-mention-items";
 
 interface PastSession {
   id: string;
@@ -106,7 +107,9 @@ export function AIPanel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const previousCurrentPathRef = useRef<string | null>(null);
 
-  // Build mentionable items from tree + agents
+  const skillItems = useSkillMentionItems({ enabled: isOpen });
+
+  // Build mentionable items from tree + agents + skills
   const mentionItems: MentionableItem[] = [
     ...agents
       .filter((a) => a.slug !== "editor")
@@ -117,6 +120,7 @@ export function AIPanel() {
         sublabel: a.role || "",
         icon: a.emoji,
       })),
+    ...skillItems,
     ...flattenTree(treeNodes).map((p) => ({
       type: "page" as const,
       id: p.path,
@@ -326,7 +330,7 @@ export function AIPanel() {
   const composer = useComposer({
     items: mentionItems,
     disabled: !currentPath,
-    onSubmit: async ({ message, mentionedPaths, mentionedAgents }) => {
+    onSubmit: async ({ message, mentionedPaths, mentionedAgents, mentionedSkills }) => {
       if (!currentPath) return;
 
       // @-mention takes precedence over the picker (it's the explicit hint
@@ -363,6 +367,7 @@ export function AIPanel() {
                 agentSlug: targetAgent,
                 userMessage: message,
                 mentionedPaths,
+                mentionedSkills,
                 ...taskRuntime,
               }
             : {
@@ -370,6 +375,7 @@ export function AIPanel() {
                 pagePath: currentPath,
                 userMessage: message,
                 mentionedPaths,
+                mentionedSkills,
                 ...taskRuntime,
               }
         );

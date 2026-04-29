@@ -28,6 +28,15 @@ export const GLOBAL_AGENTS_DIR = path.join(DATA_DIR, ".global-agents");
 
 export type PersonaScope = "global" | "cabinet";
 
+/**
+ * Frontmatter shape for `recommendedSkills` entries. Either a bare key (string)
+ * or an object with `key` + optional `source` URL for one-click install.
+ */
+export interface RecommendedSkill {
+  key: string;
+  source?: string;
+}
+
 function resolveAgentsDir(cabinetPath?: string): string {
   if (cabinetPath) return path.join(DATA_DIR, cabinetPath, ".agents");
   return AGENTS_DIR;
@@ -170,11 +179,24 @@ export interface AgentPersona {
   focus: string[];
   tags: string[];
   /**
-   * Skill slugs this agent uses. Resolved against the user's skill catalog
-   * at `~/.cabinet/skills/<slug>/` and symlinked into a managed tmpdir
-   * before every run (see `_shared/skills-injection.ts`).
+   * Skill keys this agent has attached. Resolved at run time by
+   * `src/lib/agents/skills/loader.ts` against four origins (cabinet-scoped,
+   * cabinet-root, system, legacy-home) and symlinked into a managed tmpdir
+   * for adapters that support it (see `_shared/skills-injection.ts`).
    */
   skills?: string[];
+  /**
+   * Skills recommended for this persona — surfaced in the agent detail
+   * "Suggested" section. Each entry is either a bare key (assumed to be in
+   * the local catalog) or an object with a `source` URL so the UI can offer
+   * a one-click install for skills that aren't yet imported.
+   *
+   *   recommendedSkills:
+   *     - kb-page-author                                    # already in catalog
+   *     - key: seo-audit                                    # not yet installed
+   *       source: github:owner/repo/seo-audit
+   */
+  recommendedSkills?: RecommendedSkill[];
   // New fields (all optional for backward compat)
   emoji: string;
   department: string;
@@ -212,6 +234,24 @@ import { computeNextCronRun } from "./cron-compute";
 
 // Active cron jobs for agents
 const heartbeatJobs = new Map<string, ReturnType<typeof cron.schedule>>();
+
+function parseRecommendedSkill(raw: unknown): RecommendedSkill | null {
+  if (typeof raw === "string") {
+    const key = raw.trim();
+    return key ? { key } : null;
+  }
+  if (raw && typeof raw === "object") {
+    const rec = raw as { key?: unknown; source?: unknown };
+    if (typeof rec.key === "string" && rec.key.trim()) {
+      const out: RecommendedSkill = { key: rec.key.trim() };
+      if (typeof rec.source === "string" && rec.source.trim()) {
+        out.source = rec.source.trim();
+      }
+      return out;
+    }
+  }
+  return null;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -334,6 +374,11 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
       ? (data.skills as unknown[]).filter(
           (value): value is string => typeof value === "string" && value.trim() !== ""
         )
+      : undefined,
+    recommendedSkills: Array.isArray(data.recommendedSkills)
+      ? (data.recommendedSkills as unknown[])
+          .map(parseRecommendedSkill)
+          .filter((entry): entry is RecommendedSkill => entry !== null)
       : undefined,
     // New fields with backward-compatible defaults
     emoji: (data.emoji as string) || "🤖",
@@ -465,6 +510,14 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
           skills: merged.skills.filter(
             (slug): slug is string => typeof slug === "string" && slug.trim() !== ""
           ),
+        }
+      : {}),
+    ...(Array.isArray(merged.recommendedSkills) && merged.recommendedSkills.length > 0
+      ? {
+          recommendedSkills: merged.recommendedSkills
+            .map(parseRecommendedSkill)
+            .filter((entry): entry is RecommendedSkill => entry !== null)
+            .map((entry) => (entry.source ? entry : entry.key)),
         }
       : {}),
     ...(typeof merged.canDispatch === "boolean"

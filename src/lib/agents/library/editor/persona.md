@@ -11,6 +11,9 @@ budget: 100
 active: true
 workdir: /data
 workspace: /
+recommendedSkills:
+  - key: copy-editing
+    source: github:coreyhaines31/marketingskills/copy-editing
 channels:
   - general
   - content

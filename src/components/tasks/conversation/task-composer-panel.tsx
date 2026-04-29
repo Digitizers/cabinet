@@ -16,7 +16,9 @@ import {
   type StartWorkMode,
 } from "@/components/composer/start-work-dialog";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
+import { useSkillMentionItems } from "@/hooks/use-skill-mention-items";
 import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
+import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { cn } from "@/lib/utils";
 import type { ConversationRuntimeOverride } from "@/types/conversations";
 
@@ -66,6 +68,7 @@ export interface TaskComposerPanelProps {
   onSend: (payload: {
     text: string;
     mentionedPaths: string[];
+    mentionedSkills: string[];
     attachmentPaths: string[];
     runtime: ConversationRuntimeOverride;
   }) => void | Promise<void>;
@@ -129,7 +132,9 @@ export function TaskComposerPanel({
     setUserPickedRuntime(value);
   }, []);
 
-  // Lazy-load mentions from the tree when the caller doesn't pre-supply them.
+  // Lazy-load page mentions from the tree when the caller doesn't pre-supply
+  // them. /api/tree returns the tree as a bare array — earlier code expected
+  // `{ tree }` and silently dropped pages.
   useEffect(() => {
     if (mentionableItems || !autoLoadMentions || loadedMentions) return;
     let cancelled = false;
@@ -137,9 +142,10 @@ export function TaskComposerPanel({
       try {
         const res = await fetch("/api/tree", { cache: "no-store" });
         if (!res.ok) return;
-        const data = (await res.json()) as { tree?: PageTreeNode[] };
+        const raw = (await res.json()) as PageTreeNode[] | { tree?: PageTreeNode[] };
+        const tree = Array.isArray(raw) ? raw : raw?.tree;
         if (!cancelled) {
-          setLoadedMentions(flattenTreeToMentions(data.tree));
+          setLoadedMentions(flattenTreeToMentions(tree));
         }
       } catch {
         if (!cancelled) setLoadedMentions([]);
@@ -150,24 +156,67 @@ export function TaskComposerPanel({
     };
   }, [mentionableItems, autoLoadMentions, loadedMentions]);
 
+  // Lazy-load agent mentions from the cabinet overview. Continuation
+  // composers locked to one agent benefit from being able to @-reference
+  // OTHER agents (delegation context, handoff notes, etc.) — not from
+  // changing this conversation's agent (that's locked by the meta).
+  const [agentMentions, setAgentMentions] = useState<MentionableItem[] | null>(
+    null,
+  );
+  useEffect(() => {
+    if (mentionableItems || !autoLoadMentions || agentMentions) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchCabinetOverviewClient(cabinetPath ?? ".", "all");
+        const list = (data.agents || []).map<MentionableItem>((a) => ({
+          type: "agent",
+          id: a.slug,
+          label: a.name,
+          sublabel: a.role || "",
+          icon: a.emoji,
+        }));
+        if (!cancelled) setAgentMentions(list);
+      } catch {
+        if (!cancelled) setAgentMentions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mentionableItems, autoLoadMentions, agentMentions, cabinetPath]);
+
+  const skillItems = useSkillMentionItems({
+    cabinetPath,
+    enabled: !mentionableItems && autoLoadMentions,
+  });
+
   const items = useMemo(
-    () => mentionableItems ?? loadedMentions ?? [],
-    [mentionableItems, loadedMentions]
+    () =>
+      mentionableItems ?? [
+        ...(agentMentions ?? []),
+        ...skillItems,
+        ...(loadedMentions ?? []),
+      ],
+    [mentionableItems, agentMentions, skillItems, loadedMentions]
   );
 
   const handleSubmit = useCallback(
     async ({
       message,
       mentionedPaths,
+      mentionedSkills,
       attachmentPaths,
     }: {
       message: string;
       mentionedPaths: string[];
+      mentionedSkills: string[];
       attachmentPaths: string[];
     }) => {
       await onSend({
         text: message,
         mentionedPaths,
+        mentionedSkills,
         attachmentPaths,
         runtime: {
           providerId: effectiveRuntime.providerId,
@@ -231,6 +280,24 @@ export function TaskComposerPanel({
           <Terminal className="size-3" />
           <span>
             Sending in <strong>terminal mode</strong> — opens a live PTY stream
+          </span>
+        </div>
+      ) : null}
+
+      {/* PTY/terminal-mode mid-conversation caveat: structured adapters
+          re-mount skills per turn via --plugin-dir, but a live PTY session
+          can't dynamically register new skills. The model still sees the
+          @-mentioned skill described in the prompt, so it knows what to do,
+          but the skill isn't discoverable as a slash command for this turn. */}
+      {effectiveRuntime.runtimeMode === "terminal" &&
+      composer.mentions.skills.length > 0 ? (
+        <div className="mb-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400">
+          <Terminal className="size-3 mt-[2px] shrink-0" />
+          <span>
+            <strong>Heads up:</strong> mid-session skill mentions in terminal
+            mode reach the model via prompt text only — not as live{" "}
+            <code className="text-[10px]">/skill</code> commands. New tasks
+            (non-terminal) get the full mount.
           </span>
         </div>
       ) : null}
