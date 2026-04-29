@@ -39,10 +39,6 @@ import { useGlobalHotkeys } from "@/hooks/use-global-hotkeys";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { StatusBar } from "@/components/layout/status-bar";
 import { DaemonHealthBanner } from "@/components/layout/daemon-health-banner";
-import {
-  DISCLAIMER_ACKED_EVENT,
-  isDisclaimerAcknowledged,
-} from "@/components/layout/breaking-changes-warning";
 import { TourModal } from "@/components/onboarding/tour/tour-modal";
 import { useTour } from "@/components/onboarding/tour/use-tour";
 import { StartWorkDialog, type StartWorkMode } from "@/components/composer/start-work-dialog";
@@ -50,7 +46,6 @@ import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import { UpdateDialog } from "@/components/layout/update-dialog";
-import { BreakingChangesWarning } from "@/components/layout/breaking-changes-warning";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
 import { SystemToasts } from "@/components/layout/system-toasts";
 
@@ -324,17 +319,16 @@ export function AppShell() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Onboarding tour. Auto-opens once per browser after the wizard *and*
-  // after the legal disclaimer has been explicitly acknowledged. Without
-  // the disclaimer gate, both modals stack on first run (audit #007).
-  const [disclaimerAcked, setDisclaimerAcked] = useState<boolean>(false);
-  useEffect(() => {
-    setDisclaimerAcked(isDisclaimerAcknowledged());
-    const onAck = () => setDisclaimerAcked(true);
-    window.addEventListener(DISCLAIMER_ACKED_EVENT, onAck);
-    return () => window.removeEventListener(DISCLAIMER_ACKED_EVENT, onAck);
-  }, []);
-  const tour = useTour(showWizard === false && disclaimerAcked);
+  // Onboarding tour. Auto-opens once per browser after the wizard. The
+  // legal disclaimer is folded into the wizard's final step (single source
+  // of truth) — there is no separate disclaimer modal here. 700ms delay
+  // gives the user a beat to register the app before the tour pops in.
+  const tour = useTour(showWizard === false, { autoOpenDelayMs: 700 });
+
+  // True only on the render that immediately follows a wizard completion,
+  // so we can play a one-shot reveal animation without affecting reloads
+  // or subsequent navigations.
+  const [justCompletedWizard, setJustCompletedWizard] = useState(false);
 
   // Tour-finish task composer. Opened from the tour's "Write your first task"
   // CTA. We mount the dialog at AppShell level so the user can land on the
@@ -385,6 +379,7 @@ export function AppShell() {
   }, [openGlobalTask]);
 
   const handleWizardComplete = useCallback(() => {
+    setJustCompletedWizard(true);
     setShowWizard(false);
     try {
       window.localStorage.setItem(WIZARD_DONE_STORAGE_KEY, "1");
@@ -680,7 +675,11 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div
+      className={`flex h-screen bg-background text-foreground${
+        justCompletedWizard ? " animate-app-reveal" : ""
+      }`}
+    >
       <Sidebar />
       <div
         className="flex-1 flex flex-col overflow-hidden"
@@ -725,7 +724,6 @@ export function AppShell() {
       />
       <NotificationToasts />
       <SystemToasts />
-      <BreakingChangesWarning />
       <TourModal
         open={tour.open}
         onClose={tour.close}

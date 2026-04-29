@@ -28,9 +28,13 @@ export function requestShowTour() {
   window.dispatchEvent(new CustomEvent(SHOW_TOUR_EVENT));
 }
 
-export function useTour(autoOpenOnMount: boolean) {
+export function useTour(
+  autoOpenOnMount: boolean,
+  opts?: { autoOpenDelayMs?: number },
+) {
   const [open, setOpen] = useState(false);
   const didAutoOpenRef = useRef(false);
+  const delay = opts?.autoOpenDelayMs ?? 0;
 
   // Reacting to an externally-controlled ready signal (wizard done), so
   // setting state here is the right thing. The ref guards against
@@ -43,9 +47,14 @@ export function useTour(autoOpenOnMount: boolean) {
       return;
     }
     didAutoOpenRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOpen(true);
-  }, [autoOpenOnMount]);
+    if (delay <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOpen(true);
+      return;
+    }
+    const t = window.setTimeout(() => setOpen(true), delay);
+    return () => window.clearTimeout(t);
+  }, [autoOpenOnMount, delay]);
 
   useEffect(() => {
     const handler = () => setOpen(true);

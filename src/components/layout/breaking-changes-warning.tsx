@@ -27,6 +27,19 @@ export function isDisclaimerAcknowledged(): boolean {
   }
 }
 
+export function acknowledgeDisclaimer() {
+  const acceptedAt = new Date().toISOString();
+  try { localStorage.setItem(STORAGE_KEY, acceptedAt); } catch { /* noop */ }
+  void fetch(SERVER_ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ version: DISCLAIMER_VERSION, acceptedAt }),
+  }).catch(() => { /* server unreachable — local ack still holds */ });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(DISCLAIMER_ACKED_EVENT));
+  }
+}
+
 export function BreakingChangesWarning() {
   const [open, setOpen] = useState(false);
   const [accepted, setAccepted] = useState(false);
@@ -64,14 +77,7 @@ export function BreakingChangesWarning() {
   }, []);
 
   const acknowledge = () => {
-    const acceptedAt = new Date().toISOString();
-    try { localStorage.setItem(STORAGE_KEY, acceptedAt); } catch { /* noop */ }
-    void fetch(SERVER_ENDPOINT, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ version: DISCLAIMER_VERSION, acceptedAt }),
-    }).catch(() => { /* server unreachable — local ack still holds */ });
-    window.dispatchEvent(new CustomEvent(DISCLAIMER_ACKED_EVENT));
+    acknowledgeDisclaimer();
     setOpen(false);
   };
 

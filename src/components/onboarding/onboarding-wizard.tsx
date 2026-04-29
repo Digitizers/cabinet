@@ -52,6 +52,7 @@ import {
   recordWaitlistStart,
   submitWaitlistEmail,
 } from "@/lib/telemetry/waitlist-client";
+import { acknowledgeDisclaimer } from "@/components/layout/breaking-changes-warning";
 
 type OnboardingVerifyStatus =
   | "pass"
@@ -1877,6 +1878,11 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         roomType: answers.roomType ?? null,
         provider: selectedProvider ?? null,
       });
+
+      // Persist the disclaimer acknowledgment so the standalone
+      // BreakingChangesWarning modal short-circuits on the next mount and
+      // the tour can flow seamlessly after the wizard.
+      acknowledgeDisclaimer();
 
       onComplete();
     } catch (e) {
