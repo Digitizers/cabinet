@@ -16,7 +16,7 @@ interface TourModalProps {
 }
 
 const STARTER_TASK =
-  "Run 10 tasks, each writing a new song, save to @Songs/";
+  "Let's talk through my goals and what I want to achieve here, then capture it in a new About page.";
 
 // Each data scene is its own back/next step. `stageKey` is stable across
 // all data slides so `SlideData` stays mounted while stepping through

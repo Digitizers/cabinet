@@ -18,6 +18,7 @@ const stagedSeedDir = path.join(standaloneDir, ".seed");
 const bundledNodeBinaryPath = path.join(standaloneBinDir, "node");
 const rootNodePtyDir = path.join(projectRoot, "node_modules", "node-pty");
 const dataDir = path.join(projectRoot, "data");
+const resourcesDir = path.join(projectRoot, "resources");
 const agentLibraryDir = path.join(projectRoot, "src", "lib", "agents", "library");
 
 const STANDALONE_PRUNE_PATHS = [
@@ -147,7 +148,7 @@ async function stageSeedContent() {
   // Default pages
   await Promise.all([
     copyDirectory(path.join(dataDir, "example-cabinet-carousel-factory"), path.join(stagedSeedDir, "example-cabinet-carousel-factory")),
-    copyDirectory(path.join(dataDir, "getting-started"), path.join(stagedSeedDir, "getting-started")),
+    copyDirectory(path.join(resourcesDir, "getting-started"), path.join(stagedSeedDir, "getting-started")),
     copyFile(path.join(dataDir, "index.md"), path.join(stagedSeedDir, "index.md")),
     copyFile(path.join(dataDir, "CLAUDE.md"), path.join(stagedSeedDir, "CLAUDE.md")),
   ]);
