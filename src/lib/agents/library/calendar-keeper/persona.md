@@ -30,6 +30,7 @@ focus:
 tags:
   - calendar
   - admin
+canDispatch: true
 ---
 
 # Calendar Keeper

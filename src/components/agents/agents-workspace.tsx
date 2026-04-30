@@ -570,6 +570,13 @@ export function AgentsWorkspace({
           effectiveCabinetPath,
           effectiveVisibilityMode
         );
+        if (!data) {
+          setAgents([]);
+          setAgentsLoaded(true);
+          setCabinetJobs([]);
+          setCabinetChildren([]);
+          return;
+        }
         const cabinetAgents = (data.agents || []).map((a) => ({
           scopedId: a.scopedId,
           name: a.name,

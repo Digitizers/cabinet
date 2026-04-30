@@ -27,6 +27,7 @@ focus:
 tags:
   - research
   - literature
+canDispatch: true
 ---
 
 # Lit Reviewer

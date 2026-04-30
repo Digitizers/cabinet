@@ -35,6 +35,7 @@ focus:
 tags:
   - sales
   - outreach
+canDispatch: true
 ---
 
 # Sales Agent

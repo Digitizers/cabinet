@@ -14,6 +14,7 @@ workspace: /research
 recommendedSkills:
   - key: tavily-search
     source: github:tavily-ai/skills/tavily-search
+canDispatch: true
 ---
 
 # Researcher Agent

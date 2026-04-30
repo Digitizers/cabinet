@@ -27,6 +27,7 @@ focus:
 tags:
   - habits
   - health
+canDispatch: true
 ---
 
 # Habit Tracker

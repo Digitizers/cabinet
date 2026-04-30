@@ -16,6 +16,7 @@ recommendedSkills:
     source: github:coreyhaines31/marketingskills/copywriting
   - key: copy-editing
     source: github:coreyhaines31/marketingskills/copy-editing
+canDispatch: true
 ---
 
 # Copywriter Agent

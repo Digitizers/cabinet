@@ -28,6 +28,7 @@ focus:
 tags:
   - household
   - leadership
+canDispatch: true
 ---
 
 # Home Manager

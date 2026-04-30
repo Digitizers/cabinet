@@ -27,6 +27,7 @@ focus:
 tags:
   - writing
   - editing
+canDispatch: true
 ---
 
 # Writing Coach

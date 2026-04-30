@@ -341,7 +341,7 @@ export function AppShell() {
     // whatever the user has installed.
     fetchCabinetOverviewClient(ROOT_CABINET_PATH, "all")
       .then((data) => {
-        setTourTaskAgents((data.agents || []) as CabinetAgentSummary[]);
+        setTourTaskAgents((data?.agents || []) as CabinetAgentSummary[]);
       })
       .catch(() => {
         // Empty list is fine — StartWorkDialog handles it gracefully.
@@ -357,7 +357,7 @@ export function AppShell() {
     const cabinetPath =
       ("cabinetPath" in section && section.cabinetPath) || ROOT_CABINET_PATH;
     fetchCabinetOverviewClient(cabinetPath, "all")
-      .then((data) => { setGlobalTaskAgents((data.agents || []) as CabinetAgentSummary[]); })
+      .then((data) => { setGlobalTaskAgents((data?.agents || []) as CabinetAgentSummary[]); })
       .catch(() => {});
     setGlobalTaskMode(mode);
     setGlobalTaskOpen(true);

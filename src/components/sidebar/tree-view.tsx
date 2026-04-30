@@ -177,6 +177,10 @@ export function TreeView() {
         cabinetVisibilityMode,
         { force: true }
       );
+      if (!data) {
+        setAgents([]);
+        return;
+      }
       // Audit #027: cache the resolved name so the next cold paint can
       // skip the "Cabinet" flicker before the API responds.
       const resolved = data.cabinet.name || "Cabinet";

@@ -451,7 +451,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
             noun
           </p>
 
-          <ol className="font-body-serif space-y-5 text-[15px] leading-relaxed">
+          <ol className="space-y-5 text-[15px] leading-relaxed">
             <li className="flex gap-3" style={fade(3)}>
               <span className="font-logo italic text-lg mt-[-2px] shrink-0" style={{ color: WEB.accent }}>1.</span>
               <div>

@@ -72,10 +72,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Auth via npm trusted publishing (OIDC). Requires the cabinetai package
+      # on npmjs.com to have this repo + workflow registered as a trusted
+      # publisher. No NPM_TOKEN secret needed.
       - name: Publish cabinetai
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-cli:
     runs-on: ubuntu-latest
@@ -96,7 +97,6 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      # Auth via npm trusted publishing (OIDC). Same setup as cabinetai.
       - name: Publish create-cabinet
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -28,6 +28,7 @@ focus:
 tags:
   - household
   - kids
+canDispatch: true
 ---
 
 # Kid Coordinator

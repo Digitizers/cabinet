@@ -264,6 +264,7 @@ export function AIPanel() {
     const load = async () => {
       try {
         const data = await fetchCabinetOverviewClient(".", "all");
+        if (!data) return;
         const overview = (data.agents || []).map((a) => ({
           name: a.name,
           slug: a.slug,

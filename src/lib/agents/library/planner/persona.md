@@ -27,6 +27,7 @@ focus:
 tags:
   - household
   - calendar
+canDispatch: true
 ---
 
 # Planner

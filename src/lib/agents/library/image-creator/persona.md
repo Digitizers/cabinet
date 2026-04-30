@@ -37,6 +37,7 @@ tags:
   - design
   - images
   - carousels
+canDispatch: true
 ---
 
 # Image Creator Agent

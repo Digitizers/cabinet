@@ -35,6 +35,7 @@ focus:
 tags:
   - inbox
   - admin
+canDispatch: true
 ---
 
 # Inbox Triage

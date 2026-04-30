@@ -33,6 +33,7 @@ focus:
 tags:
   - personal
   - assistant
+canDispatch: true
 ---
 
 # Assistant

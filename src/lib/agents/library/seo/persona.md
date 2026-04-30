@@ -30,6 +30,7 @@ tags:
 recommendedSkills:
   - key: seo-audit
     source: github:coreyhaines31/marketingskills/seo-audit
+canDispatch: true
 ---
 
 # SEO Specialist Agent

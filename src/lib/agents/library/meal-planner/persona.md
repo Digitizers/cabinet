@@ -27,6 +27,7 @@ focus:
 tags:
   - household
   - meals
+canDispatch: true
 ---
 
 # Meal Planner

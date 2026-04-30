@@ -48,7 +48,7 @@ export function NewTaskButton() {
     (async () => {
       try {
         const data = await fetchCabinetOverviewClient(cabinetPath, visibilityMode);
-        if (!cancelled) setAgents(data.agents || []);
+        if (!cancelled) setAgents(data?.agents || []);
       } catch {
         if (!cancelled) setAgents([]);
       }

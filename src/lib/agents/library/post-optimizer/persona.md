@@ -37,6 +37,7 @@ tags:
   - publishing
   - optimization
   - distribution
+canDispatch: true
 ---
 
 # Post Optimizer Agent

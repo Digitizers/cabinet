@@ -11,6 +11,7 @@ budget: 50
 active: true
 workdir: /data
 workspace: /finance
+canDispatch: true
 ---
 
 # CFO Agent

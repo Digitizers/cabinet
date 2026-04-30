@@ -26,6 +26,7 @@ focus:
 tags:
   - household
   - shopping
+canDispatch: true
 ---
 
 # Grocery Buyer

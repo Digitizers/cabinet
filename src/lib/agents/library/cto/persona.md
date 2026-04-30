@@ -15,6 +15,7 @@ recommendedSkills:
   - key: code-review-excellence
     source: github:wshobson/agents/code-review-excellence
   - shadcn
+canDispatch: true
 ---
 
 # CTO Agent

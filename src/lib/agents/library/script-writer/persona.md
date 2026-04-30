@@ -34,6 +34,7 @@ tags:
   - content
   - writing
   - carousels
+canDispatch: true
 ---
 
 # Script Writer Agent

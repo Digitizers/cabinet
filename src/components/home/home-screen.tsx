@@ -12,6 +12,10 @@ import { flattenTree } from "@/lib/tree-utils";
 import { createConversation } from "@/lib/agents/conversation-client";
 import { ComposerInput } from "@/components/composer/composer-input";
 import {
+  AgentPicker,
+  type AgentPickerOption,
+} from "@/components/composer/agent-picker";
+import {
   TaskRuntimePicker,
   type TaskRuntimeSelection,
 } from "@/components/composer/task-runtime-picker";
@@ -367,6 +371,9 @@ export function HomeScreen() {
   // layout. The 2.5s timeout is a safety net for a hung request; in practice
   // the local overview fetch settles in under 200ms.
   const [chipsReady, setChipsReady] = useState(false);
+  const [selectedAgentSlug, setSelectedAgentSlug] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     fetch("/api/user/profile")
@@ -382,7 +389,7 @@ export function HomeScreen() {
 
     fetchCabinetOverviewClient(".", "all")
       .then((data) => {
-        setAgents((data.agents || []) as CabinetAgentSummary[]);
+        setAgents((data?.agents || []) as CabinetAgentSummary[]);
       })
       .catch(() => {})
       .finally(() => setChipsReady(true));
@@ -445,8 +452,12 @@ export function HomeScreen() {
       attachmentPaths,
       stagingClientUuid: turnStagingUuid,
     }) => {
+      // v0.4.1 dispatch priority: explicitly-selected picker agent →
+      // first @-mentioned agent → "editor" fallback. The picker overrides
+      // mentions because the user just clicked it.
       const targetAgent =
-        mentionedAgents.length > 0 ? mentionedAgents[0] : "editor";
+        selectedAgentSlug ??
+        (mentionedAgents.length > 0 ? mentionedAgents[0] : "editor");
 
       const data = await createConversation({
         agentSlug: targetAgent,
@@ -465,27 +476,37 @@ export function HomeScreen() {
     },
   });
 
-  const dispatcherFor = (action: QuickAction): string | null => {
-    if (!action.preferredAgents) return null;
-    const have = new Set(agents.map((a) => a.slug));
-    for (const slug of action.preferredAgents) {
-      if (have.has(slug)) return slug;
-    }
-    return null;
+  // v0.4.1: chips ignore each action's preferredAgents and dispatch via a
+  // single priority: user-picked agent → editor (if installed) → first
+  // installed agent → null (fall through to composer.submit, which then
+  // routes via its own onSubmit priority).
+  const pickDispatcher = (): string | null => {
+    if (selectedAgentSlug) return selectedAgentSlug;
+    const slugs = new Set(agents.map((a) => a.slug));
+    if (slugs.has("editor")) return "editor";
+    return agents[0]?.slug ?? null;
   };
 
-  // Solo chips always render. Delegation chips only render once we've
-  // confirmed a dispatcher slug they prefer is actually installed in this
-  // cabinet — keeps the showcase honest on trimmed installs without a CEO.
-  const visibleActions = QUICK_ACTIONS.filter((action) => {
-    if (!action.preferredAgents) return true;
-    if (agents.length === 0) return false;
-    return dispatcherFor(action) !== null;
-  });
+  // All chips render. Delegation chips that don't have any installed agent
+  // to dispatch to fall through to composer.submit, which currently routes
+  // to "editor" — that path may surface a clearer error on agent-less
+  // cabinets but doesn't silently drop the click.
+  const visibleActions = QUICK_ACTIONS;
+
+  // Build options for the home-composer agent picker. Prepended "Auto"
+  // sentinel (empty slug) clears `selectedAgentSlug` so the cascade kicks in.
+  const agentPickerOptions: AgentPickerOption[] = [
+    {
+      slug: "",
+      name: "Auto",
+      role: "editor → first agent",
+    } as AgentPickerOption,
+    ...(agents as AgentPickerOption[]),
+  ];
 
   const runQuickAction = async (action: QuickAction) => {
     if (composer.submitting || quickRunning) return;
-    const dispatcher = dispatcherFor(action);
+    const dispatcher = pickDispatcher();
     if (!dispatcher) {
       void composer.submit(action.prompt);
       return;
@@ -559,10 +580,19 @@ export function HomeScreen() {
             />
           }
           actionsStart={
-            <TaskRuntimePicker
-              value={taskRuntime}
-              onChange={setTaskRuntime}
-            />
+            <div className="flex items-center gap-1.5">
+              <AgentPicker
+                agents={agentPickerOptions}
+                selectedSlug={selectedAgentSlug ?? ""}
+                onSelect={(slug) =>
+                  setSelectedAgentSlug(slug === "" ? null : slug)
+                }
+              />
+              <TaskRuntimePicker
+                value={taskRuntime}
+                onChange={setTaskRuntime}
+              />
+            </div>
           }
         />
 

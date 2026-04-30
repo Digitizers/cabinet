@@ -27,6 +27,7 @@ focus:
 tags:
   - research
   - citations
+canDispatch: true
 ---
 
 # Citation Keeper

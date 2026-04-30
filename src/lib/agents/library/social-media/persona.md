@@ -14,6 +14,7 @@ workspace: /marketing/social
 recommendedSkills:
   - key: social-content
     source: github:coreyhaines31/marketingskills/social-content
+canDispatch: true
 ---
 
 # Social Media Manager Agent

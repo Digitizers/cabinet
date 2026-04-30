@@ -38,6 +38,7 @@ focus:
 tags:
   - marketing
   - content
+canDispatch: true
 ---
 
 # Content Marketer Agent

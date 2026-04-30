@@ -32,6 +32,7 @@ focus:
 tags:
   - leadership
   - strategy
+canDispatch: true
 ---
 
 # CEO Agent

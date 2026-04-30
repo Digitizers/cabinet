@@ -34,6 +34,7 @@ tags:
   - research
   - trends
   - content
+canDispatch: true
 ---
 
 # Trend Scout Agent

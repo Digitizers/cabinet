@@ -33,6 +33,7 @@ tags:
   - notes
   - pkm
   - wiki
+canDispatch: true
 ---
 
 # Note Synthesizer

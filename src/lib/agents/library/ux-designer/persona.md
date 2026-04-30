@@ -11,6 +11,7 @@ budget: 80
 active: true
 workdir: /data
 workspace: /design
+canDispatch: true
 ---
 
 # UX Designer Agent

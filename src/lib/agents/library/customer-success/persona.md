@@ -11,6 +11,7 @@ budget: 80
 active: true
 workdir: /data
 workspace: /customers
+canDispatch: true
 ---
 
 # Customer Success Agent

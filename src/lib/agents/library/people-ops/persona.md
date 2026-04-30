@@ -11,6 +11,7 @@ budget: 50
 active: true
 workdir: /data
 workspace: /people
+canDispatch: true
 ---
 
 # People Ops Agent

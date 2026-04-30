@@ -11,6 +11,7 @@ budget: 80
 active: true
 workdir: /data
 workspace: /engineering/devops
+canDispatch: true
 ---
 
 # DevOps Engineer Agent

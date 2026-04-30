@@ -11,6 +11,7 @@ budget: 30
 active: true
 workdir: /data
 workspace: /legal
+canDispatch: true
 ---
 
 # Legal Advisor Agent

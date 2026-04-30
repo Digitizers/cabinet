@@ -10,13 +10,16 @@ import type {
 // times in parallel, and each call walks the full data/ tree on the server.
 
 type CacheEntry = {
-  data: CabinetOverview;
+  data: CabinetOverview | null;
   fetchedAt: number;
 };
 
 const STALE_MS = 3_000;
+// 404 responses cache longer — a missing cabinet doesn't materialize in
+// 3 seconds, and we don't want to pound the route on every refresh tick.
+const NOT_FOUND_STALE_MS = 30_000;
 const cache = new Map<string, CacheEntry>();
-const inflight = new Map<string, Promise<CabinetOverview>>();
+const inflight = new Map<string, Promise<CabinetOverview | null>>();
 
 function keyFor(path: string, visibility: CabinetVisibilityMode) {
   return `${path}::${visibility}`;
@@ -26,14 +29,17 @@ export async function fetchCabinetOverviewClient(
   path: string,
   visibility: CabinetVisibilityMode,
   options: { force?: boolean } = {}
-): Promise<CabinetOverview> {
+): Promise<CabinetOverview | null> {
   const key = keyFor(path, visibility);
   const now = Date.now();
 
   if (!options.force) {
     const cached = cache.get(key);
-    if (cached && now - cached.fetchedAt < STALE_MS) {
-      return cached.data;
+    if (cached) {
+      const ttl = cached.data === null ? NOT_FOUND_STALE_MS : STALE_MS;
+      if (now - cached.fetchedAt < ttl) {
+        return cached.data;
+      }
     }
     const existing = inflight.get(key);
     if (existing) return existing;
@@ -42,6 +48,12 @@ export async function fetchCabinetOverviewClient(
   const params = new URLSearchParams({ path, visibility });
   const promise = (async () => {
     const res = await fetch(`/api/cabinets/overview?${params.toString()}`);
+    if (res.status === 404) {
+      // Cabinet doesn't exist on disk (yet). Cache the null so consumers
+      // render an empty state instead of throwing on every tick.
+      cache.set(key, { data: null, fetchedAt: Date.now() });
+      return null;
+    }
     if (!res.ok) {
       throw new Error(`overview fetch failed: ${res.status}`);
     }

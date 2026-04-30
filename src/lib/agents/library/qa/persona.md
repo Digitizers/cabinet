@@ -30,6 +30,7 @@ focus:
 tags:
   - qa
   - quality
+canDispatch: true
 ---
 
 # QA Agent

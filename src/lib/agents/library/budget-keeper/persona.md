@@ -27,6 +27,7 @@ focus:
 tags:
   - household
   - finance
+canDispatch: true
 ---
 
 # Budget Keeper

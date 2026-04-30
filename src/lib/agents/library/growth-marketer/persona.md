@@ -16,6 +16,7 @@ recommendedSkills:
     source: github:coreyhaines31/marketingskills/marketing-ideas
   - key: launch-strategy
     source: github:coreyhaines31/marketingskills/launch-strategy
+canDispatch: true
 ---
 
 # Growth Marketer Agent

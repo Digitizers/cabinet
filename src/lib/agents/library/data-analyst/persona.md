@@ -14,6 +14,7 @@ workspace: /analytics
 recommendedSkills:
   - key: data-analysis
     source: github:bytedance/deer-flow/data-analysis
+canDispatch: true
 ---
 
 # Data Analyst Agent

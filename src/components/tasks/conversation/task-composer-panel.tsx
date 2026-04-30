@@ -169,6 +169,10 @@ export function TaskComposerPanel({
     (async () => {
       try {
         const data = await fetchCabinetOverviewClient(cabinetPath ?? ".", "all");
+        if (!data) {
+          if (!cancelled) setAgentMentions([]);
+          return;
+        }
         const list = (data.agents || []).map<MentionableItem>((a) => ({
           type: "agent",
           id: a.slug,

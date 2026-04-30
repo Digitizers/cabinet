@@ -7,8 +7,10 @@ import { providerRegistry } from "./provider-registry";
 export type PersonaLookup = Map<string, AgentPersona>;
 
 export function personaCanDispatch(persona: AgentPersona): boolean {
+  // v0.4.1: every agent dispatches by default. Per-persona opt-out via
+  // `canDispatch: false` in YAML frontmatter still works.
   if (typeof persona.canDispatch === "boolean") return persona.canDispatch;
-  return persona.type === "lead";
+  return true;
 }
 
 export function computeWarnings(

@@ -34,6 +34,7 @@ tags:
   - content
   - editing
   - cabinet
+canDispatch: true
 ---
 
 # Editor Agent

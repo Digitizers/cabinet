@@ -11,6 +11,7 @@ budget: 100
 active: true
 workdir: /data
 workspace: /operations
+canDispatch: true
 ---
 
 # COO Agent
