@@ -728,8 +728,14 @@ export function SettingsPage() {
                       </p>
                     </div>
                   </div>
+                  {/*
+                   * Audit #043: macOS convention concatenates modifier glyphs
+                   * with no separator (⌘⇧.); Windows/Linux uses Ctrl+Shift+. .
+                   */}
                   <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-                    {typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl"}+⇧+.
+                    {typeof navigator !== "undefined" && /Mac/.test(navigator.platform)
+                      ? "⌘⇧."
+                      : "Ctrl+Shift+."}
                   </kbd>
                 </label>
               </div>

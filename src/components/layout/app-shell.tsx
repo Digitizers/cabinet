@@ -192,8 +192,14 @@ export function AppShell() {
         title = `Agents — ${base}`;
         break;
       case "agent":
+        // Audit #025: title-case the slug so the tab title matches the
+        // agent's display name (was lowercase "assistant — Cabinet"). Use
+        // word-by-word capitalization on the dasherized slug.
         title = section.slug
-          ? `${section.slug.replace(/-/g, " ")} — ${base}`
+          ? `${section.slug
+              .split("-")
+              .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+              .join(" ")} — ${base}`
           : `Agents — ${base}`;
         break;
       case "tasks":
@@ -203,7 +209,11 @@ export function AppShell() {
         title = `Task — ${base}`;
         break;
       case "settings":
-        title = `Settings — ${base}`;
+        // Audit #062: include the active settings tab in the title so window
+        // history shows "Appearance — Settings — Cabinet" not just "Settings".
+        title = section.slug
+          ? `${section.slug.charAt(0).toUpperCase() + section.slug.slice(1)} — Settings — ${base}`
+          : `Settings — ${base}`;
         break;
       case "help":
         title = `Help — ${base}`;

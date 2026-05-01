@@ -2777,7 +2777,8 @@ export function AgentsWorkspace({
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-2 py-0.5 text-[10px]">
                   <span className="font-semibold tabular-nums text-foreground">{groupedOrgAgents.length}</span>
-                  <span className="text-muted-foreground">depts</span>
+                  {/* Audit #020: don't abbreviate. */}
+                  <span className="text-muted-foreground">{groupedOrgAgents.length === 1 ? "department" : "departments"}</span>
                 </span>
               </div>
               <div className="ml-auto flex items-center gap-2">
