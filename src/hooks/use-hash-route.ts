@@ -45,14 +45,26 @@ interface RouteState {
   pagePath: string | null;
 }
 
+// Audit #011: encode each path segment individually so the joining `/`
+// stays literal in the URL. Previously a nested path like
+// `marketing/drafts/foo` rendered as `marketing%2Fdrafts%2Ffoo` — ugly
+// to copy/paste, hard to read in the address bar, and a regression of
+// the prior audit's clean-URL choice (#141 from 2026-04-25).
 function encodePathSegment(value: string): string {
-  return encodeURIComponent(value);
+  if (!value) return value;
+  return value
+    .split("/")
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
 }
 
 function decodePathSegment(value?: string): string {
   if (!value) return ROOT_CABINET_PATH;
   try {
-    return decodeURIComponent(value) || ROOT_CABINET_PATH;
+    return value
+      .split("/")
+      .map((seg) => decodeURIComponent(seg))
+      .join("/") || ROOT_CABINET_PATH;
   } catch {
     return value || ROOT_CABINET_PATH;
   }

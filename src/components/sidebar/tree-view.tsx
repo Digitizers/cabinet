@@ -601,7 +601,14 @@ export function TreeView() {
                           )}
                         />
                         <Icon className="h-[18px] w-[18px] shrink-0" />
-                        <span className="text-[8px] font-semibold uppercase tracking-[0.1em]">
+                        {/*
+                         * Audit #008: sentence case to match the rest of the
+                         * sidebar voice. Drop the all-caps + wide tracking
+                         * (which read as enterprise-dashboard); keep the
+                         * weight via font-semibold so the active tab still
+                         * stands out.
+                         */}
+                        <span className="text-[10px] font-semibold tracking-tight">
                           {drawer.label}
                         </span>
                       </button>
