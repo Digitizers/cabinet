@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs/promises";
+import os from "os";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 
 export interface UserProfile {
@@ -62,13 +63,24 @@ export async function readUserProfile(): Promise<UserProfile> {
   return seeded;
 }
 
+function inferOsName(): string {
+  try {
+    const raw = os.userInfo().username || "";
+    if (!raw) return "";
+    // Username may be lowercase; capitalize first letter for display.
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  } catch {
+    return "";
+  }
+}
+
 async function seedProfileFromOnboarding(): Promise<UserProfile> {
   const workspace = await readJson<WorkspaceJsonV2>(WORKSPACE_FILE);
   const home = workspace?.home?.name?.trim() || "";
   // "Hila's Home" → "Hila"
   const inferredName = home.replace(/['’]s Home$/i, "").trim();
   return {
-    name: inferredName || "You",
+    name: inferredName || inferOsName() || "",
     displayName: "",
     role: "",
     avatar: "",

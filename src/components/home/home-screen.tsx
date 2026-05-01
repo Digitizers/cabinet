@@ -381,8 +381,11 @@ export function HomeScreen() {
       .then((data) => {
         const profileName: string | undefined =
           data?.profile?.displayName || data?.profile?.name;
-        if (profileName) {
-          setUserName(profileName);
+        // Filter the legacy "You" placeholder so the greeting falls back to
+        // the no-name form rather than reading "Good morning, You."
+        const cleaned = profileName?.trim();
+        if (cleaned && cleaned.toLowerCase() !== "you") {
+          setUserName(cleaned);
         }
       })
       .catch(() => {});
