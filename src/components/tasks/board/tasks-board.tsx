@@ -364,6 +364,14 @@ export function TasksBoard({
             </>
           )}
 
+          {/*
+           * Audit #033: bulk delete is a high-blast operation. Don't surface
+           * it as a permanent toolbar icon next to filter chips — too easy
+           * to mistake for a filter clear. Show only when the user has
+           * narrowed the view (filter active) or made a selection. The
+           * existing typed-DELETE modal stays as the safety net.
+           */}
+          {(triggerFilter !== "all" || agentFilter || selection.size > 0) && (
           <button
             type="button"
             onClick={() => {
@@ -442,6 +450,7 @@ export function TasksBoard({
           >
             <Trash2 className="size-3" />
           </button>
+          )}
 
           <div className="h-3.5 w-px bg-border/60" />
 
