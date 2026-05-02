@@ -618,11 +618,13 @@ export function HomeScreen() {
     <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-xl space-y-8">
         {/*
-         * Audit #005: greeting was display-size and pushed the prompt below
-         * the fold on 13" laptops. The prompt is the primary surface — the
-         * greeting is decoration. Halved to text-xl/2xl with tighter rhythm.
+         * Audit #005 (review feedback 2026-05-02): the prior text-xl/2xl
+         * fix was too aggressive — the greeting felt undersized on a
+         * desktop. Restore the larger headline at md+ where prompt-fold
+         * isn't the constraint, but keep a smaller text-2xl on narrow
+         * viewports so 13" laptops don't push the input below the fold.
          */}
-        <h1 className="text-xl md:text-2xl font-semibold text-center text-foreground tracking-tight">
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-center text-foreground tracking-tight">
           {headline}
         </h1>
 

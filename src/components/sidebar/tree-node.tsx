@@ -32,7 +32,6 @@ import {
   ArrowRightLeft,
   Loader2,
   Upload,
-  LibraryBig,
   ArrowUpRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -486,12 +485,12 @@ export function TreeNode({
             ) : node.type === "unknown" ? (
               <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
             ) : node.type === "cabinet" ? (
-              // Audit #016: cabinets, folders, and pages used to share an
-              // amber-vs-muted color split that read as "same template,
-              // different tint." Switched to LibraryBig — a distinctly-
-              // shaped icon — so the cabinet row reads as a *place*, not a
-              // folder. Folder is still the lucide Folder/FolderOpen below.
-              <LibraryBig className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+              // Audit #016 (review feedback 2026-05-02): keep the Archive
+              // icon — it's the brand glyph used by the sidebar header and
+              // the rest of the app. Persistent amber-400 color so cabinet
+              // rows read consistently across the tree, sidebar header,
+              // and any breadcrumb references.
+              <Archive className="h-3.5 w-3.5 shrink-0 text-amber-400" />
             ) : node.hasRepo ? (
               <GitBranch className="h-3.5 w-3.5 shrink-0 text-orange-400" />
             ) : node.isLinked ? (

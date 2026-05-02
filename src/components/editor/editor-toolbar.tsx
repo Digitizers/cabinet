@@ -3,12 +3,6 @@
 import { type Editor } from "@tiptap/react";
 import { Separator } from "@/components/ui/separator";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import {
   Bold,
   Italic,
   Strikethrough,
@@ -41,10 +35,6 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  Type,
-  MoreHorizontal,
-  Check,
 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -278,15 +268,19 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         style?: React.CSSProperties;
       };
 
-  // Audit #012: this row used to render ~30 icon buttons in one scroll.
-  // Headings collapsed into a single "Aa ▾" dropdown; alignment, sup/sub,
-  // divider, embed, video, and RTL moved behind a "More ▾" overflow at the
-  // tail. The visible row is now ~13 buttons — scannable. Inline marks (B I
-  // U S, link, code, color, highlight) also surface via the BubbleMenu on
-  // selection, so the persistent toolbar is mostly block-level + media.
+  // Audit #012 (review feedback 2026-05-02): the heading-dropdown +
+  // More-overflow refactor was reverted. User preferred the original
+  // single scrollable row with gradient-fade indicators on both edges.
+  // Headings live inline; alignment, sup/sub, divider, embed, video, and
+  // RTL stay in the row too. The horizontal-scroll fade + ChevronLeft/
+  // Right buttons handle overflow when the viewport is narrow.
 
   // Primary items — always visible in the toolbar
   const primaryItems: ButtonSpec[] = [
+    { icon: Heading1, action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive("heading", { level: 1 }), label: "Heading 1" },
+    { icon: Heading2, action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive("heading", { level: 2 }), label: "Heading 2" },
+    { icon: Heading3, action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive("heading", { level: 3 }), label: "Heading 3" },
+    { separator: true },
     { icon: Bold, action: () => editor.chain().focus().toggleBold().run(), isActive: editor.isActive("bold"), label: "Bold" },
     { icon: Italic, action: () => editor.chain().focus().toggleItalic().run(), isActive: editor.isActive("italic"), label: "Italic" },
     { icon: UnderlineIcon, action: () => editor.chain().focus().toggleUnderline().run(), isActive: editor.isActive("underline"), label: "Underline" },
@@ -315,6 +309,18 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     { icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), isActive: editor.isActive("blockquote"), label: "Blockquote" },
     { icon: CheckSquare, action: () => editor.chain().focus().toggleTaskList().run(), isActive: editor.isActive("taskList"), label: "Checklist" },
     { icon: FileCode, action: () => editor.chain().focus().toggleCodeBlock().run(), isActive: editor.isActive("codeBlock"), label: "Code block" },
+    { icon: Minus, action: () => editor.chain().focus().setHorizontalRule().run(), isActive: false, label: "Divider" },
+  ];
+
+  // Secondary items — appended to the same scrollable row after the primary set
+  const secondaryItems: ButtonSpec[] = [
+    { icon: AlignLeft, action: () => editor.chain().focus().setTextAlign("left").run(), isActive: editor.isActive({ textAlign: "left" }), label: "Align left" },
+    { icon: AlignCenter, action: () => editor.chain().focus().setTextAlign("center").run(), isActive: editor.isActive({ textAlign: "center" }), label: "Align center" },
+    { icon: AlignRight, action: () => editor.chain().focus().setTextAlign("right").run(), isActive: editor.isActive({ textAlign: "right" }), label: "Align right" },
+    { icon: AlignJustify, action: () => editor.chain().focus().setTextAlign("justify").run(), isActive: editor.isActive({ textAlign: "justify" }), label: "Justify" },
+    { separator: true },
+    { icon: SuperIcon, action: () => editor.chain().focus().toggleSuperscript().run(), isActive: editor.isActive("superscript"), label: "Superscript" },
+    { icon: SubIcon, action: () => editor.chain().focus().toggleSubscript().run(), isActive: editor.isActive("subscript"), label: "Subscript" },
     { separator: true },
     {
       icon: ImageIcon,
@@ -322,108 +328,27 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       isActive: false,
       label: "Insert image",
     },
-    { separator: true },
-    { icon: Undo, action: () => editor.chain().focus().undo().run(), isActive: false, label: "Undo" },
-    { icon: Redo, action: () => editor.chain().focus().redo().run(), isActive: false, label: "Redo" },
-  ];
-
-  type HeadingLevel = 1 | 2 | 3;
-  const HEADING_OPTIONS: Array<{
-    level: HeadingLevel | null;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }> = [
-    { level: null, label: "Body", icon: Type },
-    { level: 1, label: "Heading 1", icon: Heading1 },
-    { level: 2, label: "Heading 2", icon: Heading2 },
-    { level: 3, label: "Heading 3", icon: Heading3 },
-  ];
-  const activeHeading: HeadingLevel | null =
-    editor.isActive("heading", { level: 1 })
-      ? 1
-      : editor.isActive("heading", { level: 2 })
-      ? 2
-      : editor.isActive("heading", { level: 3 })
-      ? 3
-      : null;
-  const activeHeadingOption =
-    HEADING_OPTIONS.find((opt) => opt.level === activeHeading) ??
-    HEADING_OPTIONS[0];
-  const setHeading = (level: HeadingLevel | null) => {
-    if (level == null) {
-      editor.chain().focus().setParagraph().run();
-    } else {
-      editor.chain().focus().toggleHeading({ level }).run();
-    }
-  };
-
-  // Overflow ("More") items — kept off the persistent row to cut visual noise
-  type OverflowItem = {
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    isActive: boolean;
-    action: (e: React.MouseEvent) => void;
-  };
-  const overflowItems: OverflowItem[] = [
     {
       icon: VideoIcon,
-      label: "Insert video",
+      action: (e) => openPopoverFromButton(e, (anchor) => ({ type: "media", kind: "video", anchor })),
       isActive: false,
-      action: (e) => openPopoverFromButton(e as React.MouseEvent<HTMLElement>, (anchor) => ({ type: "media", kind: "video", anchor })),
+      label: "Insert video",
     },
     {
       icon: Sparkles,
+      action: (e) => openPopoverFromButton(e, (anchor) => ({ type: "embed", anchor })),
+      isActive: false,
       label: "Embed",
-      isActive: false,
-      action: (e) => openPopoverFromButton(e as React.MouseEvent<HTMLElement>, (anchor) => ({ type: "embed", anchor })),
     },
-    {
-      icon: Minus,
-      label: "Divider",
-      isActive: false,
-      action: () => editor.chain().focus().setHorizontalRule().run(),
-    },
-    {
-      icon: AlignLeft,
-      label: "Align left",
-      isActive: editor.isActive({ textAlign: "left" }),
-      action: () => editor.chain().focus().setTextAlign("left").run(),
-    },
-    {
-      icon: AlignCenter,
-      label: "Align center",
-      isActive: editor.isActive({ textAlign: "center" }),
-      action: () => editor.chain().focus().setTextAlign("center").run(),
-    },
-    {
-      icon: AlignRight,
-      label: "Align right",
-      isActive: editor.isActive({ textAlign: "right" }),
-      action: () => editor.chain().focus().setTextAlign("right").run(),
-    },
-    {
-      icon: AlignJustify,
-      label: "Justify",
-      isActive: editor.isActive({ textAlign: "justify" }),
-      action: () => editor.chain().focus().setTextAlign("justify").run(),
-    },
-    {
-      icon: SuperIcon,
-      label: "Superscript",
-      isActive: editor.isActive("superscript"),
-      action: () => editor.chain().focus().toggleSuperscript().run(),
-    },
-    {
-      icon: SubIcon,
-      label: "Subscript",
-      isActive: editor.isActive("subscript"),
-      action: () => editor.chain().focus().toggleSubscript().run(),
-    },
+    { separator: true },
+    { icon: Undo, action: () => editor.chain().focus().undo().run(), isActive: false, label: "Undo" },
+    { icon: Redo, action: () => editor.chain().focus().redo().run(), isActive: false, label: "Redo" },
+    { separator: true },
     {
       icon: isRtl ? PilcrowLeft : PilcrowRight,
-      label: isRtl ? "Switch to LTR" : "Switch to RTL",
-      isActive: isRtl,
       action: () => updateFrontmatter({ dir: isRtl ? undefined : "rtl" }),
+      isActive: isRtl,
+      label: isRtl ? "Switch to LTR" : "Switch to RTL",
     },
   ];
 
@@ -458,45 +383,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           onWheel={onWheel}
           className="flex items-center gap-0.5 px-2 pt-1 pb-1.5 overflow-x-scroll overflow-y-hidden editor-toolbar-scroll"
         >
-          {/* Heading dropdown — collapses H1/H2/H3/Body into one trigger */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={cn(
-                "h-8 shrink-0 inline-flex items-center gap-1 rounded-md px-2 text-foreground/80 hover:bg-accent transition-colors data-[popup-open]:bg-accent",
-                activeHeading != null && "bg-accent text-foreground ring-1 ring-inset ring-foreground/15"
-              )}
-              title="Text style"
-              aria-label="Text style"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <activeHeadingOption.icon className="h-4 w-4" />
-              <span className="text-xs font-medium">
-                {activeHeadingOption.level == null ? "Body" : `H${activeHeadingOption.level}`}
-              </span>
-              <ChevronDown className="h-3 w-3 opacity-60" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[180px]">
-              {HEADING_OPTIONS.map((opt) => {
-                const active = opt.level === activeHeading;
-                return (
-                  <DropdownMenuItem
-                    key={String(opt.level ?? "body")}
-                    onClick={() => setHeading(opt.level)}
-                    className="flex items-center justify-between gap-3 py-1.5"
-                  >
-                    <span className="flex items-center gap-2">
-                      <opt.icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-[12.5px]">{opt.label}</span>
-                    </span>
-                    {active && <Check className="h-3.5 w-3.5 text-primary" />}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Separator orientation="vertical" className="mx-1 h-6 shrink-0" />
-
-          {primaryItems.map((item, i) => {
+          {[...primaryItems, { separator: true } as ButtonSpec, ...secondaryItems].map((item, i) => {
             if ("separator" in item) {
               return (
                 <Separator key={i} orientation="vertical" className="mx-1 h-6 shrink-0" />
@@ -513,38 +400,6 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
               />
             );
           })}
-
-          <Separator orientation="vertical" className="mx-1 h-6 shrink-0" />
-
-          {/* More dropdown — overflow for less-frequently-used controls */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-accent transition-colors data-[popup-open]:bg-accent"
-              title="More formatting"
-              aria-label="More formatting"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[200px]">
-              {overflowItems.map((item, i) => (
-                <DropdownMenuItem
-                  key={i}
-                  onClick={(e) => item.action(e as unknown as React.MouseEvent)}
-                  className={cn(
-                    "flex items-center justify-between gap-3 py-1.5",
-                    item.isActive && "bg-accent/60"
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <item.icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-[12.5px]">{item.label}</span>
-                  </span>
-                  {item.isActive && <Check className="h-3.5 w-3.5 text-primary" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 

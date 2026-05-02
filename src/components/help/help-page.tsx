@@ -53,6 +53,10 @@ type HelpAction =
   | { kind: "tour" }
   | { kind: "demo"; demoId: DemoId }
   | { kind: "navigate"; section: SelectedSection }
+  // Audit #053 review: dispatches `cabinet:open-shortcuts` so the new
+  // searchable keyboard cheat sheet (KeyboardShortcutsModal) is reachable
+  // from the Help page in addition to the global `?` hotkey.
+  | { kind: "shortcuts-modal" }
   | { kind: "soon" };
 
 interface HelpItem {
@@ -189,10 +193,12 @@ const HELP_ITEMS: HelpItem[] = [
       </>
     ),
     description:
-      "Ten global shortcuts work from any surface. The editor adds slash commands, block reordering, and link editing — all without leaving the keyboard.",
-    cta: "Browse shortcuts",
+      "Every Cabinet shortcut on one searchable card. Press ? from anywhere to reopen it. Filter by name or key — passes for navigation, editing, tasks, panels, and slash commands.",
+    cta: "Open cheat sheet",
     visual: <ShortcutsVisual />,
-    action: { kind: "demo", demoId: "shortcuts" },
+    // Audit #053 review: opens the searchable cheat-sheet modal directly
+    // instead of the older slideshow demo. Same surface as the `?` hotkey.
+    action: { kind: "shortcuts-modal" },
   },
   {
     id: "skills",
@@ -258,6 +264,10 @@ function HelpCard({
     }
     if (item.action.kind === "navigate") {
       setSection(item.action.section);
+      return;
+    }
+    if (item.action.kind === "shortcuts-modal") {
+      window.dispatchEvent(new CustomEvent("cabinet:open-shortcuts"));
       return;
     }
   };

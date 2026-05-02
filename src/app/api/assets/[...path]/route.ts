@@ -57,6 +57,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
     const stat = await fs.stat(resolved);
     const totalSize = stat.size;
+    // HTML assets back in-Cabinet apps/websites that the user re-generates
+    // (audit slideshows, dashboards, etc.). A 1h max-age served stale builds
+    // until the cache expired. Force revalidation on every fetch — the
+    // payload is small and the win on developer/UX feedback is large.
+    // Binary assets (images, fonts, video) keep the long cache.
+    const cacheControl = ext === ".html"
+      ? "no-cache, must-revalidate"
+      : "public, max-age=3600";
 
     const rangeHeader = req.headers.get("range");
     if (rangeHeader) {
@@ -85,7 +93,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                 "Content-Length": String(size),
                 "Content-Range": `bytes ${start}-${end}/${totalSize}`,
                 "Accept-Ranges": "bytes",
-                "Cache-Control": "public, max-age=3600",
+                "Cache-Control": cacheControl,
               },
             });
           } finally {
@@ -105,7 +113,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         "Content-Type": contentType,
         "Content-Length": String(totalSize),
         "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": cacheControl,
       },
     });
   } catch (error) {
