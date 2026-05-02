@@ -227,8 +227,29 @@ export function StatusBar() {
     }
   };
   const [isGitRepo, setIsGitRepo] = useState(false);
+  // Audit #049: track when the last successful pull completed so the Sync
+  // button's tooltip can answer "did the team's overnight work land?"
+  // without the user having to click and watch the spinner.
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [syncTick, setSyncTick] = useState(0);
+  useEffect(() => {
+    if (!lastSyncedAt) return;
+    const id = window.setInterval(() => setSyncTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, [lastSyncedAt]);
+  const lastSyncedLabel = useMemo(() => {
+    if (!lastSyncedAt) return null;
+    return formatRelativeSavedAgo(lastSyncedAt, Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastSyncedAt, syncTick]);
   const [uncommitted, setUncommitted] = useState(0);
   const [uncommittedFiles, setUncommittedFiles] = useState<Array<{ path: string; status: "M" | "?" | "A" | "D" | "R" }>>([]);
+  // Audit #050: lightweight commit form inside the uncommitted popover.
+  // Diff/discard intentionally deferred — would need /api/git/diff for the
+  // working tree (not just by hash) and a confirmation flow respectively.
+  const [commitMessage, setCommitMessage] = useState("");
+  const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
   const [uncommittedTruncated, setUncommittedTruncated] = useState(false);
   const [showUncommittedPopup, setShowUncommittedPopup] = useState(false);
   const [showCommunityPopup, setShowCommunityPopup] = useState(false);
@@ -335,6 +356,7 @@ export function StatusBar() {
         } else {
           setPullStatus("up-to-date");
         }
+        setLastSyncedAt(Date.now());
       } else {
         setPullStatus("error");
       }
@@ -851,6 +873,75 @@ export function StatusBar() {
                   for the full list.
                 </p>
               )}
+
+              {/* Audit #050: commit affordance inside the popover so the
+                  indicator becomes a workflow, not just a nag. Sends to the
+                  existing /api/git/commit endpoint with the user's message
+                  (or a sensible default when empty). */}
+              <form
+                className="mt-2 space-y-1.5 border-t border-border/60 pt-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (committing) return;
+                  setCommitting(true);
+                  setCommitError(null);
+                  try {
+                    const message =
+                      commitMessage.trim() ||
+                      `Update ${uncommittedFiles.length} file${
+                        uncommittedFiles.length === 1 ? "" : "s"
+                      }`;
+                    const res = await fetch("/api/git/commit", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ message }),
+                    });
+                    if (!res.ok) {
+                      const body = await res.json().catch(() => ({}));
+                      throw new Error(body?.error || `Commit failed (${res.status})`);
+                    }
+                    setCommitMessage("");
+                    await fetchGitStatus();
+                  } catch (err) {
+                    setCommitError(
+                      err instanceof Error ? err.message : "Commit failed"
+                    );
+                  } finally {
+                    setCommitting(false);
+                  }
+                }}
+              >
+                <input
+                  type="text"
+                  value={commitMessage}
+                  onChange={(e) => setCommitMessage(e.target.value)}
+                  placeholder={`Update ${uncommittedFiles.length} file${
+                    uncommittedFiles.length === 1 ? "" : "s"
+                  }`}
+                  disabled={committing}
+                  aria-label="Commit message"
+                  className="w-full rounded border border-border/60 bg-background px-2 py-1 text-[11px] outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
+                />
+                {commitError && (
+                  <p className="text-[10px] text-destructive">{commitError}</p>
+                )}
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    type="submit"
+                    disabled={committing}
+                    className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-0.5 text-[10.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {committing ? (
+                      <>
+                        <Loader2 className="size-3 animate-spin" />
+                        Committing…
+                      </>
+                    ) : (
+                      "Commit"
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </div>
@@ -858,9 +949,17 @@ export function StatusBar() {
           <button
             onClick={pullAndRefresh}
             disabled={pulling}
-            aria-label="Pull latest changes from GitHub and refresh"
+            aria-label={
+              lastSyncedLabel
+                ? `Pull latest changes from GitHub and refresh. Last synced ${lastSyncedLabel}.`
+                : "Pull latest changes from GitHub and refresh"
+            }
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
-            title="Pull latest from GitHub & refresh"
+            title={
+              lastSyncedLabel
+                ? `Pull latest from GitHub & refresh. Last synced ${lastSyncedLabel}.`
+                : "Pull latest from GitHub & refresh"
+            }
           >
             <RefreshCw className={`h-3 w-3 ${pulling ? "animate-spin" : ""}`} />
             Sync

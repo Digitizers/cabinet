@@ -19,8 +19,37 @@ export function TerminalTabs() {
     setTerminalPosition,
   } = useAppStore();
 
-  const [height, setHeight] = useState(350);
-  const [width, setWidth] = useState(420);
+  // Audit #046: persist terminal panel dimensions across sessions so
+  // "wide / normal" intent isn't lost on refresh. Reads happen lazily
+  // via the lazy-init form so the initial render isn't blocked by SSR.
+  const [height, setHeightState] = useState<number>(() => {
+    if (typeof window === "undefined") return 350;
+    const raw = window.localStorage.getItem("cabinet.terminal.height");
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed >= 150 ? parsed : 350;
+  });
+  const [width, setWidthState] = useState<number>(() => {
+    if (typeof window === "undefined") return 420;
+    const raw = window.localStorage.getItem("cabinet.terminal.width");
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed >= 250 ? parsed : 420;
+  });
+  const setHeight = useCallback((next: number) => {
+    setHeightState(next);
+    try {
+      window.localStorage.setItem("cabinet.terminal.height", String(next));
+    } catch {
+      // Quota errors are non-fatal — the dimension still applies in-session.
+    }
+  }, []);
+  const setWidth = useCallback((next: number) => {
+    setWidthState(next);
+    try {
+      window.localStorage.setItem("cabinet.terminal.width", String(next));
+    } catch {
+      // Quota errors are non-fatal — the dimension still applies in-session.
+    }
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
 
@@ -164,12 +193,18 @@ export function TerminalTabs() {
         className="flex flex-row h-full border-l border-border/70 bg-background shrink-0"
         style={{ width: `${width}px` }}
       >
-        {/* Left-edge resize handle */}
+        {/* Audit #046: left-edge resize handle. Bumped from 1.5px to a
+            chunkier 4px hit area + a more visible 1.5px pill so the
+            affordance is discoverable without hovering blindly. */}
         <div
-          className="flex items-center justify-center w-1.5 cursor-col-resize hover:bg-primary/20 transition-colors group shrink-0"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize terminal panel"
+          tabIndex={0}
+          className="flex items-center justify-center w-1 cursor-col-resize hover:bg-primary/20 transition-colors group shrink-0 hover:w-1.5"
           onMouseDown={handleHorizontalMouseDown}
         >
-          <div className="w-0.5 h-8 rounded-full bg-border/70 transition-colors group-hover:bg-primary/50" />
+          <div className="w-px h-10 rounded-full bg-border transition-colors group-hover:bg-primary/60" />
         </div>
         <div className="flex flex-col flex-1 min-w-0">
           {tabBar}
@@ -187,12 +222,16 @@ export function TerminalTabs() {
       className="flex flex-col border-t border-border bg-background"
       style={{ height: `${height}px` }}
     >
-      {/* Top-edge resize handle */}
+      {/* Audit #046: top-edge resize handle, more visible pill. */}
       <div
-        className="flex items-center justify-center h-1.5 cursor-row-resize hover:bg-primary/20 transition-colors group"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize terminal panel"
+        tabIndex={0}
+        className="flex items-center justify-center h-1 cursor-row-resize hover:bg-primary/20 transition-colors group hover:h-1.5"
         onMouseDown={handleVerticalMouseDown}
       >
-        <div className="h-0.5 w-8 rounded-full bg-border/70 transition-colors group-hover:bg-primary/50" />
+        <div className="h-px w-10 rounded-full bg-border transition-colors group-hover:bg-primary/60" />
       </div>
       {tabBar}
       <div className="flex-1 relative min-h-0">
