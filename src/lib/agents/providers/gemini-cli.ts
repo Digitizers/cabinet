@@ -89,17 +89,26 @@ export const geminiCliProvider: AgentProvider = {
     },
   ],
   detachedPromptLaunchMode: "one-shot",
+  // Gemini 3 Pro Preview was deprecated 2026-03-09 — `gemini-3.1-pro-preview`
+  // is the active flagship preview. Verified against Gemini CLI docs and
+  // Google's model docs on 2026-05-03.
   models: [
-    {
-      id: "gemini-3-flash-preview",
-      name: "Gemini 3 Flash Preview",
-      description: "Latest fast Gemini preview model",
-      effortLevels: [],
-    },
     {
       id: "gemini-3.1-pro-preview",
       name: "Gemini 3.1 Pro Preview",
       description: "Most capable Gemini preview model when access is enabled",
+      effortLevels: [],
+    },
+    {
+      id: "gemini-3-flash-preview",
+      name: "Gemini 3 Flash Preview",
+      description: "Fast Gemini 3 preview for high-frequency terminal workflows",
+      effortLevels: [],
+    },
+    {
+      id: "gemini-3.1-flash-lite",
+      name: "Gemini 3.1 Flash Lite",
+      description: "Lightweight Gemini 3.1 for lower-cost runs",
       effortLevels: [],
     },
     {
@@ -117,7 +126,7 @@ export const geminiCliProvider: AgentProvider = {
     {
       id: "gemini-2.5-flash-lite",
       name: "Gemini 2.5 Flash Lite",
-      description: "Lightweight model for lower-cost runs",
+      description: "Lightweight stable Gemini for lower-cost runs",
       effortLevels: [],
     },
   ],

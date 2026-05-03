@@ -5,18 +5,31 @@ import {
   resolveCliCommand,
 } from "../provider-cli";
 
+// Verified 2026-05-03 against xAI's models docs. Grok 4.3 finished
+// rollout 2026-04-30 and is xAI's recommended default; the 4.x-fast line
+// covers cost-sensitive high-volume use; Grok 3 has been retired from the
+// recommended catalog so it's no longer listed here.
 const GROK_MODELS = [
-  { id: "grok-4", name: "Grok 4", description: "xAI's flagship reasoning model" },
+  {
+    id: "grok-4.3",
+    name: "Grok 4.3",
+    description: "xAI's recommended default — fastest, most intelligent (1M context)",
+  },
+  { id: "grok-4", name: "Grok 4", description: "Frontier reasoning workloads" },
+  {
+    id: "grok-4-fast",
+    name: "Grok 4 Fast",
+    description: "Fast, cost-efficient Grok 4 for high-volume use",
+  },
+  {
+    id: "grok-4.1-fast",
+    name: "Grok 4.1 Fast",
+    description: "Cheapest Grok 4.x — high-throughput, low-latency",
+  },
   {
     id: "grok-code-fast-1",
     name: "Grok Code Fast 1",
-    description: "Fast code-focused Grok model",
-  },
-  { id: "grok-3", name: "Grok 3", description: "Previous generation flagship" },
-  {
-    id: "grok-3-fast",
-    name: "Grok 3 Fast",
-    description: "Faster, lower-latency Grok 3",
+    description: "Fast code-focused Grok model for agentic coding",
   },
 ] as const;
 

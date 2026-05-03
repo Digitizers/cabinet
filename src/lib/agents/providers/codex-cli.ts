@@ -45,23 +45,58 @@ export const codexCliProvider: AgentProvider = {
   ],
   detachedPromptLaunchMode: "one-shot",
   // Models are annotated with `requires` so UI pickers can badge entries the
-  // user's current auth mode can't hit. Codex backend behavior (verified
-  // live 2026-04-21): ChatGPT-plan accounts currently only accept
-  // `gpt-5.4`; every "gpt-5.x-codex" / `o*` / `gpt-4.1*` id documented here
-  // 400s with `model not supported when using Codex with a ChatGPT
-  // account`. API-key auth (`OPENAI_API_KEY`) accepts the rest.
+  // user's current auth mode can't hit. Per OpenAI's Codex models docs
+  // (verified 2026-05-03): `gpt-5.5` and `gpt-5.3-codex-spark` are
+  // ChatGPT-only; the older `*-codex` / `o*` / `gpt-4.1*` ids are API-key
+  // only; the `gpt-5.4`/`gpt-5.4-mini`/`gpt-5.3-codex`/`gpt-5.2` line works
+  // with both auth modes.
   models: [
+    {
+      id: "gpt-5.5",
+      name: "GPT-5.5",
+      description: "Recommended default — strongest coding model (ChatGPT sign-in only)",
+      requires: "chatgpt_plan",
+      effortLevels: [...CODEX_EXTENDED_REASONING_LEVELS],
+    },
     {
       id: "gpt-5.4",
       name: "GPT-5.4",
-      description: "Default model on ChatGPT-plan Codex accounts",
+      description: "Previous flagship — works with both ChatGPT and API key",
+      requires: "any",
+      effortLevels: [...CODEX_EXTENDED_REASONING_LEVELS],
+    },
+    {
+      id: "gpt-5.4-mini",
+      name: "GPT-5.4 Mini",
+      description: "Faster, lower-cost variant for lighter coding tasks",
+      requires: "any",
+      effortLevels: [...CODEX_EXTENDED_REASONING_LEVELS],
+    },
+    {
+      id: "gpt-5.3-codex",
+      name: "GPT-5.3 Codex",
+      description: "Codex-tuned model for agentic coding",
+      requires: "any",
+      effortLevels: [...CODEX_EXTENDED_REASONING_LEVELS],
+    },
+    {
+      id: "gpt-5.3-codex-spark",
+      name: "GPT-5.3 Codex Spark",
+      description: "Real-time coding iteration (ChatGPT Pro research preview)",
+      requires: "chatgpt_plan",
+      effortLevels: [...CODEX_REASONING_LEVELS],
+    },
+    {
+      id: "gpt-5.2",
+      name: "GPT-5.2",
+      description: "General-purpose GPT-5.2",
       requires: "any",
       effortLevels: [...CODEX_EXTENDED_REASONING_LEVELS],
     },
     {
       id: "gpt-5.2-codex",
       name: "GPT-5.2 Codex",
-      description: "Flagship Codex model for agentic coding (API-key only)",
+      description: "Earlier Codex flagship (API-key only)",
       requires: "api_key",
       effortLevels: [...CODEX_EXTENDED_REASONING_LEVELS],
     },

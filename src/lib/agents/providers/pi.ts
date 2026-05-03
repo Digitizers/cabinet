@@ -14,12 +14,14 @@ const PI_THINKING_LEVELS = [
   { id: "xhigh", name: "Extra High", description: "Maximum depth" },
 ] as const;
 
+// Used only when `pi --list-models` discovery fails. Refreshed 2026-05-03.
 const PI_FALLBACK_MODELS = [
-  { id: "xai/grok-4", name: "xai/grok-4" },
-  { id: "anthropic/claude-sonnet-4-6", name: "anthropic/claude-sonnet-4-6" },
+  { id: "xai/grok-4.3", name: "xai/grok-4.3" },
   { id: "anthropic/claude-opus-4-7", name: "anthropic/claude-opus-4-7" },
-  { id: "openai/gpt-5.2-codex", name: "openai/gpt-5.2-codex" },
-  { id: "google/gemini-2.5-pro", name: "google/gemini-2.5-pro" },
+  { id: "anthropic/claude-sonnet-4-6", name: "anthropic/claude-sonnet-4-6" },
+  { id: "openai/gpt-5.4", name: "openai/gpt-5.4" },
+  { id: "openai/gpt-5.3-codex", name: "openai/gpt-5.3-codex" },
+  { id: "google/gemini-3.1-pro", name: "google/gemini-3.1-pro" },
 ] as const;
 
 export const piProvider: AgentProvider = {

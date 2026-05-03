@@ -5,17 +5,23 @@ import {
   resolveCliCommand,
 } from "../provider-cli";
 
+// Cursor exposes a curated multi-vendor list. Verified 2026-05-03 against
+// Cursor's changelog/docs; Composer 2 is the new flagship in-house model
+// (launched April 2026). The CLI's `--model` accepts these IDs; `auto` lets
+// Cursor route per request.
 const CURSOR_MODEL_IDS = [
   { id: "auto", name: "Auto", description: "Let Cursor pick the best model" },
-  { id: "composer-1.5", name: "Composer 1.5", description: "Cursor's agentic coding model" },
+  { id: "composer-2", name: "Composer 2", description: "Cursor's flagship in-house coding model" },
+  { id: "composer-1.5", name: "Composer 1.5", description: "Previous Cursor in-house coding model" },
+  { id: "gpt-5.5", name: "GPT-5.5", description: "OpenAI's strongest coding model" },
+  { id: "gpt-5.4", name: "GPT-5.4" },
   { id: "gpt-5.3-codex", name: "GPT-5.3 Codex" },
   { id: "gpt-5.3-codex-high", name: "GPT-5.3 Codex (High)" },
-  { id: "gpt-5.2-codex", name: "GPT-5.2 Codex" },
   { id: "sonnet-4.6", name: "Claude Sonnet 4.6" },
-  { id: "opus-4.6", name: "Claude Opus 4.6" },
-  { id: "gemini-3-pro", name: "Gemini 3 Pro" },
+  { id: "opus-4.7", name: "Claude Opus 4.7" },
   { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro" },
-  { id: "grok", name: "Grok" },
+  { id: "gemini-3-flash", name: "Gemini 3 Flash" },
+  { id: "grok-4", name: "Grok 4" },
 ] as const;
 
 export const cursorCliProvider: AgentProvider = {

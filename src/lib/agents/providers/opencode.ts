@@ -14,13 +14,17 @@ const OPENCODE_VARIANT_LEVELS = [
   { id: "max", name: "Max", description: "Provider max effort" },
 ] as const;
 
+// Used only when `opencode models` discovery fails (CLI not installed or
+// not authed). OpenCode reaches the API directly so we can't include
+// ChatGPT-only ids like `gpt-5.5` here. Refreshed 2026-05-03.
 const OPENCODE_FALLBACK_MODELS = [
-  { id: "openai/gpt-5.2-codex", name: "openai/gpt-5.2-codex" },
   { id: "openai/gpt-5.4", name: "openai/gpt-5.4" },
-  { id: "openai/gpt-5.1-codex-max", name: "openai/gpt-5.1-codex-max" },
-  { id: "anthropic/claude-sonnet-4-6", name: "anthropic/claude-sonnet-4-6" },
+  { id: "openai/gpt-5.4-mini", name: "openai/gpt-5.4-mini" },
+  { id: "openai/gpt-5.3-codex", name: "openai/gpt-5.3-codex" },
   { id: "anthropic/claude-opus-4-7", name: "anthropic/claude-opus-4-7" },
-  { id: "google/gemini-2.5-pro", name: "google/gemini-2.5-pro" },
+  { id: "anthropic/claude-sonnet-4-6", name: "anthropic/claude-sonnet-4-6" },
+  { id: "google/gemini-3.1-pro", name: "google/gemini-3.1-pro" },
+  { id: "xai/grok-4.3", name: "xai/grok-4.3" },
 ] as const;
 
 export const openCodeProvider: AgentProvider = {

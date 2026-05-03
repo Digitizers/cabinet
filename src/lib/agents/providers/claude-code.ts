@@ -6,11 +6,23 @@ import {
 } from "../provider-cli";
 import { getNvmNodeBin } from "../nvm-path";
 
-const CLAUDE_THINKING_LEVELS = [
+// Effort levels per Claude Code docs: Opus 4.7 supports an extra `xhigh`
+// rung (recommended default); Opus 4.6 / Sonnet 4.6 stop at `max`. Setting
+// an unsupported level falls back to the highest the model accepts, but we
+// surface the right list so the picker doesn't show levels that won't apply.
+const OPUS_THINKING_LEVELS = [
   { id: "low", name: "Low", description: "Quick, minimal reasoning" },
   { id: "medium", name: "Medium", description: "Balanced depth" },
   { id: "high", name: "High", description: "Thorough reasoning" },
-  { id: "max", name: "Max", description: "Maximum depth" },
+  { id: "xhigh", name: "Extra High", description: "Recommended for hardest tasks" },
+  { id: "max", name: "Max", description: "Deepest reasoning, no token cap" },
+] as const;
+
+const SONNET_THINKING_LEVELS = [
+  { id: "low", name: "Low", description: "Quick, minimal reasoning" },
+  { id: "medium", name: "Medium", description: "Balanced depth" },
+  { id: "high", name: "High", description: "Thorough reasoning" },
+  { id: "max", name: "Max", description: "Deepest reasoning, no token cap" },
 ] as const;
 
 const nvmClaudePath = (() => {
@@ -36,13 +48,31 @@ export const claudeCodeProvider: AgentProvider = {
       id: "opus",
       name: "Claude Opus 4.7",
       description: "Most intelligent with configurable effort",
-      effortLevels: [...CLAUDE_THINKING_LEVELS],
+      effortLevels: [...OPUS_THINKING_LEVELS],
+    },
+    {
+      id: "opus[1m]",
+      name: "Claude Opus 4.7 (1M context)",
+      description: "Opus 4.7 with 1M-token context for very long sessions",
+      effortLevels: [...OPUS_THINKING_LEVELS],
     },
     {
       id: "sonnet",
       name: "Claude Sonnet 4.6",
       description: "Fast and capable with configurable effort",
-      effortLevels: [...CLAUDE_THINKING_LEVELS],
+      effortLevels: [...SONNET_THINKING_LEVELS],
+    },
+    {
+      id: "sonnet[1m]",
+      name: "Claude Sonnet 4.6 (1M context)",
+      description: "Sonnet 4.6 with 1M-token context for very long sessions",
+      effortLevels: [...SONNET_THINKING_LEVELS],
+    },
+    {
+      id: "opusplan",
+      name: "Opus + Sonnet (opusplan)",
+      description: "Opus during plan mode, Sonnet for execution",
+      effortLevels: [...OPUS_THINKING_LEVELS],
     },
     {
       id: "haiku",
@@ -53,7 +83,7 @@ export const claudeCodeProvider: AgentProvider = {
   ],
   detachedPromptLaunchMode: "session",
   supportsTerminalResume: true,
-  effortLevels: [...CLAUDE_THINKING_LEVELS],
+  effortLevels: [...OPUS_THINKING_LEVELS],
   command: "claude",
   commandCandidates: [
     `${process.env.HOME || ""}/.local/bin/claude`,

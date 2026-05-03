@@ -104,13 +104,13 @@ test("resolveDispatchRuntime — action model + effort override both parent + pe
 });
 
 test("resolveDispatchRuntime — effort is dropped when resolved provider doesn't advertise it", () => {
-  // Parent uses codex-cli with effort=xhigh. Dispatch to a claude-code
-  // target (via action override). Claude advertises low/medium/high/max —
-  // NOT xhigh — so effort should be dropped rather than passed through
-  // and rejected by the CLI.
+  // Parent uses codex-cli/gpt-5.1-codex-max with effort=none (a Codex-only
+  // level). Dispatch to a claude-code target (via action override). Claude
+  // advertises low/medium/high/xhigh/max — no `none` — so effort should be
+  // dropped rather than passed through and rejected by the CLI.
   const parent = makeParent({
     providerId: "codex-cli",
-    adapterConfig: { model: "gpt-5.4", effort: "xhigh" },
+    adapterConfig: { model: "gpt-5.1-codex-max", effort: "none" },
   });
   const target = makePersona({ provider: "codex-cli" });
 
