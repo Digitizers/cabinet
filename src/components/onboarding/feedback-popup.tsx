@@ -1,15 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  StarExplosion,
+  formatGithubStars,
+} from "@/components/layout/star-explosion";
+import { useGithubStatsStore } from "@/stores/github-stats-store";
 
 const LAUNCH_COUNT_KEY = "cabinet.feedback.launchCount";
 const PROMPTED_AT_2_KEY = "cabinet.feedback.promptedAt2";
 const PROMPTED_AT_6_KEY = "cabinet.feedback.promptedAt6";
 const SESSION_COUNTED_KEY = "cabinet.session.launchCounted";
 const DISCORD_URL = "https://discord.gg/hJa5TRTbTH";
+const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
 const POPUP_DEFER_MS = 5000;
 // Cabinet-backend ingestion endpoint. Best-effort forward; the local JSONL
 // row is the durable copy. See cabinet-backend/FEEDBACK.md.
@@ -136,6 +142,52 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
   const [q2, setQ2] = useState("");
   const [background, setBackground] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+
+  // GitHub stars: same shared store the status-bar uses, so a single fetch
+  // services both surfaces. The count-up + burst sequence mirrors the status
+  // bar's chip — when stars finally land, animate from 0 to N over 1.6s and
+  // fire the StarExplosion when the count reaches the target.
+  const githubStars = useGithubStatsStore((s) => s.stars);
+  const fetchStars = useGithubStatsStore((s) => s.fetchStars);
+  const hasFetchedStarsOnce = useGithubStatsStore((s) => s.hasFetchedOnce);
+  const [displayStars, setDisplayStars] = useState<number | null>(githubStars);
+  const [starsExploding, setStarsExploding] = useState(false);
+  const starsAnimRef = useRef<number | null>(null);
+  const starsAnimated = useRef(hasFetchedStarsOnce);
+
+  useEffect(() => {
+    if (!hasFetchedStarsOnce) void fetchStars();
+  }, [fetchStars, hasFetchedStarsOnce]);
+
+  useEffect(() => {
+    if (githubStars === null) return;
+    if (starsAnimated.current) {
+      // Already animated once during this session — sync without re-running.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDisplayStars(githubStars);
+      return;
+    }
+    starsAnimated.current = true;
+    const target = githubStars;
+    const duration = 1600;
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayStars(Math.round(target * eased));
+      if (progress < 1) {
+        starsAnimRef.current = requestAnimationFrame(tick);
+      } else {
+        setDisplayStars(target);
+        setStarsExploding(true);
+        window.setTimeout(() => setStarsExploding(false), 900);
+      }
+    };
+    starsAnimRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (starsAnimRef.current !== null) cancelAnimationFrame(starsAnimRef.current);
+    };
+  }, [githubStars]);
 
   const copy = COPY[trigger];
 
@@ -342,29 +394,62 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
           </div>
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-border/60">
-          <a
-            href={DISCORD_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[11.5px] text-muted-foreground hover:text-foreground"
-          >
-            Want to talk directly, or hang with other Cabinet folks?
-            {" "}
-            <span className="underline">Join the Discord</span> →
-          </a>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={dismiss} disabled={submitting}>
-              Maybe later
-            </Button>
-            <Button
-              size="sm"
-              onClick={submit}
-              disabled={submitting || rating < 1}
+        <div className="pt-3 border-t border-border/60 space-y-3">
+          {/* Community CTAs: Discord + GitHub star. Star burst mirrors the
+              status bar's chip animation (extracted to star-explosion.tsx),
+              so the two surfaces feel like the same gesture. */}
+          <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noreferrer"
+              title={
+                displayStars === null
+                  ? "Star Cabinet on GitHub"
+                  : `${formatGithubStars(displayStars)} GitHub stars — click to add yours`
+              }
+              className="relative inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/15 hover:border-amber-500/50"
             >
-              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-              Send
-            </Button>
+              {starsExploding && <StarExplosion />}
+              <Star className="h-3 w-3 fill-current" />
+              <span className="font-medium">
+                Star on GitHub
+                {displayStars !== null && (
+                  <span className="ml-1 font-normal opacity-80">
+                    · {formatGithubStars(displayStars)}
+                  </span>
+                )}
+              </span>
+            </a>
+            <span className="text-muted-foreground">
+              If Cabinet is useful to you, a star really helps.
+            </span>
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+            <a
+              href={DISCORD_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11.5px] text-muted-foreground hover:text-foreground"
+            >
+              Want to talk directly, or hang with other Cabinet folks?
+              {" "}
+              <span className="underline">Join the Discord</span> →
+            </a>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={dismiss} disabled={submitting}>
+                Maybe later
+              </Button>
+              <Button
+                size="sm"
+                onClick={submit}
+                disabled={submitting || rating < 1}
+              >
+                {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+                Send
+              </Button>
+            </div>
           </div>
         </div>
       </div>
