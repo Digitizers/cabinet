@@ -314,30 +314,51 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
           </p>
         </div>
 
-        <div className="mb-4">
-          <label className="block text-[12px] font-medium mb-2">
-            How&apos;s it going so far?
-          </label>
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setRating(n)}
-                aria-label={`${n} star${n === 1 ? "" : "s"}`}
-                className={cn(
-                  "rounded-md p-1 transition-colors",
-                  n <= rating
-                    ? "text-amber-400 hover:text-amber-500"
-                    : "text-muted-foreground/40 hover:text-muted-foreground/60"
-                )}
-              >
-                <Star
-                  className={cn("h-5 w-5", n <= rating && "fill-current")}
-                />
-              </button>
-            ))}
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div>
+            <label className="block text-[12px] font-medium mb-2">
+              How&apos;s it going so far?
+            </label>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setRating(n)}
+                  aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                  className={cn(
+                    "rounded-md p-1 transition-colors",
+                    n <= rating
+                      ? "text-amber-400 hover:text-amber-500"
+                      : "text-muted-foreground/40 hover:text-muted-foreground/60"
+                  )}
+                >
+                  <Star
+                    className={cn("h-5 w-5", n <= rating && "fill-current")}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
+          {/* Compact GitHub-star CTA — pinned to the right of the rating row.
+              Same store + count-up + burst as the status-bar chip. */}
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noreferrer"
+            title={
+              displayStars === null
+                ? "Star Cabinet on GitHub — if it's useful to you, a star really helps"
+                : `${formatGithubStars(displayStars)} GitHub stars — click to add yours`
+            }
+            className="relative inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/15 hover:border-amber-500/50"
+          >
+            {starsExploding && <StarExplosion />}
+            <Star className="h-3 w-3 fill-current" />
+            <span className="tabular-nums">
+              {displayStars === null ? "Star" : formatGithubStars(displayStars)}
+            </span>
+          </a>
         </div>
 
         <div className="mb-3">
@@ -394,62 +415,29 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
           </div>
         </div>
 
-        <div className="pt-3 border-t border-border/60 space-y-3">
-          {/* Community CTAs: Discord + GitHub star. Star burst mirrors the
-              status bar's chip animation (extracted to star-explosion.tsx),
-              so the two surfaces feel like the same gesture. */}
-          <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
-            <a
-              href={GITHUB_REPO_URL}
-              target="_blank"
-              rel="noreferrer"
-              title={
-                displayStars === null
-                  ? "Star Cabinet on GitHub"
-                  : `${formatGithubStars(displayStars)} GitHub stars — click to add yours`
-              }
-              className="relative inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/15 hover:border-amber-500/50"
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-border/60">
+          <a
+            href={DISCORD_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[11.5px] text-muted-foreground hover:text-foreground"
+          >
+            Want to talk directly, or hang with other Cabinet members?
+            {" "}
+            <span className="underline">Join the Discord</span> →
+          </a>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={dismiss} disabled={submitting}>
+              Maybe later
+            </Button>
+            <Button
+              size="sm"
+              onClick={submit}
+              disabled={submitting || rating < 1}
             >
-              {starsExploding && <StarExplosion />}
-              <Star className="h-3 w-3 fill-current" />
-              <span className="font-medium">
-                Star on GitHub
-                {displayStars !== null && (
-                  <span className="ml-1 font-normal opacity-80">
-                    · {formatGithubStars(displayStars)}
-                  </span>
-                )}
-              </span>
-            </a>
-            <span className="text-muted-foreground">
-              If Cabinet is useful to you, a star really helps.
-            </span>
-          </div>
-
-          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
-            <a
-              href={DISCORD_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[11.5px] text-muted-foreground hover:text-foreground"
-            >
-              Want to talk directly, or hang with other Cabinet members?
-              {" "}
-              <span className="underline">Join the Discord</span> →
-            </a>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={dismiss} disabled={submitting}>
-                Maybe later
-              </Button>
-              <Button
-                size="sm"
-                onClick={submit}
-                disabled={submitting || rating < 1}
-              >
-                {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-                Send
-              </Button>
-            </div>
+              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+              Send
+            </Button>
           </div>
         </div>
       </div>
