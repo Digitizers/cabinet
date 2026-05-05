@@ -316,7 +316,10 @@ async function runCabinet(opts: {
     CABINET_APP_ORIGIN: appOrigin,
     CABINET_DAEMON_PORT: String(daemonPort),
     CABINET_DAEMON_URL: daemonOrigin,
-    CABINET_PUBLIC_DAEMON_ORIGIN: daemonWsOrigin,
+    // Note: do not pin CABINET_PUBLIC_DAEMON_ORIGIN here. The /api/daemon/auth
+    // route derives the browser-visible WS origin from the request Host so a
+    // remote browser connects to the same hostname it reached the app on. Set
+    // CABINET_PUBLIC_DAEMON_ORIGIN explicitly only when serving behind a proxy.
   };
 
   log("Starting Next.js server...");
