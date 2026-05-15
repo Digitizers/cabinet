@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { Sparkles, Code2, Loader2, FilePlus } from "lucide-react";
+import { Sparkles, Loader2, FilePlus } from "lucide-react";
 import { editorExtensions } from "./extensions";
 import { EditorToolbar } from "./editor-toolbar";
 import { SlashCommands } from "./slash-commands";
@@ -333,7 +333,7 @@ export function KBEditor() {
     if (isLoading && content === "") return;
     // Dedupe identical (path, content) renders — e.g. cached paint followed
     // by a fresh fetch that returned the same markdown.
-    const key = `${currentPath} ${content}`;
+    const key = `${currentPath}\u0000${content}`;
     if (renderedKeyRef.current === key) {
       if (renderedPath !== currentPath) setRenderedPath(currentPath);
       return;
@@ -488,7 +488,7 @@ export function KBEditor() {
             aria-pressed={folderTab === "files"}
           >
             Files
-            <span className="ml-1.5 text-muted-foreground/60">
+            <span className="ms-1.5 text-muted-foreground/60">
               {renderedFolderChildren.length}
             </span>
           </button>
@@ -506,22 +506,11 @@ export function KBEditor() {
         </div>
       ) : (
       <>
-      <div className="flex items-center min-w-0">
-        <div className="flex-1 min-w-0">
-          {!sourceMode && <EditorToolbar editor={editor} />}
-        </div>
-        <button
-          onClick={toggleSourceMode}
-          className={`flex items-center gap-1.5 px-3 py-1 mr-2 text-[11px] rounded-md transition-colors border border-border ${
-            sourceMode
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent"
-          }`}
-        >
-          <Code2 className="h-3 w-3" />
-          {sourceMode ? "Preview" : "Markdown"}
-        </button>
-      </div>
+      <EditorToolbar
+        editor={editor}
+        sourceMode={sourceMode}
+        onToggleSource={toggleSourceMode}
+      />
 
       {sourceMode ? (
         <div className="flex-1 overflow-y-auto p-4" dir={isRtl ? "rtl" : undefined}>
