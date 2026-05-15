@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   X,
   Sparkles,
-  Trash2,
   ChevronDown,
   ChevronRight,
   CheckCircle,
@@ -96,7 +95,6 @@ export function AIPanel() {
     addEditorSession,
     markSessionCompleted,
     removeSession,
-    clearAllSessions,
   } = useAIPanelStore();
   const { currentPath, loadPage } = useEditorStore();
   const treeNodes = useTreeStore((s) => s.nodes);
@@ -333,6 +331,7 @@ export function AIPanel() {
   const composer = useComposer({
     items: mentionItems,
     disabled: !currentPath,
+    pinnedPagePath: currentPath,
     onSubmit: async ({ message, mentionedPaths, mentionedAgents, mentionedSkills }) => {
       if (!currentPath) return;
 
@@ -515,45 +514,17 @@ export function AIPanel() {
           "max-md:pb-[max(env(safe-area-inset-bottom),0px)]"
         )}
       >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-[13px] font-semibold tracking-[-0.02em]">
-            AI Editor
-          </span>
-          {currentPath && (
-            <span className="text-[11px] text-muted-foreground">
-              {currentPath.split("/").pop()}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {hasAnySessions && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              title={t("aiPanel:clearSessions")}
-              onClick={() => {
-                clearAllSessions();
-                setPendingSessions([]);
-                setSelectedLiveSessionId(null);
-                setPastSessions([]);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={close}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+      {/* No navbar — the open page rides in the composer as a pinned @chip.
+          Only the close affordance remains. */}
+      <div className="flex items-center justify-end px-2 py-2 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={close}
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Sessions */}
@@ -564,14 +535,6 @@ export function AIPanel() {
               <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/40" />
               <p className="text-[13px] text-muted-foreground">
                 Tell me how you&apos;d like to edit this page.
-              </p>
-              <p className="text-xs text-muted-foreground/60">
-                Use{" "}
-                <span className="font-mono bg-muted px-1 rounded">@</span> to
-                reference other pages as context.
-              </p>
-              <p className="text-xs text-muted-foreground/60">
-                Sessions persist across pages and show in Editor Agent.
               </p>
             </div>
           )}
@@ -838,7 +801,7 @@ export function AIPanel() {
           composer={composer}
           placeholder={
             currentPath
-              ? "Ask anything... use @ to mention pages or agents"
+              ? "use @ to mention agents, skills & pages"
               : "Select a page first..."
           }
           disabled={!currentPath}
@@ -846,6 +809,7 @@ export function AIPanel() {
           minHeight="56px"
           maxHeight="160px"
           items={mentionItems}
+          showKeyHint={false}
           autoFocus={isOpen}
           actionsStart={
             <>
