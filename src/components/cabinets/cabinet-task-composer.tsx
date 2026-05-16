@@ -190,7 +190,6 @@ export function CabinetTaskComposer({
         items={mentionItems}
         attachments={attachments}
         minHeight="72px"
-        maxHeight="220px"
         className="w-full"
         mentionDropdownPlacement="below"
         topRightOverlay={

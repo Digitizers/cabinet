@@ -65,6 +65,8 @@
     },
     "detail": {
       "clickToTurnOff": "點擊以關閉。",
+      "loadError": "無法載入此代理。",
+      "retry": "重試",
       "color": "顏色",
       "customColor": "自訂顏色",
       "preset": "預設",
@@ -154,6 +156,9 @@
     "viewKanban": "看板",
     "viewList": "清單",
     "viewSchedule": "排程",
+    "viewKanbanHint": "看板檢視 — 依 收件匣 / 輪到你 / 執行中 / 剛完成 / 封存 分組",
+    "viewListHint": "所有任務的平面清單,最近活動優先",
+    "viewScheduleHint": "已排程例行任務與即將執行的行事曆",
     "filterByAgent": "依智慧代理篩選:{{name}}",
     "noToDeleteTitle": "沒有可刪除的任務",
     "noToDeleteFiltered": "沒有符合 {{filter}} 的內容。清除篩選、換個檢視,或建立一個新任務。",
@@ -307,8 +312,12 @@
   },
   "rowActions": {
     "stop": "停止",
+    "stopHint": "立即停止此執行(送出 SIGTERM)",
     "restart": "重新啟動",
-    "reassign": "重新指派"
+    "restartHint": "從原始提示詞重新執行",
+    "runHint": "立即開始此任務",
+    "reassign": "重新指派",
+    "reassignHint": "將此任務交給其他智慧代理"
   },
   "schedulesPanel": {
     "title": "已排程任務",
@@ -467,8 +476,10 @@
     "titleNow": "需要做點什麼?",
     "titleRecurring": "設定一個循環例行任務",
     "titleHeartbeat": "按時喚醒這個智慧代理",
+    "titleEdit": "編輯任務",
     "submitStart": "開始",
     "submitAddInbox": "加入收件匣",
+    "submitSaveEdit": "儲存變更",
     "submitCreateRoutine": "建立例行任務",
     "submitSaveHeartbeat": "儲存心跳",
     "saving": "儲存中……",
@@ -483,6 +494,7 @@
     "modeHeartbeatHint": "按它自己的節奏喚醒智慧代理",
     "agentFallback": "智慧代理",
     "failedToStart": "啟動失敗",
+    "failedToSave": "儲存變更失敗",
     "failedToSaveHeartbeat": "儲存心跳失敗"
   },
   "googleDoc": {
@@ -669,7 +681,10 @@
     "close": "關閉 (Esc)"
   },
   "rowActionsPlus": {
-    "delete": "刪除"
+    "edit": "編輯",
+    "editHint": "在開始前編輯此草稿",
+    "delete": "刪除",
+    "deleteHint": "永久刪除 — 無法復原"
   },
   "taskCard": {
     "ptyMode": "以終端機 (PTY) 模式執行中"
@@ -1171,6 +1186,7 @@
     "tasks": "任務",
     "missions": "任務",
     "goHome": "回到首頁",
+    "brandWord": "卡比內特",
     "refresh": "重新整理側邊欄",
     "refreshDescription": "重新整理側邊欄(重新讀取資料夾)",
     "collapseSidebar": "折疊側邊欄",
@@ -1180,8 +1196,11 @@
     "refreshedNoChanges": "已重新整理 — 無變更。",
     "refreshedWithChanges": "已重新整理 — 新增 {{added}},移除 {{removed}}。",
     "refreshFailed": "重新整理失敗。",
+    "searchPlaceholder": "搜尋檔案…",
+    "searchSearching": "搜尋中…",
+    "searchNoResults": "沒有符合「{{query}}」的檔案",
     "drawerData": "資料",
-    "drawerAgents": "智慧代理",
+    "drawerAgents": "團隊",
     "drawerTasks": "任務"
   },
   "status": {
@@ -1254,7 +1273,14 @@
       "github": "在 GitHub 上貢獻",
       "githubSubtitle": "原始碼、議題、PR",
       "ifUseful": "如果你覺得它有用",
-      "label": "說明"
+      "label": "說明",
+      "starsAriaLabel": "{{count}} 個 GitHub star — 在 GitHub 上開啟 Cabinet",
+      "starsTitle": "{{count}} 個 GitHub star — 在 GitHub 上為 Cabinet 點星",
+      "share": "分享",
+      "shareSubtitle": "複製邀請連結並分享出去",
+      "shareCopied": "你太棒了，{{name}} 🩷 謝謝你把未來的 Cabinet 成員帶進來。連結已複製，快去分享這份熱愛吧！",
+      "shareFailed": "無法複製連結",
+      "friend": "朋友"
     },
     "common": {
       "dismiss": "關閉",
@@ -1403,5 +1429,18 @@
     "modeDay": "日",
     "modeWeek": "週",
     "modeMonth": "月"
+  },
+  "taskRail": {
+    "title": "最近與執行中的任務",
+    "hide": "隱藏任務列",
+    "show": "顯示任務列",
+    "empty": "尚無任務",
+    "itemRunning": "{{title}} · 執行中 · {{when}}",
+    "itemNeedsReply": "{{title}} · 等待回覆",
+    "itemFailed": "{{title}} · 失敗 · {{when}}",
+    "itemDone": "{{title}} · 已完成 · {{when}}",
+    "itemArchived": "{{title}} · 已封存",
+    "itemDefault": "{{title}} · {{when}}",
+    "toggleRunning": "{{count}} 個執行中 — 顯示任務列"
   }
 }

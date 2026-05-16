@@ -35,6 +35,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     label: "Search & Commands",
     items: [
       { keys: ["cmd", "K"], description: "Open search palette" },
+      { keys: ["cmd", "F"], description: "Find in current page" },
       { keys: ["/"], description: "Open search palette (when not editing)" },
       {
         keys: ["/", "theme"],
@@ -79,6 +80,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
         description: "Toggle AI panel",
       },
       { keys: ["ctrl", "`"], description: "Toggle terminal" },
+      {
+        keys: ["cmd", "alt", "L"],
+        description: "Toggle tasks rail",
+      },
     ],
   },
 ];

@@ -67,9 +67,12 @@ function TopBar({
   const { loading, refresh, visibilityMode, setVisibilityMode } =
     useAgentsContext();
   return (
-    <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/70 bg-background px-4 py-2 md:h-12 md:flex-nowrap md:py-0">
+    <header
+      className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/70 bg-background px-4 py-2 transition-[padding] duration-200 md:h-12 md:flex-nowrap md:py-0"
+      style={{ paddingInlineStart: `calc(1rem + var(--sidebar-toggle-offset, 0px))` }}
+    >
       <div className="flex items-center gap-2">
-        <h1 className="text-[14px] font-semibold tracking-tight">Team</h1>
+        <h1 className="font-ui text-[14px] font-semibold tracking-tight">Team</h1>
         {loading && (
           <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
         )}
@@ -135,7 +138,7 @@ function MasterToggle() {
         aria-label={anyActive ? "Stop every agent" : "Start every agent"}
         aria-busy={bulkToggleInFlight}
         className={cn(
-          "peer group/master relative inline-flex h-7 w-[5.5rem] shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors outline-none",
+          "peer group/master relative inline-flex h-7 w-[5.5rem] shrink-0 cursor-pointer items-center rounded-md border border-transparent transition-colors outline-none",
           "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
           "disabled:cursor-not-allowed",
           bulkToggleInFlight ? "opacity-80" : "disabled:opacity-50",
@@ -154,7 +157,7 @@ function MasterToggle() {
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-y-0 right-2 flex items-center text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground/80 transition-opacity",
+            "pointer-events-none absolute inset-y-0 right-2 flex items-center text-[9px] font-bold uppercase tracking-wide text-muted-foreground/80 transition-opacity",
             "opacity-100 group-data-[checked]/master:opacity-0"
           )}
         >
@@ -162,7 +165,7 @@ function MasterToggle() {
         </span>
         <SwitchPrimitive.Thumb
           className={cn(
-            "pointer-events-none relative z-10 block size-5 rounded-full bg-background shadow-sm ring-0 transition-transform",
+            "pointer-events-none relative z-10 block size-5 rounded bg-background shadow-sm ring-0 transition-transform",
             "data-[checked]:translate-x-16 data-[unchecked]:translate-x-1"
           )}
         />

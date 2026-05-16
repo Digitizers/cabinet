@@ -446,7 +446,12 @@ function emitSessionOutput(
   if (!chunk) return;
 
   session.output.push(chunk);
-  void syncConversationChunk(session.id, chunk).catch(() => {});
+  void syncConversationChunk(session.id, chunk).catch((err) => {
+    console.warn(
+      `[cabinet-daemon] failed to sync transcript chunk for session ${session.id}:`,
+      err
+    );
+  });
   if (session.ws && session.ws.readyState === WebSocket.OPEN) {
     session.ws.send(chunk);
   }
@@ -459,7 +464,12 @@ function emitSessionOutput(
 
 async function finalizeSessionConversation(session: ActiveSession): Promise<void> {
   const meta = await readConversationMeta(session.id);
-  if (!meta) return;
+  if (!meta) {
+    console.warn(
+      `[cabinet-daemon] cannot finalize session ${session.id}: meta.json missing/unreadable — run result not persisted`
+    );
+    return;
+  }
 
   const plain = stripAnsi(session.output.join(""));
   if (meta.status !== "running") {
@@ -833,11 +843,18 @@ function createStructuredSession(input: {
         sessionParams: input.adapterSessionParams ?? null,
         onLog: async (stream, chunk) => {
           if (stream === "stderr") {
+            // Diagnostic only: buffer for classifyError, but never fold
+            // stderr into the user-visible turn. Structured adapters curate
+            // their display via stdout; codex/claude/etc. emit startup
+            // tracing (e.g. skill-load errors) on stderr that would otherwise
+            // land at the TOP of the assistant message. Mirrors the
+            // stderr handling in conversation-runner's executeWithPrompt.
             session.stderrBuffer = (session.stderrBuffer ?? "") + chunk;
             // Cap stderr buffer at 64 KB so a chatty adapter doesn't OOM us.
             if (session.stderrBuffer.length > 65_536) {
               session.stderrBuffer = session.stderrBuffer.slice(-65_536);
             }
+            return;
           }
           emitSessionOutput(session, chunk, input.onData);
         },

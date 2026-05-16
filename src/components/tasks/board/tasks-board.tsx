@@ -38,6 +38,11 @@ import { DetailPanel } from "./detail-panel";
 import { ViewToggle, type BoardViewMode } from "./view-toggle";
 import { DensityToggle, type BoardDensity } from "./density-toggle";
 import {
+  ExplainerCard,
+  ExplainerIcon,
+  useExplainerState,
+} from "@/components/agents/v2/tab-explainer";
+import {
   AgentFilterDropdown,
   TriggerFilterDropdown,
   type TriggerFilter,
@@ -45,6 +50,8 @@ import {
 import { UndoToast, type PendingUndo } from "./undo-toast";
 import { ConfirmPopover, type PendingConfirm } from "./confirm-popover";
 import { StartWorkDialog, type StartWorkMode } from "@/components/composer/start-work-dialog";
+import type { TaskRuntimeSelection } from "@/components/composer/task-runtime-picker";
+import { IconHint } from "./icon-hint";
 import { ReassignMenu } from "./reassign-menu";
 import { deleteConversation, reassignConversation } from "./board-actions";
 import {
@@ -141,6 +148,9 @@ export function TasksBoard({
     "comfortable",
     (raw) => (raw === "compact" || raw === "comfortable" ? raw : null)
   );
+  // Onboarding explainer for the kanban/list views. Schedule has its own
+  // (keyed "tasks-schedule") inside ScheduleView.
+  const boardExplainer = useExplainerState("tasks-board");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
@@ -148,6 +158,15 @@ export function TasksBoard({
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [newTaskMode, setNewTaskMode] = useState<StartWorkMode>("now");
   const [newTaskInitialPrompt, setNewTaskInitialPrompt] = useState<string | undefined>(undefined);
+  // Inbox-draft edit: RowActions dispatches `cabinet:open-edit-draft`; we
+  // load the draft's current text/agent/runtime and reopen StartWorkDialog
+  // bound to that conversation so submit PATCHes instead of creating.
+  const [editingDraft, setEditingDraft] = useState<
+    { conversationId: string; cabinetPath?: string } | null
+  >(null);
+  const [editSeed, setEditSeed] = useState<
+    { prompt: string; agentSlug?: string; runtime?: TaskRuntimeSelection } | null
+  >(null);
   const [jobDialog, setJobDialog] = useState<JobDialogState | null>(null);
   const [heartbeatDialog, setHeartbeatDialog] = useState<HeartbeatDialogState | null>(null);
 
@@ -160,6 +179,8 @@ export function TasksBoard({
       const detail = (e as CustomEvent).detail as
         | { initialPrompt?: string; initialMode?: StartWorkMode }
         | undefined;
+      setEditingDraft(null);
+      setEditSeed(null);
       setNewTaskMode(detail?.initialMode ?? "now");
       setNewTaskInitialPrompt(detail?.initialPrompt);
       setNewTaskOpen(true);
@@ -168,7 +189,65 @@ export function TasksBoard({
     return () => window.removeEventListener("cabinet:open-create-task", handler);
   }, []);
 
+  // Inbox-draft Edit (row action) → load the draft, then reopen the dialog
+  // pre-filled and bound to it. `request` is the user's original typed text
+  // (the composite prompt's "User request:" tail, peeled by the server).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as
+        | { taskId?: string; cabinetPath?: string }
+        | undefined;
+      const taskId = detail?.taskId;
+      if (!taskId) return;
+      const cp = detail?.cabinetPath;
+      void (async () => {
+        try {
+          const params = new URLSearchParams();
+          if (cp) params.set("cabinetPath", cp);
+          const qs = params.toString();
+          const res = await fetch(
+            `/api/agents/conversations/${encodeURIComponent(taskId)}${qs ? `?${qs}` : ""}`,
+            { cache: "no-store" }
+          );
+          if (!res.ok) throw new Error(`load draft failed: ${res.status}`);
+          const data = (await res.json()) as {
+            request?: string;
+            meta?: {
+              agentSlug?: string;
+              providerId?: string;
+              adapterType?: string;
+              adapterConfig?: Record<string, unknown>;
+            };
+          };
+          const meta = data.meta;
+          const cfg = meta?.adapterConfig ?? {};
+          setEditSeed({
+            prompt: data.request ?? "",
+            agentSlug: meta?.agentSlug,
+            runtime: {
+              providerId: meta?.providerId,
+              adapterType: meta?.adapterType,
+              model: typeof cfg.model === "string" ? cfg.model : undefined,
+              effort: typeof cfg.effort === "string" ? cfg.effort : undefined,
+            },
+          });
+          setEditingDraft({ conversationId: taskId, cabinetPath: cp });
+          setNewTaskOpen(true);
+        } catch (err) {
+          console.error("[board] open edit draft failed", err);
+        }
+      })();
+    };
+    window.addEventListener("cabinet:open-edit-draft", handler);
+    return () => window.removeEventListener("cabinet:open-edit-draft", handler);
+  }, []);
+
   const openComposer = (mode: StartWorkMode) => {
+    // Always a fresh task — drop any edit binding so submit creates instead
+    // of PATCHing the previously-edited draft.
+    setEditingDraft(null);
+    setEditSeed(null);
+    setNewTaskInitialPrompt(undefined);
     setNewTaskMode(mode);
     setNewTaskOpen(true);
   };
@@ -253,7 +332,10 @@ export function TasksBoard({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/95 px-4 py-2.5 sm:px-6">
+      <header
+        className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/70 bg-background px-4 py-2 transition-[padding] duration-200 md:h-12 md:flex-nowrap md:py-0"
+        style={{ paddingInlineStart: `calc(1rem + var(--sidebar-toggle-offset, 0px))` }}
+      >
         {standalone && (
           <Link
             href="/"
@@ -262,11 +344,21 @@ export function TasksBoard({
             <DirIcon ltr={ArrowLeft} rtl={ArrowRight} className="size-4" />
           </Link>
         )}
-        <h1 className="text-[14px] font-semibold tracking-tight">{t("tasksBoard:title")}</h1>
+        <h1 className="font-ui text-[14px] font-semibold tracking-tight">{t("tasksBoard:title")}</h1>
         {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
-        <div className="ms-4 flex items-center gap-2">
+        {view !== "schedule" && (
+          <ExplainerIcon
+            state={boardExplainer}
+            ariaLabel="About the task board"
+          />
+        )}
+        <div className="flex items-center gap-2 md:ms-2">
           <ViewToggle value={view} onChange={setView} />
-          <DensityToggle value={density} onChange={setDensity} />
+          {/* Density only affects kanban/list rows — the schedule grid
+              ignores it, so don't surface a no-op control there. */}
+          {view !== "schedule" && (
+            <DensityToggle value={density} onChange={setDensity} />
+          )}
         </div>
 
         {/* right-side: depth, trigger, selection */}
@@ -277,6 +369,14 @@ export function TasksBoard({
             onChange={(mode) => {
               setVisibilityMode(mode);
               setCabinetVisibilityMode(cabinetPath, mode);
+            }}
+            descriptions={{
+              own: "Show only this cabinet's tasks.",
+              "children-1":
+                "Also show tasks from direct child cabinets.",
+              "children-2":
+                "Also show tasks from two levels of child cabinets.",
+              all: "Show tasks from this cabinet and all its children.",
             }}
           />
 
@@ -476,6 +576,21 @@ export function TasksBoard({
           <BoardSkeleton view={view} />
         ) : (
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {view !== "schedule" && boardExplainer.open === true && (
+              <div className="px-4 pt-3">
+                <ExplainerCard state={boardExplainer}>
+                  <p>
+                    Every task your team has run or has queued, in one place.
+                    Kanban groups them by status; List is a flat, sortable
+                    feed of the same tasks.
+                  </p>
+                  <p>
+                    Click any task to open it. Use the filters in the header
+                    to narrow by agent or trigger, and switch views any time.
+                  </p>
+                </ExplainerCard>
+              </div>
+            )}
             {view === "kanban" && (
               <KanbanView
                 byLane={filteredByLane}
@@ -587,12 +702,19 @@ export function TasksBoard({
         open={newTaskOpen}
         onOpenChange={(open) => {
           setNewTaskOpen(open);
-          if (!open) setNewTaskInitialPrompt(undefined);
+          if (!open) {
+            setNewTaskInitialPrompt(undefined);
+            setEditingDraft(null);
+            setEditSeed(null);
+          }
         }}
         cabinetPath={cabinetPath}
         agents={overview?.agents ?? []}
         initialMode={newTaskMode}
-        initialPrompt={newTaskInitialPrompt}
+        initialPrompt={editingDraft ? editSeed?.prompt : newTaskInitialPrompt}
+        initialAgentSlug={editingDraft ? editSeed?.agentSlug : undefined}
+        initialRuntime={editingDraft ? editSeed?.runtime : undefined}
+        editing={editingDraft}
         onStarted={(id) => {
           void refresh();
           setSelectedId(id);
@@ -621,20 +743,21 @@ function NewWorkButton({
 }) {
   const { t } = useLocale();
   return (
-    <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md shadow-sm ring-1 ring-primary/20">
-      <button
-        type="button"
-        onClick={() => onCreate("now")}
-        className="inline-flex items-center gap-1.5 bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        title={t("tasksBoard:createTask")}
-      >
-        <Plus className="size-3.5" />
-        New Task
-      </button>
+    <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md">
+      <IconHint label={t("tasksBoard:createTask")} side="bottom">
+        <button
+          type="button"
+          onClick={() => onCreate("now")}
+          className="inline-flex items-center gap-1.5 bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Plus className="size-3.5" />
+          New Task
+        </button>
+      </IconHint>
       <div className="w-px bg-primary-foreground/20" aria-hidden />
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="inline-flex items-center bg-primary px-1.5 text-primary-foreground transition-colors hover:bg-primary/90"
+          className="inline-flex items-center bg-primary pl-1.5 pr-1 text-primary-foreground transition-colors hover:bg-primary/90"
           title={t("tasksBoard:moreNewTypes")}
           aria-label={t("tasksBoard:moreNewTypes")}
         >

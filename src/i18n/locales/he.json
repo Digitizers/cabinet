@@ -65,6 +65,8 @@
     },
     "detail": {
       "clickToTurnOff": "לחיצה לכיבוי.",
+      "loadError": "לא ניתן לטעון את הסוכן הזה.",
+      "retry": "נסה שוב",
       "color": "צבע",
       "customColor": "צבע מותאם",
       "preset": "ערכה מוגדרת",
@@ -154,6 +156,9 @@
     "viewKanban": "קנבן",
     "viewList": "רשימה",
     "viewSchedule": "לוח זמנים",
+    "viewKanbanHint": "תצוגת לוח — משימות מקובצות לפי תיבה / תורך / רץ / הסתיים / ארכיון",
+    "viewListHint": "רשימה שטוחה של כל המשימות, פעילות אחרונה תחילה",
+    "viewScheduleHint": "לוח שנה של שגרות מתוזמנות והרצות קרובות",
     "filterByAgent": "סינון לפי סוכן: {{name}}",
     "noToDeleteTitle": "אין משימות למחוק",
     "noToDeleteFiltered": "שום דבר לא תואם ל-{{filter}}. נקו את הסינון, בחרו תצוגה אחרת, או צרו משימה חדשה.",
@@ -307,8 +312,12 @@
   },
   "rowActions": {
     "stop": "עצירה",
+    "stopHint": "עצרו את ההרצה הזו עכשיו (שולח SIGTERM)",
     "restart": "הפעלה מחדש",
-    "reassign": "הקצאה מחדש"
+    "restartHint": "הריצו שוב מהפרומפט המקורי",
+    "runHint": "התחילו את המשימה הזו עכשיו",
+    "reassign": "הקצאה מחדש",
+    "reassignHint": "העבירו את המשימה לסוכן אחר"
   },
   "schedulesPanel": {
     "title": "משימות מתוזמנות",
@@ -468,8 +477,10 @@
     "titleNow": "מה צריך לעשות?",
     "titleRecurring": "הגדירו שגרה חוזרת",
     "titleHeartbeat": "העירו את הסוכן לפי לוח זמנים",
+    "titleEdit": "עריכת משימה",
     "submitStart": "התחל",
     "submitAddInbox": "הוסיפו לתיבת הדואר",
+    "submitSaveEdit": "שמירת שינויים",
     "submitCreateRoutine": "צרו שגרה",
     "submitSaveHeartbeat": "שמרו heartbeat",
     "saving": "שומר…",
@@ -484,6 +495,7 @@
     "modeHeartbeatHint": "העירו את הסוכן לפי הקצב שלו",
     "agentFallback": "סוכן",
     "failedToStart": "ההפעלה נכשלה",
+    "failedToSave": "שמירת השינויים נכשלה",
     "failedToSaveHeartbeat": "שמירת ה-heartbeat נכשלה"
   },
   "googleDoc": {
@@ -670,7 +682,10 @@
     "close": "סגירה (Esc)"
   },
   "rowActionsPlus": {
-    "delete": "מחיקה"
+    "edit": "עריכה",
+    "editHint": "ערכו את הטיוטה הזו לפני שמתחילה",
+    "delete": "מחיקה",
+    "deleteHint": "מחיקה לצמיתות — אי אפשר לבטל"
   },
   "taskCard": {
     "ptyMode": "רץ במצב טרמינל (PTY)"
@@ -1171,6 +1186,7 @@
     "tasks": "משימות",
     "missions": "מטרות",
     "goHome": "מעבר לדף הבית",
+    "brandWord": "קבינט",
     "refresh": "רענון סרגל הצד",
     "refreshDescription": "רענון סרגל הצד (קריאה מחדש של תיקיית הנתונים)",
     "collapseSidebar": "כיווץ סרגל הצד",
@@ -1180,8 +1196,11 @@
     "refreshedNoChanges": "רוענן — אין שינויים.",
     "refreshedWithChanges": "רוענן — {{added}} נוספו, {{removed}} הוסרו.",
     "refreshFailed": "הרענון נכשל.",
+    "searchPlaceholder": "חיפוש קבצים…",
+    "searchSearching": "מחפש…",
+    "searchNoResults": "אין קבצים התואמים ל־“{{query}}”",
     "drawerData": "נתונים",
-    "drawerAgents": "סוכנים",
+    "drawerAgents": "צוות",
     "drawerTasks": "משימות"
   },
   "status": {
@@ -1254,7 +1273,14 @@
       "github": "תרומה ב-GitHub",
       "githubSubtitle": "קוד מקור, issues, PRs",
       "ifUseful": "אם זה שימושי",
-      "label": "עזרה"
+      "label": "עזרה",
+      "starsAriaLabel": "{{count}} כוכבים ב-GitHub — פתיחת Cabinet ב-GitHub",
+      "starsTitle": "{{count}} כוכבים ב-GitHub — סמנו כוכב ל-Cabinet ב-GitHub",
+      "share": "שיתוף",
+      "shareSubtitle": "העתקת קישור הזמנה והפצת הבשורה",
+      "shareCopied": "את/ה אלופ/ה, {{name}} 🩷 תודה שאת/ה מביא/ה חברי Cabinet עתידיים. הקישור הועתק, קדימה לשתף!",
+      "shareFailed": "לא ניתן היה להעתיק את הקישור",
+      "friend": "חבר/ה"
     },
     "common": {
       "dismiss": "סגירה",
@@ -1403,5 +1429,18 @@
     "modeDay": "יום",
     "modeWeek": "שבוע",
     "modeMonth": "חודש"
+  },
+  "taskRail": {
+    "title": "משימות אחרונות ופעילות",
+    "hide": "הסתרת סרגל המשימות",
+    "show": "הצגת סרגל המשימות",
+    "empty": "אין משימות",
+    "itemRunning": "{{title}} · רץ · {{when}}",
+    "itemNeedsReply": "{{title}} · ממתין לתגובה",
+    "itemFailed": "{{title}} · נכשל · {{when}}",
+    "itemDone": "{{title}} · הושלם · {{when}}",
+    "itemArchived": "{{title}} · בארכיון",
+    "itemDefault": "{{title}} · {{when}}",
+    "toggleRunning": "{{count}} פעילות — הצגת סרגל המשימות"
   }
 }

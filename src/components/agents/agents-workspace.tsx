@@ -20,6 +20,7 @@ import {
   Save,
   Send,
   Settings,
+  Square,
   Trash2,
   X,
   Zap,
@@ -55,6 +56,7 @@ import { AgentRow } from "@/components/agents/agent-row";
 import {
   appendConversationCabinetPath,
 } from "@/lib/agents/conversation-identity";
+import { stopConversation } from "@/components/tasks/board/board-actions";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { useTreeStore } from "@/stores/tree-store";
@@ -425,6 +427,7 @@ export function AgentsWorkspace({
     string | undefined
   >(undefined);
   const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
+  const [stoppingConversation, setStoppingConversation] = useState(false);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget>(null);
   const [settingsAgentCabinetPath, setSettingsAgentCabinetPath] = useState<string | undefined>(undefined);
   const [settingsPersona, setSettingsPersona] = useState<AgentListItem | null>(null);
@@ -2293,6 +2296,32 @@ export function AgentsWorkspace({
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
+                  {activeConversationMeta.status === "running" &&
+                    !activeConversationMeta.awaitingInput && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-[11px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+                      disabled={stoppingConversation}
+                      onClick={async () => {
+                        try {
+                          setStoppingConversation(true);
+                          await stopConversation(
+                            activeConversationMeta.id,
+                            activeConversationMeta.cabinetPath
+                          );
+                          await refreshConversations();
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          setStoppingConversation(false);
+                        }
+                      }}
+                    >
+                      <Square className="h-3 w-3 fill-current" />
+                      Stop
+                    </Button>
+                  )}
                   {activeConversationMeta.trigger === "job" && (
                     <Button
                       variant="ghost"
@@ -2814,8 +2843,8 @@ export function AgentsWorkspace({
             {/* Tight header row: name + counts + scope pills + Org chart + Add agent + refresh. */}
             <div className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/95 px-4 py-2.5 sm:px-6">
               <div className="flex min-w-0 items-center gap-3">
-                <h1 className="truncate text-[14px] font-semibold tracking-tight text-foreground">
-                  Agents
+                <h1 className="font-ui truncate text-[14px] font-semibold tracking-tight text-foreground">
+                  Team
                 </h1>
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -3798,7 +3827,6 @@ export function AgentsWorkspace({
                 items={mentionItems}
                 autoFocus
                 minHeight="120px"
-                maxHeight="300px"
                 actionsStart={
                   <TaskRuntimePicker
                     value={taskRuntime}

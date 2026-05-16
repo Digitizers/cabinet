@@ -6,6 +6,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useAppStore } from "@/stores/app-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TreeNode } from "./tree-node";
+import { SidebarSearch } from "./sidebar-search";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -42,7 +43,6 @@ import {
   ClipboardCopy,
   Copy,
   Trash2,
-  Archive,
   TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -416,7 +416,6 @@ export function TreeView() {
             onClick={() => openCabinetOverview(activeCabinet?.path || cabinetPath)}
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
           >
-            <Archive className="h-[18px] w-[18px] shrink-0 text-amber-400" />
             {/*
              * Audit #008 (review feedback 2026-05-02): match the drawer
              * tabs' uppercase treatment so the cabinet name reads as a
@@ -532,7 +531,7 @@ export function TreeView() {
                   },
                   {
                     id: "agents" as DrawerId,
-                    label: t("sidebar:drawerAgents") || "Agents",
+                    label: t("sidebar:drawerAgents") || "Team",
                     addLabel: t("sidebar:newAgent"),
                     icon: Users,
                     addIcon: UserPlus,
@@ -758,7 +757,7 @@ export function TreeView() {
                     key="drawer-data"
                     className="flex flex-1 flex-col pt-1 animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
                   >
-              <>
+              <SidebarSearch>
                 {visibleTreeNodes.length === 0 ? (
                   <button
                     onClick={() => {
@@ -790,7 +789,7 @@ export function TreeView() {
                     />
                   ))
                 )}
-              </>
+              </SidebarSearch>
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>

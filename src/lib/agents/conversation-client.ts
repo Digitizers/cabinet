@@ -64,3 +64,48 @@ export async function createConversation(
 
   return payload as CreateConversationResponse;
 }
+
+export interface EditDraftInput {
+  userMessage: string;
+  mentionedPaths?: string[];
+  mentionedSkills?: string[];
+  /** Reassign the draft to a different agent (defaults to its current one). */
+  agentSlug?: string;
+  providerId?: string;
+  adapterType?: string;
+  model?: string;
+  effort?: string;
+  runtimeMode?: "native" | "terminal";
+  locale?: string;
+}
+
+/**
+ * Rewrites an unstarted inbox draft in place (prompt, agent, runtime) so the
+ * user can refine a saved task idea instead of deleting and recreating it.
+ * Backed by `PATCH /api/agents/conversations/[id] { action: "edit-draft" }`;
+ * the server rejects anything that has already started with 409.
+ */
+export async function editDraftConversation(
+  id: string,
+  input: EditDraftInput,
+  cabinetPath?: string,
+  errorMessage = "Failed to save changes"
+): Promise<void> {
+  const params = new URLSearchParams();
+  if (cabinetPath) params.set("cabinetPath", cabinetPath);
+  const qs = params.toString();
+  const response = await fetch(
+    `/api/agents/conversations/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "edit-draft", ...input }),
+    }
+  );
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(getErrorMessage(errorMessage, payload));
+  }
+}

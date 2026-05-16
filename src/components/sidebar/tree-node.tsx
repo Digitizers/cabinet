@@ -7,6 +7,7 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  FolderPlus,
   Trash2,
   FilePlus,
   Globe,
@@ -44,6 +45,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
   ContextMenuSeparator,
+  ContextMenuLabel,
+  ContextMenuGroup,
 } from "@/components/ui/context-menu";
 import {
   Dialog,
@@ -97,6 +100,7 @@ export function TreeNode({
     movingPaths,
     focusTick,
     toggleExpand,
+    expandPath,
     selectPage,
     deletePage,
     movePage,
@@ -113,6 +117,9 @@ export function TreeNode({
   const [subPageOpen, setSubPageOpen] = useState(false);
   const [subPageTitle, setSubPageTitle] = useState("");
   const [creating, setCreating] = useState(false);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTitle, setRenameTitle] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -202,6 +209,35 @@ export function TreeNode({
       console.error("Failed to create sub page:", error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  // A "folder" here is just a page used as a container — same on-disk shape
+  // as Add Sub Page (dir + index.md), so it can still hold content if the
+  // user wants. The difference is intent: we don't drop them into the
+  // editor. We expand the new node in the tree so it's immediately ready
+  // to receive children. It picks up the folder icon automatically once it
+  // has any (see hasChildren branch in the row render).
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    setCreatingFolder(true);
+    try {
+      await createPage(node.path, newFolderName.trim());
+      const slug = newFolderName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const nextPath = `${node.path}/${slug}`;
+      expandPath(node.path);
+      expandPath(nextPath);
+      selectPage(nextPath);
+      setNewFolderName("");
+      setNewFolderOpen(false);
+    } catch (error) {
+      console.error("Failed to create folder:", error);
+    } finally {
+      setCreatingFolder(false);
     }
   };
 
@@ -557,60 +593,71 @@ export function TreeNode({
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onClick={() => setSubPageOpen(true)}>
-            <FilePlus className="h-4 w-4 me-2" />
-            Add Sub Page
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
-            <GitBranch className="h-4 w-4 me-2" />
-            Load Knowledge
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={importing}
-            onClick={() => importFiles(importTargetPath)}
-          >
-            {importing ? (
-              <Loader2 className="h-4 w-4 me-2 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4 me-2" />
-            )}
-            Import File…
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => setCreateCabinetOpen(true)}>
-            <Archive className="h-4 w-4 me-2" />
-            Create Cabinet Here
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => { setRenameTitle(title); setRenameOpen(true); }}>
-            <Pencil className="h-4 w-4 me-2" />
-            Rename
-          </ContextMenuItem>
-          {onMoveToRequest && (
-            <ContextMenuItem onClick={() => onMoveToRequest(node)}>
-              <ArrowRightLeft className="h-4 w-4 me-2" />
-              Move to…
+          <ContextMenuGroup>
+            <ContextMenuLabel className="font-normal text-muted-foreground/50">Add to this item</ContextMenuLabel>
+            <ContextMenuItem onClick={() => setSubPageOpen(true)}>
+              <FilePlus className="h-4 w-4 me-2" />
+              Add Sub Page
             </ContextMenuItem>
-          )}
-          <ContextMenuItem onClick={() => navigator.clipboard.writeText(node.path)}>
-            <Copy className="h-4 w-4 me-2" />
-            Copy Relative Path
-          </ContextMenuItem>
-          <ContextMenuItem onClick={async () => {
-            const dir = await getDataDir();
-            navigator.clipboard.writeText(`${dir}/${node.path}`);
-          }}>
-            <ClipboardCopy className="h-4 w-4 me-2" />
-            Copy Full Path
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => {
-            fetch("/api/system/open-data-dir", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ subpath: node.path }),
-            });
-          }}>
-            <FolderOpen className="h-4 w-4 me-2" />
-            Open in Finder
-          </ContextMenuItem>
+            <ContextMenuItem onClick={() => setNewFolderOpen(true)}>
+              <FolderPlus className="h-4 w-4 me-2" />
+              New Folder
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
+              <GitBranch className="h-4 w-4 me-2" />
+              Load Knowledge
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={importing}
+              onClick={() => importFiles(importTargetPath)}
+            >
+              {importing ? (
+                <Loader2 className="h-4 w-4 me-2 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 me-2" />
+              )}
+              Import File…
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => setCreateCabinetOpen(true)}>
+              <Archive className="h-4 w-4 me-2" />
+              Create Cabinet Here
+            </ContextMenuItem>
+          </ContextMenuGroup>
+          <ContextMenuSeparator />
+          <ContextMenuGroup>
+            <ContextMenuLabel className="font-normal text-muted-foreground/50">This item</ContextMenuLabel>
+            <ContextMenuItem onClick={() => { setRenameTitle(title); setRenameOpen(true); }}>
+              <Pencil className="h-4 w-4 me-2" />
+              Rename
+            </ContextMenuItem>
+            {onMoveToRequest && (
+              <ContextMenuItem onClick={() => onMoveToRequest(node)}>
+                <ArrowRightLeft className="h-4 w-4 me-2" />
+                Move to…
+              </ContextMenuItem>
+            )}
+            <ContextMenuItem onClick={() => navigator.clipboard.writeText(node.path)}>
+              <Copy className="h-4 w-4 me-2" />
+              Copy Relative Path
+            </ContextMenuItem>
+            <ContextMenuItem onClick={async () => {
+              const dir = await getDataDir();
+              navigator.clipboard.writeText(`${dir}/${node.path}`);
+            }}>
+              <ClipboardCopy className="h-4 w-4 me-2" />
+              Copy Full Path
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => {
+              fetch("/api/system/open-data-dir", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subpath: node.path }),
+              });
+            }}>
+              <FolderOpen className="h-4 w-4 me-2" />
+              Open in Finder
+            </ContextMenuItem>
+          </ContextMenuGroup>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={handleDelete} className="text-destructive">
             {node.isLinked ? (
@@ -671,6 +718,36 @@ export function TreeNode({
             />
             <Button type="submit" disabled={!subPageTitle.trim() || creating}>
               {creating ? "Creating..." : "Create"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              New Folder in &ldquo;{title}&rdquo;
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleCreateFolder();
+            }}
+            className="flex gap-2"
+          >
+            <Input
+              placeholder="Folder name"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              autoFocus
+            />
+            <Button
+              type="submit"
+              disabled={!newFolderName.trim() || creatingFolder}
+            >
+              {creatingFolder ? "Creating..." : "Create"}
             </Button>
           </form>
         </DialogContent>

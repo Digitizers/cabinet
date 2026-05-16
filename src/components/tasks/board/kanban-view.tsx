@@ -28,6 +28,7 @@ import type { TaskMeta } from "@/types/tasks";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { LaneKey } from "./lane-rules";
 import { TaskCard } from "./task-card";
+import { IconHint } from "./icon-hint";
 import { CARD_DROP_PREFIX, laneDropId } from "./dnd-keys";
 import { usePersistentState } from "./use-persistent-state";
 import { useLocale } from "@/i18n/use-locale";
@@ -78,58 +79,66 @@ function LaneHeader({
   const LaneIcon = lane.icon;
   return (
     <div className="flex w-full items-center gap-2 px-3 py-2 text-start">
-      <div className="flex flex-1 items-center gap-2">
-        <LaneIcon
-          className={cn("size-3.5 text-muted-foreground", lane.spin && "animate-spin [animation-duration:3s]")}
-        />
-        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {lane.label}
-        </span>
-        <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-          {count}
-        </span>
-      </div>
+      <IconHint label={lane.hint} side="bottom">
+        <div className="flex flex-1 items-center gap-2">
+          <LaneIcon
+            className={cn("size-3.5 text-muted-foreground", lane.spin && "animate-spin [animation-duration:3s]")}
+          />
+          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {lane.label}
+          </span>
+          <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+            {count}
+          </span>
+        </div>
+      </IconHint>
       {onKillAll ? (
-        <button
-          type="button"
-          onClick={onKillAll}
-          className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
-          title={t("kanban:stopAllInLane")}
-        >
-          <Square className="size-2.5" />
-          {t("kanban:kill")}
-        </button>
+        <IconHint label={t("kanban:stopAllInLane")} side="bottom">
+          <button
+            type="button"
+            onClick={onKillAll}
+            className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+          >
+            <Square className="size-2.5" />
+            {t("kanban:kill")}
+          </button>
+        </IconHint>
       ) : null}
       {onRestartAll ? (
-        <button
-          type="button"
-          onClick={onRestartAll}
-          className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
-          title={t("kanban:restartAllInLane")}
-        >
-          <RotateCcw className="size-2.5" />
-          Restart
-        </button>
+        <IconHint label={t("kanban:restartAllInLane")} side="bottom">
+          <button
+            type="button"
+            onClick={onRestartAll}
+            className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
+          >
+            <RotateCcw className="size-2.5" />
+            Restart
+          </button>
+        </IconHint>
       ) : null}
       {onAddTask ? (
-        <button
-          type="button"
-          onClick={onAddTask}
-          className="ms-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title={t("kanban:newTask")}
-        >
-          <Plus className="size-3.5" />
-        </button>
+        <IconHint label={t("kanban:newTask")} side="bottom">
+          <button
+            type="button"
+            onClick={onAddTask}
+            aria-label={t("kanban:newTask")}
+            className="ms-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Plus className="size-3.5" />
+          </button>
+        </IconHint>
       ) : null}
       {onCollapse ? (
-        <button
-          type="button"
-          onClick={onCollapse}
-          className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title={t("kanban:collapseColumn")}
-        >
-          <DirIcon ltr={ChevronLeft} rtl={ChevronRight} className="size-3.5" />
-        </button>
+        <IconHint label={t("kanban:collapseColumn")} side="bottom">
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label={t("kanban:collapseColumn")}
+            className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <DirIcon ltr={ChevronLeft} rtl={ChevronRight} className="size-3.5" />
+          </button>
+        </IconHint>
       ) : null}
     </div>
   );

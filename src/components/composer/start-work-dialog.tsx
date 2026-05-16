@@ -33,7 +33,10 @@ import { useSkillMentionItems } from "@/hooks/use-skill-mention-items";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { flattenTree } from "@/lib/tree-utils";
-import { createConversation } from "@/lib/agents/conversation-client";
+import {
+  createConversation,
+  editDraftConversation,
+} from "@/lib/agents/conversation-client";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { JobConfig } from "@/types/jobs";
@@ -62,6 +65,8 @@ export function StartWorkDialog({
   initialMode = "now",
   initialPrompt,
   initialAgentSlug,
+  initialRuntime,
+  editing,
   onStarted,
 }: {
   open: boolean;
@@ -74,9 +79,16 @@ export function StartWorkDialog({
   initialPrompt?: string;
   /** Seed the selected agent. Falls back to the first active agent. */
   initialAgentSlug?: string;
+  /** Seed the runtime picker (provider / model / effort). Used by edit mode
+   *  to restore the draft's saved runtime. */
+  initialRuntime?: TaskRuntimeSelection;
+  /** When set, the dialog edits an existing unstarted inbox draft in place
+   *  instead of creating a new task. Submit PATCHes the conversation. */
+  editing?: { conversationId: string; cabinetPath?: string } | null;
   onStarted?: (conversationId: string, conversationCabinetPath?: string) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const isEditing = !!editing;
   const treeNodes = useTreeStore((s) => s.nodes);
   const setSection = useAppStore((s) => s.setSection);
 
@@ -86,13 +98,18 @@ export function StartWorkDialog({
   const [error, setError] = useState<string | null>(null);
 
   // Reset dialog state each time it opens so a fresh + click doesn't inherit
-  // the previous draft.
+  // the previous draft. Edit mode is always an inbox draft, so it pins the
+  // mode to "inbox" and restores the draft's saved runtime.
   useEffect(() => {
     if (!open) return;
-    setMode(initialMode);
+    setMode(isEditing ? "inbox" : initialMode);
+    // Only edit mode seeds the runtime picker — the create flow keeps its
+    // prior selection across opens (unchanged behavior).
+    if (isEditing) setTaskRuntime(initialRuntime ?? {});
     setError(null);
     setSubmitting(false);
-  }, [open, initialMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialMode, isEditing]);
 
 
   const placeholder = useMemo(
@@ -228,6 +245,32 @@ export function StartWorkDialog({
     [selectedAgent, cabinetPath, taskRuntime, onStarted]
   );
 
+  const saveEdit = useCallback(
+    async (
+      message: string,
+      mentionedPaths: string[],
+      mentionedSkills: string[],
+    ) => {
+      if (!editing) return;
+      const resolvedAgent = selectedAgent;
+      if (!resolvedAgent) throw new Error("No agent available.");
+      await editDraftConversation(
+        editing.conversationId,
+        {
+          userMessage: message,
+          mentionedPaths,
+          mentionedSkills,
+          agentSlug: resolvedAgent.slug,
+          locale,
+          ...taskRuntime,
+        },
+        editing.cabinetPath,
+      );
+      onStarted?.(editing.conversationId, editing.cabinetPath);
+    },
+    [editing, selectedAgent, taskRuntime, locale, onStarted],
+  );
+
   const saveRoutine = useCallback(
     async (message: string) => {
       const resolvedAgent = selectedAgent;
@@ -293,7 +336,9 @@ export function StartWorkDialog({
       setSubmitting(true);
       setError(null);
       try {
-        if (mode === "now") {
+        if (isEditing) {
+          await saveEdit(message, mentionedPaths, mentionedSkills);
+        } else if (mode === "now") {
           await runNow(message, mentionedPaths, mentionedSkills);
         } else if (mode === "inbox") {
           await addToInbox(message, mentionedPaths, mentionedSkills);
@@ -305,7 +350,13 @@ export function StartWorkDialog({
         }
         onOpenChange(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("startWork:failedToStart"));
+        setError(
+          err instanceof Error
+            ? err.message
+            : isEditing
+              ? t("startWork:failedToSave")
+              : t("startWork:failedToStart")
+        );
       } finally {
         setSubmitting(false);
       }
@@ -315,11 +366,14 @@ export function StartWorkDialog({
   // Seed the composer textarea from inline-composer handoffs (HomeScreen /
   // CabinetTaskComposer pass whatever the user already typed as
   // initialPrompt when they pick a non-"now" mode from the When chip).
+  // Deterministic on every open: edit mode / inline handoffs seed their
+  // text; a plain "+ New task" clears whatever a previous (possibly
+  // cancelled) edit left in the composer so it doesn't bleed into the new
+  // task. The composer stays mounted across opens, so without this an
+  // abandoned edit would resurface here.
   useEffect(() => {
     if (!open) return;
-    if (typeof initialPrompt === "string") {
-      composer.setInput(initialPrompt);
-    }
+    composer.setInput(typeof initialPrompt === "string" ? initialPrompt : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialPrompt]);
 
@@ -364,15 +418,17 @@ export function StartWorkDialog({
       ? "sm:max-w-3xl"
       : "sm:max-w-xl";
 
-  const title =
-    mode === "now" || mode === "inbox"
+  const title = isEditing
+    ? t("startWork:titleEdit")
+    : mode === "now" || mode === "inbox"
       ? t("startWork:titleNow")
       : mode === "recurring"
         ? t("startWork:titleRecurring")
         : t("startWork:titleHeartbeat");
 
-  const submitLabel =
-    mode === "now"
+  const submitLabel = isEditing
+    ? t("startWork:submitSaveEdit")
+    : mode === "now"
       ? t("startWork:submitStart")
       : mode === "inbox"
         ? t("startWork:submitAddInbox")
@@ -394,7 +450,9 @@ export function StartWorkDialog({
         <DialogHeader className="px-5 pb-3 pt-5">
           <div className="flex items-start gap-3">
             <DialogTitle className="flex-1 text-xl font-semibold">{title}</DialogTitle>
-            <WhenChip mode={mode} onChange={handleModeChange} />
+            {!isEditing ? (
+              <WhenChip mode={mode} onChange={handleModeChange} />
+            ) : null}
             <DialogClose className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground">
               <X className="h-4 w-4" />
               <span className="sr-only">{t("startWork:close")}</span>
@@ -411,7 +469,6 @@ export function StartWorkDialog({
             items={mentionItems}
             autoFocus
             minHeight="100px"
-            maxHeight="260px"
             mentionDropdownPlacement="below"
             disabled={mode === "recurring" && !canSubmitRecurring}
             actionsStart={
@@ -446,7 +503,13 @@ export function StartWorkDialog({
                       <span className="text-destructive">{error}</span>
                     ) : (
                       <span className="text-muted-foreground/60">
-                        {mode === "recurring" ? "Creating routine…" : mode === "inbox" ? "Saving to Inbox…" : "Starting…"}
+                        {isEditing
+                          ? "Saving changes…"
+                          : mode === "recurring"
+                            ? "Creating routine…"
+                            : mode === "inbox"
+                              ? "Saving to Inbox…"
+                              : "Starting…"}
                       </span>
                     )}
                   </div>

@@ -11,6 +11,7 @@ import type { LaneKey } from "./lane-rules";
 import { AgentPill } from "./agent-pill";
 import { RowActions } from "./row-actions";
 import { StatusIcon, deriveCardState } from "./status-icon";
+import { IconHint } from "./icon-hint";
 import { useLocale } from "@/i18n/use-locale";
 
 function relTime(fromIso: string | undefined, now: number): string {
@@ -88,9 +89,11 @@ export function TaskCard({
       )}
     >
       <div className="flex items-start gap-2">
-        <span className={cn("shrink-0", compact ? "mt-px" : "mt-0.5")}>
-          <StatusIcon state={state} />
-        </span>
+        {state !== "handoff" ? (
+          <span className={cn("shrink-0", compact ? "mt-px" : "mt-0.5")}>
+            <StatusIcon state={state} />
+          </span>
+        ) : null}
         <p
           title={task.title}
           className={cn(
@@ -114,41 +117,45 @@ export function TaskCard({
         />
         {lane === "needs" && task.status === "awaiting-input" && (
           task.pendingActions && task.pendingActions.length > 0 ? (
-            <span className="inline-flex items-center gap-0.5 rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400">
-              <ShieldCheck className="size-2.5" />
-              Approval
-            </span>
+            <IconHint label="Waiting for your approval before the agent can continue">
+              <span className="inline-flex items-center gap-0.5 rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400">
+                <ShieldCheck className="size-2.5" />
+                Approval
+              </span>
+            </IconHint>
           ) : (
-            <span className="inline-flex items-center gap-0.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
-              <MessageCircleQuestion className="size-2.5" />
-              Question
-            </span>
+            <IconHint label="The agent asked a question — open the task to reply">
+              <span className="inline-flex items-center gap-0.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+                <MessageCircleQuestion className="size-2.5" />
+                Question
+              </span>
+            </IconHint>
           )
         )}
         {lane === "needs" && task.status === "failed" && (
-          <span className="inline-flex items-center rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive opacity-75">
-            Failed
-          </span>
+          <IconHint label="The last run failed — open the task to see the error, or Restart to retry">
+            <span className="inline-flex items-center rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive opacity-75">
+              Failed
+            </span>
+          </IconHint>
         )}
         {groupSize > 0 && (
-          <span
-            title={`${groupSize} heartbeat runs collapsed — showing the latest`}
-            className="inline-flex items-center gap-0.5 rounded-full border border-pink-500/30 bg-pink-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold text-pink-600 dark:text-pink-400"
-          >
-            <HeartPulse className="size-2.5" />+{groupSize - 1}
-          </span>
+          <IconHint label={`${groupSize} heartbeat runs collapsed — showing the latest`}>
+            <span className="inline-flex items-center gap-0.5 rounded-full border border-pink-500/30 bg-pink-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold text-pink-600 dark:text-pink-400">
+              <HeartPulse className="size-2.5" />+{groupSize - 1}
+            </span>
+          </IconHint>
         )}
         {!compact && providerIcon ? (
-          <span
-            className="inline-flex size-4 items-center justify-center rounded border border-border/60 bg-background/60"
-            title={providerIcon.name}
-          >
-            <ProviderGlyph
-              icon={providerIcon.icon}
-              asset={providerIcon.iconAsset}
-              className="size-3"
-            />
-          </span>
+          <IconHint label={providerIcon.name}>
+            <span className="inline-flex size-4 items-center justify-center rounded border border-border/60 bg-background/60">
+              <ProviderGlyph
+                icon={providerIcon.icon}
+                asset={providerIcon.iconAsset}
+                className="size-3"
+              />
+            </span>
+          </IconHint>
         ) : null}
         {!compact && modelName ? (
           <span className="truncate font-mono text-[10px] text-foreground/60">
@@ -156,13 +163,12 @@ export function TaskCard({
           </span>
         ) : null}
         {isTerminal && (
-          <span
-            title={t("taskCard:ptyMode")}
-            className="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400"
-          >
-            <Terminal className="size-2.5" />
-            PTY
-          </span>
+          <IconHint label={t("taskCard:ptyMode")}>
+            <span className="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+              <Terminal className="size-2.5" />
+              PTY
+            </span>
+          </IconHint>
         )}
         <span className="ms-auto whitespace-nowrap tabular-nums">
           {relTime(lastActivity, now)}

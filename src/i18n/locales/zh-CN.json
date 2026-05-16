@@ -65,6 +65,8 @@
     },
     "detail": {
       "clickToTurnOff": "点击以关闭。",
+      "loadError": "无法加载此智能体。",
+      "retry": "重试",
       "color": "颜色",
       "customColor": "自定义颜色",
       "preset": "预设",
@@ -154,6 +156,9 @@
     "viewKanban": "看板",
     "viewList": "列表",
     "viewSchedule": "日程",
+    "viewKanbanHint": "看板视图 — 按 收件箱 / 该你了 / 运行中 / 刚完成 / 归档 分组",
+    "viewListHint": "所有任务的平铺列表,最近活动优先",
+    "viewScheduleHint": "已排程例行任务与即将运行的日历",
     "filterByAgent": "按智能体筛选:{{name}}",
     "noToDeleteTitle": "没有可删除的任务",
     "noToDeleteFiltered": "没有匹配 {{filter}} 的内容。清除筛选、换个视图,或创建一个新任务。",
@@ -307,8 +312,12 @@
   },
   "rowActions": {
     "stop": "停止",
+    "stopHint": "立即停止此运行(发送 SIGTERM)",
     "restart": "重启",
-    "reassign": "重新分配"
+    "restartHint": "从原始提示词重新运行",
+    "runHint": "立即开始此任务",
+    "reassign": "重新分配",
+    "reassignHint": "将此任务交给其他智能体"
   },
   "schedulesPanel": {
     "title": "已排程任务",
@@ -467,8 +476,10 @@
     "titleNow": "需要做点什么?",
     "titleRecurring": "设置一个循环例行任务",
     "titleHeartbeat": "按时唤醒这个智能体",
+    "titleEdit": "编辑任务",
     "submitStart": "开始",
     "submitAddInbox": "加入收件箱",
+    "submitSaveEdit": "保存更改",
     "submitCreateRoutine": "创建例行任务",
     "submitSaveHeartbeat": "保存心跳",
     "saving": "保存中……",
@@ -483,6 +494,7 @@
     "modeHeartbeatHint": "按它自己的节奏唤醒智能体",
     "agentFallback": "智能体",
     "failedToStart": "启动失败",
+    "failedToSave": "保存更改失败",
     "failedToSaveHeartbeat": "保存心跳失败"
   },
   "googleDoc": {
@@ -669,7 +681,10 @@
     "close": "关闭 (Esc)"
   },
   "rowActionsPlus": {
-    "delete": "删除"
+    "edit": "编辑",
+    "editHint": "在开始前编辑此草稿",
+    "delete": "删除",
+    "deleteHint": "永久删除 — 无法撤销"
   },
   "taskCard": {
     "ptyMode": "在终端 (PTY) 模式中运行"
@@ -1171,6 +1186,7 @@
     "tasks": "任务",
     "missions": "任务",
     "goHome": "回到主页",
+    "brandWord": "卡比内特",
     "refresh": "刷新侧边栏",
     "refreshDescription": "刷新侧边栏(重新读取数据文件夹)",
     "collapseSidebar": "折叠侧边栏",
@@ -1180,8 +1196,11 @@
     "refreshedNoChanges": "已刷新 — 无变化。",
     "refreshedWithChanges": "已刷新 — 新增 {{added}},移除 {{removed}}。",
     "refreshFailed": "刷新失败。",
+    "searchPlaceholder": "搜索文件…",
+    "searchSearching": "搜索中…",
+    "searchNoResults": "没有匹配“{{query}}”的文件",
     "drawerData": "数据",
-    "drawerAgents": "智能体",
+    "drawerAgents": "团队",
     "drawerTasks": "任务"
   },
   "status": {
@@ -1254,7 +1273,14 @@
       "github": "在 GitHub 上贡献",
       "githubSubtitle": "源代码、问题、PR",
       "ifUseful": "如果你觉得它有用",
-      "label": "帮助"
+      "label": "帮助",
+      "starsAriaLabel": "{{count}} 个 GitHub star — 在 GitHub 上打开 Cabinet",
+      "starsTitle": "{{count}} 个 GitHub star — 在 GitHub 上为 Cabinet 点星",
+      "share": "分享",
+      "shareSubtitle": "复制邀请链接并分享出去",
+      "shareCopied": "你太棒了，{{name}} 🩷 谢谢你把未来的 Cabinet 成员带进来。链接已复制，去分享这份热爱吧！",
+      "shareFailed": "无法复制链接",
+      "friend": "朋友"
     },
     "common": {
       "dismiss": "关闭",
@@ -1403,5 +1429,18 @@
     "modeDay": "日",
     "modeWeek": "周",
     "modeMonth": "月"
+  },
+  "taskRail": {
+    "title": "最近和运行中的任务",
+    "hide": "隐藏任务栏",
+    "show": "显示任务栏",
+    "empty": "暂无任务",
+    "itemRunning": "{{title}} · 运行中 · {{when}}",
+    "itemNeedsReply": "{{title}} · 等待回复",
+    "itemFailed": "{{title}} · 失败 · {{when}}",
+    "itemDone": "{{title}} · 已完成 · {{when}}",
+    "itemArchived": "{{title}} · 已归档",
+    "itemDefault": "{{title}} · {{when}}",
+    "toggleRunning": "{{count}} 个运行中 — 显示任务栏"
   }
 }

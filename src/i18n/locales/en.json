@@ -30,7 +30,7 @@
     },
     "workspace": {
       "promise": "Promise",
-      "orgChart": "Your Team Org Chart",
+      "orgChart": "Org chart",
       "jobDetails": "Job Details",
       "heartbeat": "Heartbeat",
       "workspace": "Workspace",
@@ -58,7 +58,6 @@
       "newRoutine": "New Routine",
       "configureHeartbeat": "Configure heartbeat",
       "openOrgChart": "Open org chart",
-      "orgChart": "Org chart",
       "pickAnAgent": "Pick an agent",
       "dismiss": "Dismiss",
       "lockedHeartbeatTip": "This agent is stopped. Start it on the Agents tab to enable the heartbeat.",
@@ -66,6 +65,8 @@
     },
     "detail": {
       "clickToTurnOff": "Click to turn off.",
+      "loadError": "Couldn’t load this agent.",
+      "retry": "Retry",
       "color": "Color",
       "customColor": "Custom color",
       "preset": "Preset",
@@ -155,6 +156,9 @@
     "viewKanban": "Kanban",
     "viewList": "List",
     "viewSchedule": "Schedule",
+    "viewKanbanHint": "Board view — tasks grouped into Inbox / Your turn / Running / Just Finished / Archive",
+    "viewListHint": "Flat list of every task, newest activity first",
+    "viewScheduleHint": "Calendar of scheduled routines and upcoming runs",
     "filterByAgent": "Filter by agent: {{name}}",
     "noToDeleteTitle": "No tasks to delete",
     "noToDeleteFiltered": "Nothing matches {{filter}}. Clear the filter, pick another view, or create a new task.",
@@ -308,8 +312,12 @@
   },
   "rowActions": {
     "stop": "Stop",
+    "stopHint": "Stop this run now (sends SIGTERM)",
     "restart": "Restart",
-    "reassign": "Reassign"
+    "restartHint": "Run again from the original prompt",
+    "runHint": "Start this task now",
+    "reassign": "Reassign",
+    "reassignHint": "Hand this task off to a different agent"
   },
   "schedulesPanel": {
     "title": "Scheduled jobs",
@@ -520,8 +528,10 @@
     "titleNow": "What needs to get done?",
     "titleRecurring": "Set up a recurring routine",
     "titleHeartbeat": "Wake this agent on a schedule",
+    "titleEdit": "Edit task",
     "submitStart": "Start",
     "submitAddInbox": "Add to Inbox",
+    "submitSaveEdit": "Save changes",
     "submitCreateRoutine": "Create routine",
     "submitSaveHeartbeat": "Save heartbeat",
     "saving": "Saving…",
@@ -536,6 +546,7 @@
     "modeHeartbeatHint": "Wake the agent on its own rhythm",
     "agentFallback": "Agent",
     "failedToStart": "Failed to start",
+    "failedToSave": "Failed to save changes",
     "failedToSaveHeartbeat": "Failed to save heartbeat"
   },
   "googleDoc": {
@@ -749,7 +760,10 @@
     "close": "Close (Esc)"
   },
   "rowActionsPlus": {
-    "delete": "Delete"
+    "edit": "Edit",
+    "editHint": "Edit this saved draft before it starts",
+    "delete": "Delete",
+    "deleteHint": "Delete permanently — this can't be undone"
   },
   "taskCard": {
     "ptyMode": "Running in terminal (PTY) mode"
@@ -1250,9 +1264,10 @@
     "tasks": "Tasks",
     "missions": "Missions",
     "drawerData": "Data",
-    "drawerAgents": "Agents",
+    "drawerAgents": "Team",
     "drawerTasks": "Tasks",
     "goHome": "Go to home",
+    "brandWord": "",
     "refresh": "Refresh sidebar",
     "refreshDescription": "Refresh sidebar (re-read data folder)",
     "collapseSidebar": "Collapse sidebar",
@@ -1261,7 +1276,10 @@
     "resetWidth": "Double-click to reset width",
     "refreshedNoChanges": "Refreshed — no changes.",
     "refreshedWithChanges": "Refreshed — {{added}} added, {{removed}} removed.",
-    "refreshFailed": "Refresh failed."
+    "refreshFailed": "Refresh failed.",
+    "searchPlaceholder": "Search files…",
+    "searchSearching": "Searching…",
+    "searchNoResults": "No files match “{{query}}”"
   },
   "status": {
     "bar": {
@@ -1333,7 +1351,14 @@
       "github": "Contribute on GitHub",
       "githubSubtitle": "Source, issues, PRs",
       "ifUseful": "If you find it useful",
-      "label": "Help"
+      "label": "Help",
+      "starsAriaLabel": "{{count}} GitHub stars — open Cabinet on GitHub",
+      "starsTitle": "{{count}} GitHub stars — star Cabinet on GitHub",
+      "share": "Share",
+      "shareSubtitle": "Copy an invite link & spread the word",
+      "shareCopied": "You're awesome, {{name}} 🩷 Thank you for bringing future Cabinet members on board. Link copied, go share the love!",
+      "shareFailed": "Couldn't copy the link",
+      "friend": "friend"
     },
     "git2": {
       "allCommitted": "All committed",
@@ -1404,5 +1429,18 @@
     "introTitle": "Meet your <accent>Cabinet</accent>.",
     "introSubtitle": "Your AI team. Your knowledge base. One place.",
     "cabinetTitle": "Cabinet"
+  },
+  "taskRail": {
+    "title": "Recent and running tasks",
+    "hide": "Hide tasks rail",
+    "show": "Show tasks rail",
+    "empty": "No tasks",
+    "itemRunning": "{{title}} · running · {{when}}",
+    "itemNeedsReply": "{{title}} · needs reply",
+    "itemFailed": "{{title}} · failed · {{when}}",
+    "itemDone": "{{title}} · done · {{when}}",
+    "itemArchived": "{{title}} · archived",
+    "itemDefault": "{{title}} · {{when}}",
+    "toggleRunning": "{{count}} running — show tasks rail"
   }
 }
