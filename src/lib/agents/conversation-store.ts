@@ -28,6 +28,7 @@ import { publishConversationEvent } from "./conversation-events";
 import { discoverCabinetPaths } from "../cabinets/discovery";
 import { buildConversationInstanceKey } from "./conversation-identity";
 import { fingerprint, parseAgentActions } from "./action-parser";
+import { stripToolOutput } from "./tool-output-markers";
 import {
   computeWarnings,
   personaCanDispatch,
@@ -799,7 +800,11 @@ export function formatConversationTranscriptForDisplay(
   transcript: string,
   prompt?: string
 ): string {
-  const cleaned = cleanConversationOutputForParsing(transcript, prompt);
+  // Terminal/CLI surface has no collapse affordance — drop fenced tool
+  // output entirely rather than leak sentinel codepoints or raw `ls` dumps.
+  const cleaned = stripToolOutput(
+    cleanConversationOutputForParsing(transcript, prompt)
+  );
   const promptEchoMatchers = buildPromptEchoMatchers(prompt);
   const normalized = cleaned
     .replace(/[─-]{8,}/g, "\n")

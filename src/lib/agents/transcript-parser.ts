@@ -1,5 +1,10 @@
 import type { AgentAction } from "@/types/actions";
 import { parseAgentActions } from "./action-parser";
+import {
+  TOOL_OUTPUT_OPEN,
+  toolRegionRe,
+  toolUnterminatedRe,
+} from "./tool-output-markers";
 
 export type Block =
   | { type: "text"; content: string }
@@ -8,7 +13,8 @@ export type Block =
   | { type: "cabinet"; fields: { label: string; value: string }[] }
   | { type: "actions"; actions: AgentAction[] }
   | { type: "structured"; label: string; value: string }
-  | { type: "tokens"; value: string };
+  | { type: "tokens"; value: string }
+  | { type: "tool"; content: string; steps: number };
 
 export type DiffLine = {
   kind: "add" | "remove" | "hunk" | "header" | "plain";
@@ -201,7 +207,64 @@ function splitArtifactLineValue(value: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Split the transcript on tool-output fences before prose parsing. Each
+ * fenced region becomes a `tool` block; consecutive regions separated by
+ * only whitespace collapse into one block with a step count, so a burst of
+ * `ls`/`cat`/`write` calls reads as a single "Ran N steps" disclosure
+ * rather than N stacked ones. Prose between/around fences parses normally.
+ */
 export function parseTranscript(raw: string): Block[] {
+  if (!raw || raw.indexOf(TOOL_OUTPUT_OPEN) === -1) {
+    return parseProseBlocks(raw);
+  }
+
+  type Segment = { kind: "prose" | "tool"; text: string };
+  const segments: Segment[] = [];
+  const regionRe = toolRegionRe();
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regionRe.exec(raw)) !== null) {
+    if (match.index > cursor) {
+      segments.push({ kind: "prose", text: raw.slice(cursor, match.index) });
+    }
+    segments.push({ kind: "tool", text: match[1] ?? "" });
+    cursor = regionRe.lastIndex;
+  }
+
+  // Tail after the last complete region: it may carry an unterminated open
+  // marker (tool still streaming) — fence everything from it onward.
+  const tail = raw.slice(cursor);
+  const openTail = tail.match(toolUnterminatedRe());
+  if (openTail) {
+    const before = tail.slice(0, openTail.index);
+    if (before) segments.push({ kind: "prose", text: before });
+    segments.push({ kind: "tool", text: openTail[1] ?? "" });
+  } else if (tail) {
+    segments.push({ kind: "prose", text: tail });
+  }
+
+  const blocks: Block[] = [];
+  for (const seg of segments) {
+    if (seg.kind === "prose") {
+      if (!seg.text.trim()) continue;
+      blocks.push(...parseProseBlocks(seg.text));
+      continue;
+    }
+    const prev = blocks[blocks.length - 1];
+    // Merge into the previous tool block only when nothing but the (already
+    // dropped) whitespace gap separated them — i.e. it's still the tail.
+    if (prev && prev.type === "tool") {
+      prev.content = `${prev.content}\n${seg.text}`.trim();
+      prev.steps += 1;
+    } else {
+      blocks.push({ type: "tool", content: seg.text.trim(), steps: 1 });
+    }
+  }
+  return blocks;
+}
+
+function parseProseBlocks(raw: string): Block[] {
   const text = preprocess(raw);
   const lines = text.split("\n");
   const blocks: Block[] = [];
