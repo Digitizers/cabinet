@@ -38,6 +38,11 @@ import { DetailPanel } from "./detail-panel";
 import { ViewToggle, type BoardViewMode } from "./view-toggle";
 import { DensityToggle, type BoardDensity } from "./density-toggle";
 import {
+  ExplainerCard,
+  ExplainerIcon,
+  useExplainerState,
+} from "@/components/agents/v2/tab-explainer";
+import {
   AgentFilterDropdown,
   TriggerFilterDropdown,
   type TriggerFilter,
@@ -141,6 +146,9 @@ export function TasksBoard({
     "comfortable",
     (raw) => (raw === "compact" || raw === "comfortable" ? raw : null)
   );
+  // Onboarding explainer for the kanban/list views. Schedule has its own
+  // (keyed "tasks-schedule") inside ScheduleView.
+  const boardExplainer = useExplainerState("tasks-board");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
@@ -262,8 +270,14 @@ export function TasksBoard({
             <DirIcon ltr={ArrowLeft} rtl={ArrowRight} className="size-4" />
           </Link>
         )}
-        <h1 className="text-[14px] font-semibold tracking-tight">{t("tasksBoard:title")}</h1>
+        <h1 className="font-ui text-[14px] font-semibold tracking-tight">{t("tasksBoard:title")}</h1>
         {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+        {view !== "schedule" && (
+          <ExplainerIcon
+            state={boardExplainer}
+            ariaLabel="About the task board"
+          />
+        )}
         <div className="flex items-center gap-2 md:ms-2">
           <ViewToggle value={view} onChange={setView} />
           {/* Density only affects kanban/list rows — the schedule grid
@@ -480,6 +494,21 @@ export function TasksBoard({
           <BoardSkeleton view={view} />
         ) : (
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {view !== "schedule" && boardExplainer.open === true && (
+              <div className="px-4 pt-3">
+                <ExplainerCard state={boardExplainer}>
+                  <p>
+                    Every task your team has run or has queued, in one place.
+                    Kanban groups them by status; List is a flat, sortable
+                    feed of the same tasks.
+                  </p>
+                  <p>
+                    Click any task to open it. Use the filters in the header
+                    to narrow by agent or trigger, and switch views any time.
+                  </p>
+                </ExplainerCard>
+              </div>
+            )}
             {view === "kanban" && (
               <KanbanView
                 byLane={filteredByLane}
