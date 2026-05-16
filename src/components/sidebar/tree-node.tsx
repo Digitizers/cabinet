@@ -7,6 +7,7 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  FolderPlus,
   Trash2,
   FilePlus,
   Globe,
@@ -99,6 +100,7 @@ export function TreeNode({
     movingPaths,
     focusTick,
     toggleExpand,
+    expandPath,
     selectPage,
     deletePage,
     movePage,
@@ -115,6 +117,9 @@ export function TreeNode({
   const [subPageOpen, setSubPageOpen] = useState(false);
   const [subPageTitle, setSubPageTitle] = useState("");
   const [creating, setCreating] = useState(false);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTitle, setRenameTitle] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -204,6 +209,35 @@ export function TreeNode({
       console.error("Failed to create sub page:", error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  // A "folder" here is just a page used as a container — same on-disk shape
+  // as Add Sub Page (dir + index.md), so it can still hold content if the
+  // user wants. The difference is intent: we don't drop them into the
+  // editor. We expand the new node in the tree so it's immediately ready
+  // to receive children. It picks up the folder icon automatically once it
+  // has any (see hasChildren branch in the row render).
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    setCreatingFolder(true);
+    try {
+      await createPage(node.path, newFolderName.trim());
+      const slug = newFolderName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const nextPath = `${node.path}/${slug}`;
+      expandPath(node.path);
+      expandPath(nextPath);
+      selectPage(nextPath);
+      setNewFolderName("");
+      setNewFolderOpen(false);
+    } catch (error) {
+      console.error("Failed to create folder:", error);
+    } finally {
+      setCreatingFolder(false);
     }
   };
 
@@ -565,6 +599,10 @@ export function TreeNode({
               <FilePlus className="h-4 w-4 me-2" />
               Add Sub Page
             </ContextMenuItem>
+            <ContextMenuItem onClick={() => setNewFolderOpen(true)}>
+              <FolderPlus className="h-4 w-4 me-2" />
+              New Folder
+            </ContextMenuItem>
             <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
               <GitBranch className="h-4 w-4 me-2" />
               Load Knowledge
@@ -680,6 +718,36 @@ export function TreeNode({
             />
             <Button type="submit" disabled={!subPageTitle.trim() || creating}>
               {creating ? "Creating..." : "Create"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              New Folder in &ldquo;{title}&rdquo;
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleCreateFolder();
+            }}
+            className="flex gap-2"
+          >
+            <Input
+              placeholder="Folder name"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              autoFocus
+            />
+            <Button
+              type="submit"
+              disabled={!newFolderName.trim() || creatingFolder}
+            >
+              {creatingFolder ? "Creating..." : "Create"}
             </Button>
           </form>
         </DialogContent>
