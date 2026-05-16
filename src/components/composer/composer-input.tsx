@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { Send, Loader2, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,17 @@ export interface ComposerInputProps {
   attachments?: UseComposerAttachmentsReturn;
 }
 
+/**
+ * Grow a textarea to fit its content. Height is reset to "auto" so it can
+ * shrink, then set to scrollHeight; the element's CSS min/max-height (max =
+ * 50vh) clamp the result and overflow-y-auto scrolls once it hits the cap.
+ */
+function autoFitTextareaHeight(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export function ComposerInput({
   composer,
   placeholder = "Type something...",
@@ -70,7 +81,9 @@ export function ComposerInput({
   showKeyHint = true,
   className,
   minHeight = "80px",
-  maxHeight = "260px",
+  // Auto-grows with content up to half the viewport, then scrolls. Callers
+  // no longer need to pass a fixed cap; this is uniform app-wide.
+  maxHeight = "50vh",
   autoFocus = false,
   disabled = false,
   header,
@@ -91,6 +104,20 @@ export function ComposerInput({
       setTimeout(() => composer.textareaRef.current?.focus(), 100);
     }
   }, [autoFocus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-resize the textarea to fit its content. The CSS min/max-height
+  // (max = 50vh) clamp the result and overflow-y-auto scrolls past the cap;
+  // resetting to "auto" first lets it shrink when text is removed/cleared.
+  useLayoutEffect(() => {
+    autoFitTextareaHeight(composer.textareaRef.current);
+  }, [composer.input]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const onResize = () =>
+      autoFitTextareaHeight(composer.textareaRef.current);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [cardFocused, setCardFocused] = useState(false);
   const [isDragging, setIsDragging] = useState(false);

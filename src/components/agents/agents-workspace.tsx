@@ -3798,7 +3798,6 @@ export function AgentsWorkspace({
                 items={mentionItems}
                 autoFocus
                 minHeight="120px"
-                maxHeight="300px"
                 actionsStart={
                   <TaskRuntimePicker
                     value={taskRuntime}

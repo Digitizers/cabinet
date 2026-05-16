@@ -666,7 +666,6 @@ export function HomeScreen() {
           disabled={daemonDown}
           className="w-full"
           minHeight="44px"
-          maxHeight="160px"
           mentionDropdownPlacement="below"
           topRightOverlay={
             <WhenChip

@@ -166,7 +166,6 @@ export function TaskComposeBody({ context }: TaskComposeBodyProps) {
             placeholder="use @ to mention agents, skills & pages"
             variant="inline"
             minHeight="56px"
-            maxHeight="160px"
             items={mentionItems}
             showKeyHint={false}
             autoFocus

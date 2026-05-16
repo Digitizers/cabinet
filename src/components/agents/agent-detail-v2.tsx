@@ -1080,7 +1080,6 @@ function Composer({
         submitLabel="Send"
         variant="card"
         minHeight="78px"
-        maxHeight="320px"
         mentionDropdownPlacement="below"
         showKeyHint={false}
         textareaClassName="pt-3 pb-1 text-[14px] leading-relaxed"

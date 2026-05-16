@@ -325,7 +325,6 @@ export function TaskComposerPanel({
         autoFocus={awaitingInput}
         showKeyHint={false}
         minHeight="52px"
-        maxHeight="240px"
         className={awaitingInput ? "[&>div:first-child]:border-amber-500/40" : undefined}
         topRightOverlay={
           onScheduleHandoff && !compact ? (

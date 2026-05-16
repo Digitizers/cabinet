@@ -411,7 +411,6 @@ export function StartWorkDialog({
             items={mentionItems}
             autoFocus
             minHeight="100px"
-            maxHeight="260px"
             mentionDropdownPlacement="below"
             disabled={mode === "recurring" && !canSubmitRecurring}
             actionsStart={
